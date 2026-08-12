@@ -126,6 +126,7 @@ export interface MatrixResponse {
 
 export interface ProviderListing {
   providerId: string;
+  slug: string;
   name: string;
   service: ServiceId;
   category: string;
@@ -133,6 +134,7 @@ export interface ProviderListing {
   method: "POST";
   endpoint: string;
   healthEndpoint: string;
+  manifestEndpoint: string;
   requestSchema: string;
   deliverableSchema: string;
   price: { amount: "5"; token: "TEST_USDC"; chainId: 56 };

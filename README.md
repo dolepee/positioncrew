@@ -33,6 +33,10 @@ npm run dev
 The local Cloudflare-compatible worker serves the application on `http://127.0.0.1:4175`. The same worker routes used in production expose:
 
 - `GET /api/providers` for the provider catalog;
+- `GET /.well-known/positioncrew.json` for the marketplace discovery manifest;
+- `GET /openapi.json` for the four-provider OpenAPI 3.1 contract;
+- `GET /api/providers/:provider/manifest` for a self-contained provider transport and claim boundary;
+- `GET /api/schemas/:schemaVersion` for exact request or deliverable JSON Schema;
 - `GET /api/status` for block-pinned BSC, PancakeSwap, Venus, and AACP telemetry;
 - `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
 - `GET /api/benchmarks/captures` for the source-bound, hash-only manifest of the six precommitted agent candidates;

@@ -11,6 +11,13 @@ import {
 import type { TermixBenchmarkService } from "../src/benchmark/lock.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
+import {
+  buildMarketplaceManifest,
+  buildOpenApiDocument,
+  buildProviderManifest,
+  getProviderBySlug,
+  getSchemaDocument,
+} from "../src/marketplace/discovery.js";
 import { getSystemTelemetry, inspectVenusAccount } from "../src/telemetry/bsc.js";
 
 interface Env {
@@ -26,12 +33,9 @@ const SERVICES = new Set([
 
 type ServiceId = "LENDING_RESCUE" | "LP_REBALANCE" | "YIELD_OPTIMIZATION" | "BOUNDED_GRID";
 
-const PROVIDER_SLUGS = new Map<string, ServiceId>([
-  ["lending-rescue", "LENDING_RESCUE"],
-  ["lp-rebalance", "LP_REBALANCE"],
-  ["yield-optimization", "YIELD_OPTIMIZATION"],
-  ["bounded-grid", "BOUNDED_GRID"],
-]);
+const PROVIDER_SLUGS = new Map<string, ServiceId>(
+  PROVIDER_CATALOG.map((provider) => [provider.slug, provider.service]),
+);
 
 const BENCHMARK_SLUGS = new Map<string, TermixBenchmarkService>([
   ["lending-rescue", "LENDING_RESCUE"],
@@ -171,6 +175,20 @@ async function api(request: Request, url: URL): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: API_HEADERS });
 
   try {
+    if (url.pathname === "/.well-known/positioncrew.json") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        buildMarketplaceManifest(url.origin),
+        200,
+        "public, max-age=0, s-maxage=300",
+      );
+    }
+
+    if (url.pathname === "/openapi.json") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(buildOpenApiDocument(url.origin), 200, "public, max-age=0, s-maxage=300");
+    }
+
     if (url.pathname === "/api/providers") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(
@@ -225,6 +243,26 @@ async function api(request: Request, url: URL): Promise<Response> {
         return providerHealth(service);
       }
       return providerJobs(request, service);
+    }
+
+    const providerManifestRoute = url.pathname.match(/^\/api\/providers\/([^/]+)\/manifest$/);
+    if (providerManifestRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      const provider = getProviderBySlug(providerManifestRoute[1]!);
+      if (!provider) return apiError(404, "PROVIDER_NOT_FOUND", ["Unknown provider slug."]);
+      return json(
+        buildProviderManifest(provider, url.origin),
+        200,
+        "public, max-age=0, s-maxage=300",
+      );
+    }
+
+    const schemaRoute = url.pathname.match(/^\/api\/schemas\/([^/]+)$/);
+    if (schemaRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      const schema = getSchemaDocument(decodeURIComponent(schemaRoute[1]!));
+      if (!schema) return apiError(404, "SCHEMA_NOT_FOUND", ["Unknown schema identifier."]);
+      return json(schema, 200, "public, max-age=3600, s-maxage=86400, immutable");
     }
 
     const receiptRoute = url.pathname.match(/^\/api\/receipts\/(sha256:[0-9a-fA-F]{64})$/);
@@ -283,7 +321,13 @@ function withSecurityHeaders(response: Response): Response {
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
-    if (url.pathname.startsWith("/api/")) return api(request, url);
+    if (
+      url.pathname.startsWith("/api/") ||
+      url.pathname === "/openapi.json" ||
+      url.pathname === "/.well-known/positioncrew.json"
+    ) {
+      return api(request, url);
+    }
 
     return withSecurityHeaders(await env.ASSETS.fetch(request));
   },

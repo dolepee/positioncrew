@@ -3,6 +3,7 @@ import { PROVIDER_IDS } from "../providers/index.js";
 
 export interface ProviderListing {
   providerId: string;
+  slug: string;
   name: string;
   service: PositionCrewRequest["service"];
   category: string;
@@ -10,6 +11,7 @@ export interface ProviderListing {
   method: "POST";
   endpoint: string;
   healthEndpoint: string;
+  manifestEndpoint: string;
   requestSchema: string;
   deliverableSchema: string;
   price: { amount: "5"; token: "TEST_USDC"; chainId: 56 };
@@ -21,6 +23,7 @@ export interface ProviderListing {
 export const PROVIDER_CATALOG: readonly ProviderListing[] = [
   {
     providerId: PROVIDER_IDS.LENDING_RESCUE,
+    slug: "lending-rescue",
     name: "Lending Rescue v1",
     service: "LENDING_RESCUE",
     category: "Health factor monitoring",
@@ -28,6 +31,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     method: "POST",
     endpoint: "/api/providers/lending-rescue/jobs",
     healthEndpoint: "/api/providers/lending-rescue/health",
+    manifestEndpoint: "/api/providers/lending-rescue/manifest",
     requestSchema: "positioncrew.lending-rescue.request.v1",
     deliverableSchema: "positioncrew.lending-rescue.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -37,6 +41,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
   },
   {
     providerId: PROVIDER_IDS.LP_REBALANCE,
+    slug: "lp-rebalance",
     name: "LP Range Operator v1",
     service: "LP_REBALANCE",
     category: "Rebalancing",
@@ -44,6 +49,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     method: "POST",
     endpoint: "/api/providers/lp-rebalance/jobs",
     healthEndpoint: "/api/providers/lp-rebalance/health",
+    manifestEndpoint: "/api/providers/lp-rebalance/manifest",
     requestSchema: "positioncrew.lp-rebalance.request.v1",
     deliverableSchema: "positioncrew.lp-rebalance.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -53,6 +59,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
   },
   {
     providerId: PROVIDER_IDS.YIELD_OPTIMIZATION,
+    slug: "yield-optimization",
     name: "Yield Allocator v1",
     service: "YIELD_OPTIMIZATION",
     category: "Yield optimisation",
@@ -60,6 +67,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     method: "POST",
     endpoint: "/api/providers/yield-optimization/jobs",
     healthEndpoint: "/api/providers/yield-optimization/health",
+    manifestEndpoint: "/api/providers/yield-optimization/manifest",
     requestSchema: "positioncrew.yield-optimization.request.v1",
     deliverableSchema: "positioncrew.yield-optimization.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -69,6 +77,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
   },
   {
     providerId: PROVIDER_IDS.BOUNDED_GRID,
+    slug: "bounded-grid",
     name: "Bounded Grid Builder v1",
     service: "BOUNDED_GRID",
     category: "Grid trading",
@@ -76,6 +85,7 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     method: "POST",
     endpoint: "/api/providers/bounded-grid/jobs",
     healthEndpoint: "/api/providers/bounded-grid/health",
+    manifestEndpoint: "/api/providers/bounded-grid/manifest",
     requestSchema: "positioncrew.bounded-grid.request.v1",
     deliverableSchema: "positioncrew.bounded-grid.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },

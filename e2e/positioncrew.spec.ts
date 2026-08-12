@@ -141,3 +141,32 @@ test("the app has no page-level horizontal overflow", async ({ page }) => {
     expect(overflow).toBe(false);
   }
 });
+
+test("providers expose machine-readable manifests and exact schemas", async ({ page, request }) => {
+  await page.goto("/");
+  const manifestLink = page.getByRole("link", { name: "Inspect provider manifest" });
+  await expect(manifestLink).toHaveAttribute(
+    "href",
+    "/api/providers/lending-rescue/manifest",
+  );
+
+  const marketplaceResponse = await request.get("/.well-known/positioncrew.json");
+  expect(marketplaceResponse.ok()).toBeTruthy();
+  const marketplace = await marketplaceResponse.json();
+  expect(marketplace.providers).toHaveLength(4);
+  expect(marketplace.claims.agentAdvantage).toBe("PENDING_INDEPENDENT_BLIND_EVALUATION");
+
+  const providerResponse = await request.get("/api/providers/lending-rescue/manifest");
+  expect(providerResponse.ok()).toBeTruthy();
+  const provider = await providerResponse.json();
+  expect(provider.provider.service).toBe("LENDING_RESCUE");
+  expect(provider.commerce.settlement).toBe("IN_MEMORY_CONFORMANCE");
+
+  const schemaResponse = await request.get(
+    "/api/schemas/positioncrew.lending-rescue.request.v1",
+  );
+  expect(schemaResponse.ok()).toBeTruthy();
+  const schema = await schemaResponse.json();
+  expect(schema.$id).toBe("positioncrew.lending-rescue.request.v1");
+  expect(schema.required).toContain("targetHealthFactor");
+});

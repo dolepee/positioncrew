@@ -439,6 +439,8 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .provider-facts dt { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; font-weight: 750; text-transform: uppercase; }
 .provider-facts dd { margin: 5px 0 0 20px; overflow-wrap: anywhere; color: #35403b; font-size: 11px; }
 .provider-facts code { font-size: 11px; }
+.provider-facts a { display: inline-flex; align-items: center; gap: 5px; color: #315d91; font-weight: 750; text-decoration: none; }
+.provider-facts a:hover { text-decoration: underline; }
 .provider-boundary { margin: 14px 0 0; padding: 10px; border-left: 3px solid var(--yellow); color: #5d543a; background: #fff9e8; }
 .provider-boundary strong, .provider-boundary span { display: block; }
 .provider-boundary strong { font-size: 9px; text-transform: uppercase; }

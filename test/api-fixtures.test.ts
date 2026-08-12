@@ -11,6 +11,13 @@ import {
   runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
+import {
+  buildMarketplaceManifest,
+  buildOpenApiDocument,
+  buildProviderManifest,
+  getSchemaDocument,
+  schemaIdsForService,
+} from "../src/marketplace/discovery.js";
 
 describe("public fixture job boundary", () => {
   it("returns an actionable rescue while declaring the non-onchain boundary", async () => {
@@ -82,7 +89,41 @@ describe("public fixture job boundary", () => {
     expect(new Set(PROVIDER_CATALOG.map((provider) => provider.endpoint)).size).toBe(4);
     expect(PROVIDER_CATALOG.every((provider) => provider.endpoint.startsWith("/api/providers/") && provider.endpoint.endsWith("/jobs"))).toBe(true);
     expect(PROVIDER_CATALOG.every((provider) => provider.healthEndpoint.startsWith("/api/providers/") && provider.healthEndpoint.endsWith("/health"))).toBe(true);
+    expect(PROVIDER_CATALOG.every((provider) => provider.manifestEndpoint.startsWith("/api/providers/") && provider.manifestEndpoint.endsWith("/manifest"))).toBe(true);
     expect(PROVIDER_CATALOG.every((provider) => provider.settlement === "IN_MEMORY_CONFORMANCE")).toBe(true);
+  });
+
+  it("publishes self-describing provider contracts without overstating settlement", () => {
+    const origin = "https://positioncrew.dolepee.com";
+    const provider = PROVIDER_CATALOG[0]!;
+    const manifest = buildProviderManifest(
+      provider,
+      origin,
+      new Date("2026-08-12T23:00:00.000Z"),
+    );
+    const marketplace = buildMarketplaceManifest(
+      origin,
+      new Date("2026-08-12T23:00:00.000Z"),
+    );
+    const openApi = buildOpenApiDocument(origin);
+    const [requestSchemaId, deliverableSchemaId] = schemaIdsForService(provider.service);
+    const requestSchema = getSchemaDocument(requestSchemaId);
+    const deliverableSchema = getSchemaDocument(deliverableSchemaId);
+
+    expect(manifest).toMatchObject({
+      schemaVersion: "positioncrew.provider-manifest.v1",
+      provider: { providerId: provider.providerId, relationship: "FIRST_PARTY" },
+      commerce: { settlement: "IN_MEMORY_CONFORMANCE" },
+    });
+    expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
+    expect(marketplace).toMatchObject({
+      schemaVersion: "positioncrew.marketplace-manifest.v1",
+      claims: { categoryCoverage: "4_OF_4" },
+    });
+    expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
+    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(4);
+    expect(requestSchema).toMatchObject({ $id: requestSchemaId, type: "object" });
+    expect(deliverableSchema).toMatchObject({ $id: deliverableSchemaId, type: "object" });
   });
 
   it("does not carry the locked benchmark onto a modified fixture", async () => {
