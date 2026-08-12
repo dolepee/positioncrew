@@ -1,0 +1,90 @@
+{
+  "schemaVersion": "positioncrew.agent-capture-commitments.v1",
+  "createdAt": "2026-08-12T22:02:41.000Z",
+  "source": {
+    "repository": "https://github.com/dolepee/positioncrew",
+    "commitSha": "3b28703c67bf51f916623ccc61bdbe5d19ef4c60"
+  },
+  "benchmarks": [
+    {
+      "benchmarkSlug": "lending-rescue",
+      "sessionId": "lending-rescue-20260812215350546-bc4a1371",
+      "providerId": "positioncrew:provider:lending-rescue:v1",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "venus-stressed-position-20260812-001",
+        "fixtureHash": "sha256:068d71bfd268e11bae12e1d26fa3ab4c73c845d42c7d7d150bd05aee1eb81e8d",
+        "rubricHash": "sha256:d13c3608221e0267d1850ffc08ebe01cbc04ed526abe23720ee926f916a71010",
+        "protocolHash": "sha256:43cc33de9a8ae0a5d62a8a47bf10955e8ffeedfe1c51c6d3b4590809f94f7eaa"
+      },
+      "candidates": [
+        {
+          "runNumber": 1,
+          "candidateHash": "sha256:1e21f704fb57f06c5a15f8ebe368ae28d8cf8d9834856cf36f5f7326ef1a06ee",
+          "outputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+          "evaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870"
+        },
+        {
+          "runNumber": 2,
+          "candidateHash": "sha256:8e8b060d5cd829cf26be0659f547d3374cf7d50591efa023d2245861a0bccf0a",
+          "outputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+          "evaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870"
+        }
+      ]
+    },
+    {
+      "benchmarkSlug": "lp-rebalance",
+      "sessionId": "lp-rebalance-20260812215351113-a9d92c57",
+      "providerId": "positioncrew:provider:lp-rebalance:v1",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "v3-out-of-range-20260812-001",
+        "fixtureHash": "sha256:77c30b4b66f92a3bcff1dbf7752fdc75cbde1365f344120f32f298ef4ec83ac5",
+        "rubricHash": "sha256:f79fa49dca56009cc43932751b9d4e6bcc7d346bb977e7f68f047a07a24b0ef6",
+        "protocolHash": "sha256:7c35e4169854d687333eaf35bbf9556864b4d88792dcc648fde5c476793daa4b"
+      },
+      "candidates": [
+        {
+          "runNumber": 1,
+          "candidateHash": "sha256:f1f2af7ca0142ced1618b7759bc63ecc8819f6dbc827dfc9ec7451d86a6cf47b",
+          "outputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+          "evaluationHash": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7"
+        },
+        {
+          "runNumber": 2,
+          "candidateHash": "sha256:67508c30edd9476e0587bdbee5c1b72f45182fa7ef98089eb66a2d17aebe92af",
+          "outputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+          "evaluationHash": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7"
+        }
+      ]
+    },
+    {
+      "benchmarkSlug": "bounded-grid",
+      "sessionId": "bounded-grid-20260812215351671-fc8afdab",
+      "providerId": "positioncrew:provider:bounded-grid:v1",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "bounded-grid-20260812-001",
+        "fixtureHash": "sha256:f232852a88ff6b1446d3496aec4ac311a210d30ee4d6da0af97ffaa88a89a930",
+        "rubricHash": "sha256:19448c9350f99b7e7b65351b9c91513e59d708e02176c44e4188b4d4c9fca12d",
+        "protocolHash": "sha256:e85596cea18c8dd2a2d42407131aa817ac6f8647c24a1f643bdf52dd5b452988"
+      },
+      "candidates": [
+        {
+          "runNumber": 1,
+          "candidateHash": "sha256:07d7d6fd5aa70eced6fe66522aa64f0a5fe29d486acd9f104dd9b615b59662fb",
+          "outputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+          "evaluationHash": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb"
+        },
+        {
+          "runNumber": 2,
+          "candidateHash": "sha256:181aebac92328d2cba852b6f18044de501ebe0f42f3af0d9fec6e27d8915a83e",
+          "outputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+          "evaluationHash": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb"
+        }
+      ]
+    }
+  ],
+  "boundary": "This manifest commits six private agent candidate records and the exact public source revision that produced them before any manual output or blind scorecard exists. It reveals hashes, not candidate contents, timing, cost, or evaluator labels.",
+  "manifestHash": "sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1"
+}

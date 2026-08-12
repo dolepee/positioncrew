@@ -6,6 +6,7 @@ import {
   verifyLendingBenchmarkLock,
   verifyTermixBenchmarkLocks,
 } from "../src/benchmark/lock.js";
+import { verifyAgentCaptureManifest } from "../src/benchmark/capture-manifest.js";
 
 describe("lending Agent Advantage benchmark lock", () => {
   it("binds the fixture, rubric, and blind protocol before outputs exist", () => {
@@ -27,6 +28,19 @@ describe("lending Agent Advantage benchmark lock", () => {
       expect(lock.protocolHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     }
     expect(verifyLendingBenchmarkLock().taskId).toBe("venus-stressed-position-20260812-001");
+  });
+
+  it("publicly commits six reproducible agent candidates to one source revision", () => {
+    const manifest = verifyAgentCaptureManifest();
+
+    expect(manifest.source.commitSha).toBe("3b28703c67bf51f916623ccc61bdbe5d19ef4c60");
+    expect(manifest.benchmarks).toHaveLength(3);
+    expect(manifest.benchmarks.every((benchmark) => benchmark.candidates.length === 2)).toBe(true);
+    expect(
+      manifest.benchmarks.every(
+        (benchmark) => new Set(benchmark.candidates.map((candidate) => candidate.outputHash)).size === 1,
+      ),
+    ).toBe(true);
   });
 
   it("pre-registers three 100-point rubrics with critical safety criteria", () => {
