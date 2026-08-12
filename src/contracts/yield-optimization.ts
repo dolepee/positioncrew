@@ -20,6 +20,9 @@ const YieldPositionSchema = z
     grossApyBps: z.number().int().min(0).max(1_000_000),
     liquidityUsd: UnsignedDecimalSchema,
     lockupSeconds: z.number().int().min(0),
+    estimatedEntryCostUsd: UnsignedDecimalSchema,
+    estimatedExitCostUsd: UnsignedDecimalSchema,
+    riskTier: z.enum(["LOW", "MEDIUM", "HIGH"]),
     observedAt: TimestampSchema,
     sourceId: z.string().min(1).max(120),
   })
@@ -36,6 +39,7 @@ export const YieldOptimizationRequestSchema = z
     constraints: z
       .object({
         protocolAllowlist: z.array(z.string().min(1).max(80)).min(1),
+        maximumRiskTier: z.enum(["LOW", "MEDIUM", "HIGH"]),
         maximumProtocolConcentrationBps: z.number().int().min(1).max(10_000),
         maximumLockupSeconds: z.number().int().min(0),
         minimumLiquidityUsd: UnsignedDecimalSchema,
@@ -57,7 +61,10 @@ export const YieldOptimizationDeliverableSchema = z
     status: ProviderStatusSchema,
     decision: z.enum(["HOLD", "SUPPLY", "WITHDRAW", "MIGRATE", "NONE"]),
     selectedOpportunityId: z.string().min(1).max(160).nullable(),
+    allocationUsd: UnsignedDecimalSchema,
     grossApyBps: z.number().int().min(0).nullable(),
+    currentWeightedApyBps: z.number().int().min(0),
+    annualYieldUpliftUsd: UnsignedDecimalSchema,
     netBenefitUsd: UnsignedDecimalSchema,
     migrationCostUsd: UnsignedDecimalSchema,
     breakEvenDays: UnsignedDecimalSchema.nullable(),

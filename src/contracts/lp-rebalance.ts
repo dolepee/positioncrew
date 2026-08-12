@@ -22,9 +22,20 @@ export const LpRebalanceRequestSchema = z
         lowerTick: z.number().int(),
         upperTick: z.number().int(),
         liquidity: PositiveDecimalSchema,
+        positionValueUsd: PositiveDecimalSchema,
         feesEarnedUsd: UnsignedDecimalSchema,
+        token0ShareBps: z.number().int().min(0).max(10_000),
+        token1ShareBps: z.number().int().min(0).max(10_000),
       })
-      .strict(),
+      .strict()
+      .refine((value) => value.lowerTick < value.upperTick, {
+        message: "lowerTick must be below upperTick",
+        path: ["upperTick"],
+      })
+      .refine((value) => value.token0ShareBps + value.token1ShareBps === 10_000, {
+        message: "inventory shares must sum to 10000 bps",
+        path: ["token1ShareBps"],
+      }),
     marketState: z
       .object({
         currentTick: z.number().int(),
@@ -32,6 +43,8 @@ export const LpRebalanceRequestSchema = z
         token1PriceUsd: PositiveDecimalSchema,
         volume24hUsd: UnsignedDecimalSchema,
         fees24hUsd: UnsignedDecimalSchema,
+        poolLiquidityUsd: PositiveDecimalSchema,
+        realizedVolatilityBps: z.number().int().min(0).max(100_000),
         observedAt: TimestampSchema,
         sourceId: z.string().min(1).max(120),
       })
@@ -40,11 +53,21 @@ export const LpRebalanceRequestSchema = z
       .object({
         minimumWidthTicks: z.number().int().positive(),
         maximumWidthTicks: z.number().int().positive(),
+        tickSpacing: z.number().int().positive(),
+        edgeBufferBps: z.number().int().min(100).max(5_000),
+        highVolatilityBps: z.number().int().min(1).max(100_000),
         maximumToken0ShareBps: z.number().int().min(0).max(10_000),
         maximumToken1ShareBps: z.number().int().min(0).max(10_000),
         minimumNetBenefitUsd: UnsignedDecimalSchema,
+        estimatedGasUsd: UnsignedDecimalSchema,
+        estimatedSwapCostUsd: UnsignedDecimalSchema,
+        evaluationHorizonHours: z.number().int().min(1).max(720),
       })
-      .strict(),
+      .strict()
+      .refine((value) => value.minimumWidthTicks <= value.maximumWidthTicks, {
+        message: "minimum width cannot exceed maximum width",
+        path: ["maximumWidthTicks"],
+      }),
   })
   .strict()
   .superRefine(validateRequestWindow);
@@ -63,6 +86,7 @@ export const LpRebalanceDeliverableSchema = z
       .strict()
       .nullable(),
     estimatedRebalanceCostUsd: UnsignedDecimalSchema,
+    expectedGrossFeesUsd: UnsignedDecimalSchema,
     expectedNetBenefitUsd: UnsignedDecimalSchema,
     breakEvenHours: UnsignedDecimalSchema.nullable(),
     inventoryExposure: z

@@ -8,7 +8,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "verify:gate2a": "tsx src/cli/run-lending-rescue.ts"
+    "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
+    "verify:all": "tsx src/cli/verify-all-providers.ts"
   },
   "engines": {
     "node": ">=22"

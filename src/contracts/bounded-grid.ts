@@ -23,6 +23,7 @@ export const BoundedGridRequestSchema = z
         midPrice: PositiveDecimalSchema,
         liquidityUsd: UnsignedDecimalSchema,
         realizedVolatilityBps: z.number().int().min(0).max(100_000),
+        venueFeeBps: z.number().int().min(0).max(1_000),
         observedAt: TimestampSchema,
         sourceId: z.string().min(1).max(120),
       })
@@ -36,9 +37,17 @@ export const BoundedGridRequestSchema = z
         maximumInventoryUsd: PositiveDecimalSchema,
         maximumLossUsd: PositiveDecimalSchema,
         minimumExpectedNetProfitUsd: UnsignedDecimalSchema,
+        minimumLiquidityUsd: PositiveDecimalSchema,
+        maximumVolatilityBps: z.number().int().min(1).max(100_000),
+        expectedCompletedCycles: z.number().int().min(1).max(1_000),
+        estimatedGasUsd: UnsignedDecimalSchema,
         orderExpirySeconds: z.number().int().min(60).max(604_800),
       })
-      .strict(),
+      .strict()
+      .refine((value) => Number(value.lowerPrice) < Number(value.upperPrice), {
+        message: "lowerPrice must be below upperPrice",
+        path: ["upperPrice"],
+      }),
   })
   .strict()
   .superRefine(validateRequestWindow);
@@ -62,7 +71,10 @@ export const BoundedGridDeliverableSchema = z
     status: ProviderStatusSchema,
     decision: z.enum(["BUILD_GRID", "NO_GRID", "NONE"]),
     orders: z.array(GridOrderSchema),
+    grossSpreadCaptureUsd: UnsignedDecimalSchema,
     estimatedFeesUsd: UnsignedDecimalSchema,
+    estimatedSlippageUsd: UnsignedDecimalSchema,
+    estimatedGasUsd: UnsignedDecimalSchema,
     expectedNetProfitUsd: UnsignedDecimalSchema,
     worstCaseLossUsd: UnsignedDecimalSchema,
     maximumInventoryUsd: UnsignedDecimalSchema,

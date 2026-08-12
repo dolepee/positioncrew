@@ -1,0 +1,93 @@
+{
+  "schemaVersion": "capitalops.yield-optimization.request.v1",
+  "service": "YIELD_OPTIMIZATION",
+  "requestId": "yield-migration-20260812-001",
+  "chainId": 56,
+  "account": "0x1111111111111111111111111111111111111111",
+  "protocol": "BSC Yield Router",
+  "requestedAt": "2026-08-12T16:00:00.000Z",
+  "deadline": "2026-08-12T16:05:00.000Z",
+  "maxDataAgeSeconds": 300,
+  "maxActionUsd": "20",
+  "maxGasUsd": "5",
+  "maxSlippageBps": 30,
+  "sources": [
+    {
+      "sourceId": "yield-fixture-001",
+      "label": "Frozen Venus and Beefy opportunity snapshot",
+      "uri": "https://fixtures.capitalops.invalid/yield-opportunities-001.json",
+      "observedAt": "2026-08-12T15:59:00.000Z"
+    }
+  ],
+  "capitalUsd": "1000",
+  "currentPositions": [
+    {
+      "opportunityId": "venus-usdt",
+      "protocol": "Venus",
+      "vaultOrMarket": "0x3333333333333333333333333333333333333333",
+      "asset": {
+        "symbol": "USDT",
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "decimals": 18
+      },
+      "amountUsd": "1000",
+      "grossApyBps": 400,
+      "liquidityUsd": "10000000",
+      "lockupSeconds": 0,
+      "estimatedEntryCostUsd": "0",
+      "estimatedExitCostUsd": "1",
+      "riskTier": "LOW",
+      "observedAt": "2026-08-12T15:59:00.000Z",
+      "sourceId": "yield-fixture-001"
+    }
+  ],
+  "opportunities": [
+    {
+      "opportunityId": "beefy-usdt-vault",
+      "protocol": "Beefy",
+      "vaultOrMarket": "0x4444444444444444444444444444444444444444",
+      "asset": {
+        "symbol": "USDT",
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "decimals": 18
+      },
+      "amountUsd": "1000",
+      "grossApyBps": 900,
+      "liquidityUsd": "5000000",
+      "lockupSeconds": 0,
+      "estimatedEntryCostUsd": "1",
+      "estimatedExitCostUsd": "1",
+      "riskTier": "MEDIUM",
+      "observedAt": "2026-08-12T15:59:00.000Z",
+      "sourceId": "yield-fixture-001"
+    },
+    {
+      "opportunityId": "high-risk-farm",
+      "protocol": "Unknown Farm",
+      "vaultOrMarket": "0x5555555555555555555555555555555555555555",
+      "asset": {
+        "symbol": "USDT",
+        "address": "0x55d398326f99059fF775485246999027B3197955",
+        "decimals": 18
+      },
+      "amountUsd": "1000",
+      "grossApyBps": 5000,
+      "liquidityUsd": "10000",
+      "lockupSeconds": 604800,
+      "estimatedEntryCostUsd": "1",
+      "estimatedExitCostUsd": "1",
+      "riskTier": "HIGH",
+      "observedAt": "2026-08-12T15:59:00.000Z",
+      "sourceId": "yield-fixture-001"
+    }
+  ],
+  "constraints": {
+    "protocolAllowlist": ["Venus", "Beefy"],
+    "maximumRiskTier": "MEDIUM",
+    "maximumProtocolConcentrationBps": 10000,
+    "maximumLockupSeconds": 0,
+    "minimumLiquidityUsd": "1000000",
+    "minimumNetBenefitUsd": "5",
+    "evaluationHorizonDays": 90
+  }
+}
