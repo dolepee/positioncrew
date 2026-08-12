@@ -65,6 +65,46 @@ test("an undersized action cap fails closed", async ({ page }) => {
   await expect(page.getByText("No allowed rescue action fits the wallet inventory and safety limits.", { exact: true })).toBeVisible();
 });
 
+test("every non-lending provider accepts custom bounds and fails closed", async ({ page }) => {
+  await page.goto("/#jobs");
+  const provider = page.getByRole("combobox", { name: "Provider" });
+  const cases = [
+    {
+      service: "LP_REBALANCE",
+      field: "Minimum net benefit (USD)",
+      value: "1000",
+      button: "Run lp rebalance",
+      decision: "HOLD",
+    },
+    {
+      service: "YIELD_OPTIMIZATION",
+      field: "Candidate APY (bps)",
+      value: "300",
+      button: "Run yield optimisation",
+      decision: "HOLD",
+    },
+    {
+      service: "BOUNDED_GRID",
+      field: "Maximum loss (USD)",
+      value: "1",
+      button: "Run bounded grid",
+      decision: "NO GRID",
+    },
+  ];
+
+  for (const candidate of cases) {
+    await provider.selectOption(candidate.service);
+    await page.getByLabel(candidate.field).fill(candidate.value);
+    await expect(page.getByText("Custom bounds", { exact: true })).toBeVisible();
+    await expect(page.getByText("Custom parameters are evaluated but are not covered by the locked benchmark hash.", { exact: true })).toBeVisible();
+    await page.getByRole("button", { name: candidate.button }).click();
+    await expect(page.getByRole("heading", { name: candidate.decision })).toBeVisible();
+    await page.getByTitle("Reset to frozen fixture").click();
+    await expect(page.getByText("Frozen fixture", { exact: true })).toBeVisible();
+    await expect(page.getByText("Exact frozen input matches the committed fixture.", { exact: true })).toBeVisible();
+  }
+});
+
 test("the evidence page separates conformance from advantage claims", async ({ page }) => {
   await page.goto("/#evidence");
   await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();

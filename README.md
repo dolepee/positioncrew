@@ -64,6 +64,8 @@ Deterministic `100/100` results establish provider conformance against frozen fi
 
 The executable [Agent Advantage evidence workflow](benchmarks/EVIDENCE_WORKFLOW.md) captures immutable agent and manual candidates, withholds answer-bearing rubric text from the manual operator, keeps duplicate agent repeats out of the blind packet, validates the independent scorecard, and reveals the committed source mapping only after scoring.
 
+Offline role-specific handoff tools reduce procedural errors without weakening the blind: the manual tool auto-times and hashes one answer-free task bundle, while the evaluator tool exposes only anonymized candidates and the frozen rubric. Both are generated from the committed session and make no network requests.
+
 ## Architecture
 
 - Frozen Zod schemas define requests and deliverables for each category.

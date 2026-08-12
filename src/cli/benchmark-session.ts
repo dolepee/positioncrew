@@ -10,6 +10,12 @@ import {
 } from "../benchmark/evidence.js";
 import { buildAgentAdvantageReport } from "../benchmark/report.js";
 import {
+  buildBlindEvaluatorHandoff,
+  buildManualOperatorHandoff,
+  captureManualHandoffBundle,
+  readManualHandoffBundle,
+} from "../benchmark/handoff.js";
+import {
   TERMIX_BENCHMARK_DEFINITIONS,
   type TermixBenchmarkSlug,
 } from "../benchmark/lock.js";
@@ -21,7 +27,10 @@ function usage(): never {
       "  npm run benchmark:session -- prepare <benchmark-slug>",
       "  npm run benchmark:session -- agent <session-directory>",
       "  npm run benchmark:session -- manual <session-directory> <output.json> <metadata.json>",
+      "  npm run benchmark:session -- manual-tool <session-directory> [output.html]",
+      "  npm run benchmark:session -- manual-bundle <session-directory> <handoff-bundle.json>",
       "  npm run benchmark:session -- blind <session-directory>",
+      "  npm run benchmark:session -- evaluator-tool <session-directory> [output.html]",
       "  npm run benchmark:session -- reveal <session-directory> <completed-scorecard.json>",
       "  npm run benchmark:session -- report <output-directory> <lending-session> <lp-session> <grid-session>",
       "  npm run benchmark:session -- status <session-directory>",
@@ -88,6 +97,37 @@ async function main(): Promise<void> {
       );
       return;
     }
+    case "manual-tool": {
+      const directory = resolve(required(args[0]));
+      const handoff = buildManualOperatorHandoff(
+        directory,
+        args[1] ? resolve(args[1]) : undefined,
+      );
+      console.log(JSON.stringify({ ...sessionSummary(directory), handoff }, null, 2));
+      return;
+    }
+    case "manual-bundle": {
+      const directory = resolve(required(args[0]));
+      const record = captureManualHandoffBundle(
+        directory,
+        readManualHandoffBundle(required(args[1])),
+      );
+      console.log(
+        JSON.stringify(
+          {
+            ...sessionSummary(directory),
+            manualRun: {
+              elapsedMilliseconds: record.elapsedMilliseconds,
+              directCostUsd: record.directCostUsd,
+              outputHash: record.outputHash,
+            },
+          },
+          null,
+          2,
+        ),
+      );
+      return;
+    }
     case "blind": {
       const directory = resolve(required(args[0]));
       const finalized = finalizeBlindBenchmark(directory);
@@ -104,6 +144,15 @@ async function main(): Promise<void> {
           2,
         ),
       );
+      return;
+    }
+    case "evaluator-tool": {
+      const directory = resolve(required(args[0]));
+      const handoff = buildBlindEvaluatorHandoff(
+        directory,
+        args[1] ? resolve(args[1]) : undefined,
+      );
+      console.log(JSON.stringify({ ...sessionSummary(directory), handoff }, null, 2));
       return;
     }
     case "reveal": {

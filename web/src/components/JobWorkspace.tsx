@@ -40,6 +40,218 @@ import type {
 
 type ResultView = "summary" | "json" | "receipt";
 
+interface JobDraft {
+  targetHealth: string;
+  maxAction: string;
+  stressDrop: string;
+  maxSlippage: string;
+  allowRepay: boolean;
+  allowCollateral: boolean;
+  lpCurrentTick: string;
+  lpMinimumBenefit: string;
+  lpGas: string;
+  lpSwapCost: string;
+  lpHorizon: string;
+  lpMaximumGas: string;
+  yieldCapital: string;
+  yieldCandidateApy: string;
+  yieldMinimumLiquidity: string;
+  yieldMinimumBenefit: string;
+  yieldHorizon: string;
+  yieldRisk: "LOW" | "MEDIUM" | "HIGH";
+  gridMidPrice: string;
+  gridLowerPrice: string;
+  gridUpperPrice: string;
+  gridCapital: string;
+  gridLevels: string;
+  gridMaximumInventory: string;
+  gridMaximumLoss: string;
+  gridMinimumProfit: string;
+  gridMaximumVolatility: string;
+  gridExpectedCycles: string;
+}
+
+const EMPTY_DRAFT: JobDraft = {
+  targetHealth: "1.25",
+  maxAction: "250",
+  stressDrop: "1000",
+  maxSlippage: "30",
+  allowRepay: true,
+  allowCollateral: true,
+  lpCurrentTick: "150",
+  lpMinimumBenefit: "5",
+  lpGas: "0.05",
+  lpSwapCost: "0.95",
+  lpHorizon: "24",
+  lpMaximumGas: "0.10",
+  yieldCapital: "1000",
+  yieldCandidateApy: "900",
+  yieldMinimumLiquidity: "1000000",
+  yieldMinimumBenefit: "5",
+  yieldHorizon: "90",
+  yieldRisk: "MEDIUM",
+  gridMidPrice: "10",
+  gridLowerPrice: "9",
+  gridUpperPrice: "11",
+  gridCapital: "1000",
+  gridLevels: "5",
+  gridMaximumInventory: "600",
+  gridMaximumLoss: "150",
+  gridMinimumProfit: "100",
+  gridMaximumVolatility: "1000",
+  gridExpectedCycles: "10",
+};
+
+type JobRequest = FixtureJobResponse["result"]["request"];
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return typeof value === "object" && value !== null
+    ? value as Record<string, unknown>
+    : {};
+}
+
+function draftFromRequest(request: JobRequest | undefined): JobDraft {
+  if (!request) return EMPTY_DRAFT;
+  const next = { ...EMPTY_DRAFT };
+  if (request.service === "LENDING_RESCUE") {
+    const actions = Array.isArray(request.allowedActions) ? request.allowedActions : [];
+    return {
+      ...next,
+      targetHealth: String(request.targetHealthFactor ?? next.targetHealth),
+      maxAction: String(request.maxActionUsd ?? next.maxAction),
+      stressDrop: String(request.stressPriceDropBps ?? next.stressDrop),
+      maxSlippage: String(request.maxSlippageBps ?? next.maxSlippage),
+      allowRepay: actions.includes("REPAY_DEBT"),
+      allowCollateral: actions.includes("ADD_COLLATERAL"),
+    };
+  }
+  if (request.service === "LP_REBALANCE") {
+    const market = objectValue(request.marketState);
+    const constraints = objectValue(request.constraints);
+    return {
+      ...next,
+      lpCurrentTick: String(market.currentTick ?? next.lpCurrentTick),
+      lpMinimumBenefit: String(constraints.minimumNetBenefitUsd ?? next.lpMinimumBenefit),
+      lpGas: String(constraints.estimatedGasUsd ?? next.lpGas),
+      lpSwapCost: String(constraints.estimatedSwapCostUsd ?? next.lpSwapCost),
+      lpHorizon: String(constraints.evaluationHorizonHours ?? next.lpHorizon),
+      lpMaximumGas: String(request.maxGasUsd ?? next.lpMaximumGas),
+    };
+  }
+  if (request.service === "YIELD_OPTIMIZATION") {
+    const constraints = objectValue(request.constraints);
+    const opportunities = Array.isArray(request.opportunities) ? request.opportunities : [];
+    const candidate = objectValue(opportunities[0]);
+    const risk = constraints.maximumRiskTier;
+    return {
+      ...next,
+      yieldCapital: String(request.capitalUsd ?? next.yieldCapital),
+      yieldCandidateApy: String(candidate.grossApyBps ?? next.yieldCandidateApy),
+      yieldMinimumLiquidity: String(constraints.minimumLiquidityUsd ?? next.yieldMinimumLiquidity),
+      yieldMinimumBenefit: String(constraints.minimumNetBenefitUsd ?? next.yieldMinimumBenefit),
+      yieldHorizon: String(constraints.evaluationHorizonDays ?? next.yieldHorizon),
+      yieldRisk: risk === "LOW" || risk === "HIGH" ? risk : "MEDIUM",
+    };
+  }
+  const market = objectValue(request.marketState);
+  const constraints = objectValue(request.constraints);
+  return {
+    ...next,
+    gridMidPrice: String(market.midPrice ?? next.gridMidPrice),
+    gridLowerPrice: String(constraints.lowerPrice ?? next.gridLowerPrice),
+    gridUpperPrice: String(constraints.upperPrice ?? next.gridUpperPrice),
+    gridCapital: String(constraints.capitalUsd ?? next.gridCapital),
+    gridLevels: String(constraints.levelCount ?? next.gridLevels),
+    gridMaximumInventory: String(constraints.maximumInventoryUsd ?? next.gridMaximumInventory),
+    gridMaximumLoss: String(constraints.maximumLossUsd ?? next.gridMaximumLoss),
+    gridMinimumProfit: String(constraints.minimumExpectedNetProfitUsd ?? next.gridMinimumProfit),
+    gridMaximumVolatility: String(constraints.maximumVolatilityBps ?? next.gridMaximumVolatility),
+    gridExpectedCycles: String(constraints.expectedCompletedCycles ?? next.gridExpectedCycles),
+  };
+}
+
+function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
+  const next = structuredClone(request);
+  if (next.service === "LENDING_RESCUE") {
+    next.targetHealthFactor = draft.targetHealth;
+    next.maxActionUsd = draft.maxAction;
+    next.stressPriceDropBps = Number(draft.stressDrop);
+    next.maxSlippageBps = Number(draft.maxSlippage);
+    next.allowedActions = [
+      ...(draft.allowRepay ? ["REPAY_DEBT"] : []),
+      ...(draft.allowCollateral ? ["ADD_COLLATERAL"] : []),
+    ];
+  } else if (next.service === "LP_REBALANCE") {
+    const market = objectValue(next.marketState);
+    const constraints = objectValue(next.constraints);
+    market.currentTick = Number(draft.lpCurrentTick);
+    constraints.minimumNetBenefitUsd = draft.lpMinimumBenefit;
+    constraints.estimatedGasUsd = draft.lpGas;
+    constraints.estimatedSwapCostUsd = draft.lpSwapCost;
+    constraints.evaluationHorizonHours = Number(draft.lpHorizon);
+    next.maxGasUsd = draft.lpMaximumGas;
+  } else if (next.service === "YIELD_OPTIMIZATION") {
+    const constraints = objectValue(next.constraints);
+    const opportunities = Array.isArray(next.opportunities) ? next.opportunities : [];
+    const candidate = objectValue(opportunities[0]);
+    next.capitalUsd = draft.yieldCapital;
+    candidate.amountUsd = draft.yieldCapital;
+    candidate.grossApyBps = Number(draft.yieldCandidateApy);
+    constraints.minimumLiquidityUsd = draft.yieldMinimumLiquidity;
+    constraints.minimumNetBenefitUsd = draft.yieldMinimumBenefit;
+    constraints.evaluationHorizonDays = Number(draft.yieldHorizon);
+    constraints.maximumRiskTier = draft.yieldRisk;
+  } else {
+    const market = objectValue(next.marketState);
+    const constraints = objectValue(next.constraints);
+    market.midPrice = draft.gridMidPrice;
+    constraints.lowerPrice = draft.gridLowerPrice;
+    constraints.upperPrice = draft.gridUpperPrice;
+    constraints.capitalUsd = draft.gridCapital;
+    constraints.levelCount = Number(draft.gridLevels);
+    constraints.maximumInventoryUsd = draft.gridMaximumInventory;
+    constraints.maximumLossUsd = draft.gridMaximumLoss;
+    constraints.minimumExpectedNetProfitUsd = draft.gridMinimumProfit;
+    constraints.maximumVolatilityBps = Number(draft.gridMaximumVolatility);
+    constraints.expectedCompletedCycles = Number(draft.gridExpectedCycles);
+    next.maxActionUsd = draft.gridCapital;
+  }
+  return next;
+}
+
+function NumberField({
+  label,
+  value,
+  onChange,
+  disabled,
+  min,
+  max,
+  step,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled: boolean;
+  min: string;
+  max: string;
+  step: string;
+}) {
+  return (
+    <label>
+      <span>{label}</span>
+      <input
+        disabled={disabled}
+        type="number"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+      />
+    </label>
+  );
+}
+
 function LendingPositionBar({ response }: { response: FixtureJobResponse | null }) {
   const position = response?.result.deliverable.position;
   return (
@@ -245,6 +457,7 @@ function MachineJson({ response }: { response: FixtureJobResponse }) {
 
 export function JobWorkspace({
   provider,
+  selectedService,
   fixture,
   activeJob,
   sessionJobs,
@@ -256,6 +469,7 @@ export function JobWorkspace({
   onClearJobs,
 }: {
   provider: ProviderListing | undefined;
+  selectedService: ServiceId;
   fixture: FixtureJobResponse | undefined;
   activeJob: SessionJob | null;
   sessionJobs: SessionJob[];
@@ -266,54 +480,35 @@ export function JobWorkspace({
   telemetry: SystemTelemetry | null;
   onClearJobs: () => void;
 }) {
-  const service = provider?.service ?? "LENDING_RESCUE";
+  const service = selectedService;
   const task = TASKS.find((candidate) => candidate.id === service) ?? TASKS[0];
-  const [targetHealth, setTargetHealth] = useState("1.25");
-  const [maxAction, setMaxAction] = useState("250");
-  const [stressDrop, setStressDrop] = useState("1000");
-  const [maxSlippage, setMaxSlippage] = useState("30");
-  const [allowRepay, setAllowRepay] = useState(true);
-  const [allowCollateral, setAllowCollateral] = useState(true);
+  const [draft, setDraft] = useState<JobDraft>(EMPTY_DRAFT);
   const [resultView, setResultView] = useState<ResultView>("summary");
   const shownResponse = activeJob?.response ?? null;
   const inputRequest = fixture?.result.request;
 
   useEffect(() => {
     setResultView("summary");
-    if (inputRequest?.service === "LENDING_RESCUE") {
-      setTargetHealth(String(inputRequest.targetHealthFactor ?? "1.25"));
-      setMaxAction(String(inputRequest.maxActionUsd ?? "250"));
-      setStressDrop(String(inputRequest.stressPriceDropBps ?? "1000"));
-      setMaxSlippage(String(inputRequest.maxSlippageBps ?? "30"));
-      const actions = Array.isArray(inputRequest.allowedActions) ? inputRequest.allowedActions : [];
-      setAllowRepay(actions.includes("REPAY_DEBT"));
-      setAllowCollateral(actions.includes("ADD_COLLATERAL"));
-    }
+    setDraft(draftFromRequest(inputRequest));
   }, [service, inputRequest]);
 
-  const customLending = useMemo(() => {
-    if (service !== "LENDING_RESCUE" || !inputRequest) return false;
-    return targetHealth !== String(inputRequest.targetHealthFactor) ||
-      maxAction !== String(inputRequest.maxActionUsd) ||
-      stressDrop !== String(inputRequest.stressPriceDropBps) ||
-      maxSlippage !== String(inputRequest.maxSlippageBps) ||
-      !allowRepay || !allowCollateral;
-  }, [service, inputRequest, targetHealth, maxAction, stressDrop, maxSlippage, allowRepay, allowCollateral]);
+  const draftRequest = useMemo(
+    () => inputRequest ? applyDraft(inputRequest, draft) : null,
+    [inputRequest, draft],
+  );
+  const customRequest = useMemo(
+    () => Boolean(inputRequest && draftRequest && JSON.stringify(inputRequest) !== JSON.stringify(draftRequest)),
+    [inputRequest, draftRequest],
+  );
+
+  function updateDraft<K extends keyof JobDraft>(key: K, value: JobDraft[K]) {
+    setDraft((current) => ({ ...current, [key]: value }));
+  }
 
   async function submitJob() {
-    if (!inputRequest) return;
-    const next = structuredClone(inputRequest) as Record<string, unknown>;
-    if (service === "LENDING_RESCUE") {
-      next.targetHealthFactor = targetHealth;
-      next.maxActionUsd = maxAction;
-      next.stressPriceDropBps = Number(stressDrop);
-      next.maxSlippageBps = Number(maxSlippage);
-      next.allowedActions = [
-        ...(allowRepay ? ["REPAY_DEBT"] : []),
-        ...(allowCollateral ? ["ADD_COLLATERAL"] : []),
-      ];
-      if (customLending) next.requestId = `${String(inputRequest.requestId)}-custom`;
-    }
+    if (!inputRequest || !draftRequest) return;
+    const next = structuredClone(draftRequest) as Record<string, unknown>;
+    if (customRequest) next.requestId = `${String(inputRequest.requestId)}-custom`;
     await onRun(next);
   }
 
@@ -337,7 +532,14 @@ export function JobWorkspace({
         <section className="job-composer" aria-labelledby="composer-title" aria-busy={loading}>
           <div className="section-bar">
             <div><span className="section-kicker">Request</span><h2 id="composer-title">{provider?.name ?? task.title}</h2></div>
-            <span className="mode-label">Frozen fixture</span>
+            <div className="composer-mode-actions">
+              <span className={`mode-label ${customRequest ? "custom" : ""}`}>{customRequest ? "Custom bounds" : "Frozen fixture"}</span>
+              {customRequest && (
+                <button type="button" onClick={() => setDraft(draftFromRequest(inputRequest))} disabled={loading} title="Reset to frozen fixture">
+                  <RefreshCw size={13} aria-hidden="true" /> Reset
+                </button>
+              )}
+            </div>
           </div>
           <p className="composer-summary">{provider?.summary ?? task.description}</p>
           {service === "LENDING_RESCUE" ? (
@@ -345,29 +547,65 @@ export function JobWorkspace({
               <WalletRiskProbe telemetry={telemetry} />
               <LendingPositionBar response={fixture ?? null} />
               <div className="form-grid">
-                <label><span>Target health factor</span><input disabled={!fixture || loading} type="number" min="1.01" max="3" step="0.01" value={targetHealth} onChange={(event) => setTargetHealth(event.target.value)} /></label>
-                <label><span>Maximum action (USD)</span><input disabled={!fixture || loading} type="number" min="1" max="10000" step="1" value={maxAction} onChange={(event) => setMaxAction(event.target.value)} /></label>
-                <label><span>Stress price drop (bps)</span><input disabled={!fixture || loading} type="number" min="0" max="5000" step="100" value={stressDrop} onChange={(event) => setStressDrop(event.target.value)} /></label>
-                <label><span>Maximum slippage (bps)</span><input disabled={!fixture || loading} type="number" min="0" max="2000" step="1" value={maxSlippage} onChange={(event) => setMaxSlippage(event.target.value)} /></label>
+                <NumberField label="Target health factor" value={draft.targetHealth} onChange={(value) => updateDraft("targetHealth", value)} disabled={!fixture || loading} min="1.01" max="3" step="0.01" />
+                <NumberField label="Maximum action (USD)" value={draft.maxAction} onChange={(value) => updateDraft("maxAction", value)} disabled={!fixture || loading} min="1" max="10000" step="1" />
+                <NumberField label="Stress price drop (bps)" value={draft.stressDrop} onChange={(value) => updateDraft("stressDrop", value)} disabled={!fixture || loading} min="0" max="5000" step="100" />
+                <NumberField label="Maximum slippage (bps)" value={draft.maxSlippage} onChange={(value) => updateDraft("maxSlippage", value)} disabled={!fixture || loading} min="0" max="2000" step="1" />
               </div>
               <fieldset className="action-options">
                 <legend>Allowed actions</legend>
-                <label><input disabled={!fixture || loading} type="checkbox" checked={allowRepay} onChange={(event) => setAllowRepay(event.target.checked)} /> Repay debt</label>
-                <label><input disabled={!fixture || loading} type="checkbox" checked={allowCollateral} onChange={(event) => setAllowCollateral(event.target.checked)} /> Add collateral</label>
+                <label><input disabled={!fixture || loading} type="checkbox" checked={draft.allowRepay} onChange={(event) => updateDraft("allowRepay", event.target.checked)} /> Repay debt</label>
+                <label><input disabled={!fixture || loading} type="checkbox" checked={draft.allowCollateral} onChange={(event) => updateDraft("allowCollateral", event.target.checked)} /> Add collateral</label>
               </fieldset>
             </>
+          ) : service === "LP_REBALANCE" ? (
+            <>
+              <div className="request-context"><span>PancakeSwap V3</span><strong>Current range -120 to 120</strong><small>$10,000 position</small></div>
+              <div className="form-grid">
+                <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={!fixture || loading} min="-887272" max="887272" step="1" />
+                <NumberField label="Minimum net benefit (USD)" value={draft.lpMinimumBenefit} onChange={(value) => updateDraft("lpMinimumBenefit", value)} disabled={!fixture || loading} min="0" max="100000" step="0.01" />
+                <NumberField label="Estimated gas (USD)" value={draft.lpGas} onChange={(value) => updateDraft("lpGas", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
+                <NumberField label="Estimated swap cost (USD)" value={draft.lpSwapCost} onChange={(value) => updateDraft("lpSwapCost", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
+                <NumberField label="Evaluation horizon (hours)" value={draft.lpHorizon} onChange={(value) => updateDraft("lpHorizon", value)} disabled={!fixture || loading} min="1" max="720" step="1" />
+                <NumberField label="Maximum gas (USD)" value={draft.lpMaximumGas} onChange={(value) => updateDraft("lpMaximumGas", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
+              </div>
+            </>
+          ) : service === "YIELD_OPTIMIZATION" ? (
+            <>
+              <div className="request-context"><span>Venus to Beefy</span><strong>Current APY 4.00%</strong><small>Allowlisted BSC venues</small></div>
+              <div className="form-grid">
+                <NumberField label="Capital (USD)" value={draft.yieldCapital} onChange={(value) => updateDraft("yieldCapital", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
+                <NumberField label="Candidate APY (bps)" value={draft.yieldCandidateApy} onChange={(value) => updateDraft("yieldCandidateApy", value)} disabled={!fixture || loading} min="0" max="1000000" step="1" />
+                <NumberField label="Minimum liquidity (USD)" value={draft.yieldMinimumLiquidity} onChange={(value) => updateDraft("yieldMinimumLiquidity", value)} disabled={!fixture || loading} min="0" max="10000000000" step="1" />
+                <NumberField label="Minimum net benefit (USD)" value={draft.yieldMinimumBenefit} onChange={(value) => updateDraft("yieldMinimumBenefit", value)} disabled={!fixture || loading} min="0" max="1000000" step="0.01" />
+                <NumberField label="Evaluation horizon (days)" value={draft.yieldHorizon} onChange={(value) => updateDraft("yieldHorizon", value)} disabled={!fixture || loading} min="1" max="365" step="1" />
+                <label><span>Maximum risk tier</span><select disabled={!fixture || loading} value={draft.yieldRisk} onChange={(event) => updateDraft("yieldRisk", event.target.value as JobDraft["yieldRisk"])}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
+              </div>
+            </>
           ) : (
-            <dl className="fixture-fields">
-              {task.inputs.map((input) => <div key={input.label}><dt>{input.label}</dt><dd>{input.value}</dd></div>)}
-            </dl>
+            <>
+              <div className="request-context"><span>WBNB / USDT</span><strong>PancakeSwap execution policy</strong><small>Both sides required</small></div>
+              <div className="form-grid dense">
+                <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Lower price" value={draft.gridLowerPrice} onChange={(value) => updateDraft("gridLowerPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Upper price" value={draft.gridUpperPrice} onChange={(value) => updateDraft("gridUpperPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Capital (USD)" value={draft.gridCapital} onChange={(value) => updateDraft("gridCapital", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
+                <NumberField label="Grid levels" value={draft.gridLevels} onChange={(value) => updateDraft("gridLevels", value)} disabled={!fixture || loading} min="2" max="100" step="1" />
+                <NumberField label="Maximum inventory (USD)" value={draft.gridMaximumInventory} onChange={(value) => updateDraft("gridMaximumInventory", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
+                <NumberField label="Maximum loss (USD)" value={draft.gridMaximumLoss} onChange={(value) => updateDraft("gridMaximumLoss", value)} disabled={!fixture || loading} min="0.01" max="10000000" step="0.01" />
+                <NumberField label="Minimum expected profit (USD)" value={draft.gridMinimumProfit} onChange={(value) => updateDraft("gridMinimumProfit", value)} disabled={!fixture || loading} min="0" max="10000000" step="0.01" />
+                <NumberField label="Maximum volatility (bps)" value={draft.gridMaximumVolatility} onChange={(value) => updateDraft("gridMaximumVolatility", value)} disabled={!fixture || loading} min="1" max="100000" step="1" />
+                <NumberField label="Expected completed cycles" value={draft.gridExpectedCycles} onChange={(value) => updateDraft("gridExpectedCycles", value)} disabled={!fixture || loading} min="1" max="1000" step="1" />
+              </div>
+            </>
           )}
           <div className="request-boundary" id="request-boundary">
             <AlertTriangle size={15} aria-hidden="true" />
-            <span>{customLending ? "Custom fixture parameters are not covered by the locked benchmark hash." : "Exact frozen input matches the committed fixture."}</span>
+            <span>{customRequest ? "Custom parameters are evaluated but are not covered by the locked benchmark hash." : "Exact frozen input matches the committed fixture."}</span>
           </div>
           <div className="composer-footer">
             <span><strong>5 TEST_USDC</strong><small>In-memory conformance rail</small></span>
-            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || (service === "LENDING_RESCUE" && !allowRepay && !allowCollateral)}>
+            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
               {!loading && <ArrowRight size={15} />}

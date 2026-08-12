@@ -495,6 +495,23 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   text-transform: uppercase;
 }
 .mode-label { color: #735700; border-color: #e7d18b; background: #fff9e9; }
+.mode-label.custom { color: #315d91; border-color: #bfd1e5; background: #f1f7fd; }
+.composer-mode-actions { display: flex; align-items: center; gap: 7px; }
+.composer-mode-actions > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 25px;
+  padding: 0 7px;
+  border: 0;
+  color: var(--muted);
+  background: transparent;
+  font-size: 10px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.composer-mode-actions > button:hover:not(:disabled) { color: var(--ink); }
+.composer-mode-actions > button:disabled { cursor: not-allowed; opacity: 0.5; }
 .state-label.good { color: #17614e; border-color: #b9ded2; background: var(--green-soft); }
 .state-label.warn { color: #865107; border-color: #ead19c; background: var(--amber-soft); }
 .state-label.neutral { color: var(--muted); }
@@ -535,11 +552,25 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .dot.stressed { background: var(--red); }
 .dot.current { background: var(--amber); }
 .dot.target { background: var(--green); }
+.request-context {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 5px 12px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid #315d91;
+  border-radius: 5px;
+  background: #f7fafc;
+}
+.request-context span { grid-column: 1 / -1; color: #315d91; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.request-context strong { min-width: 0; font-size: 12px; }
+.request-context small { color: var(--muted); font-size: 10px; text-align: right; }
 .form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; margin-top: 15px; }
 .form-grid label, .action-options label { color: var(--ink-soft); font-size: 11px; }
 .form-grid label > span { display: block; margin-bottom: 6px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
-.form-grid input { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font-size: 12px; }
-.form-grid input:focus { border-color: #d2aa29; }
+.form-grid input, .form-grid select { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font-size: 12px; }
+.form-grid select { padding-right: 30px; }
+.form-grid input:focus, .form-grid select:focus { border-color: #d2aa29; }
 .action-options { display: flex; gap: 17px; margin: 14px 0 0; padding: 11px; border: 1px solid var(--line); border-radius: 5px; }
 .action-options legend { padding: 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .action-options label { display: inline-flex; align-items: center; gap: 6px; }

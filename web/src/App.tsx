@@ -147,6 +147,7 @@ export default function App() {
       return (
         <JobWorkspace
           provider={provider}
+          selectedService={selectedService}
           fixture={fixture}
           activeJob={activeJob}
           sessionJobs={sessionJobs}

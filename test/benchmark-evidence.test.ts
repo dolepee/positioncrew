@@ -10,7 +10,13 @@ import {
   revealBenchmarkResult,
   validateBlindScorecard,
 } from "../src/benchmark/evidence.js";
+import {
+  buildBlindEvaluatorHandoff,
+  buildManualOperatorHandoff,
+  captureManualHandoffBundle,
+} from "../src/benchmark/handoff.js";
 import { buildAgentAdvantageReport } from "../src/benchmark/report.js";
+import { canonicalHash } from "../src/core/canonical.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -144,6 +150,69 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     const invalidScorecard = structuredClone(scorecard);
     invalidScorecard.candidates[0]!.criteria[0]!.score = 101;
     expect(() => validateBlindScorecard(packet, invalidScorecard)).toThrow();
+  });
+
+  it("generates offline role-separated handoff tools and validates the timed manual bundle", async () => {
+    const prepared = prepareBenchmarkSession("lending-rescue", {
+      artifactRoot: tempArtifacts(),
+      sessionId: "lending-rescue-handoff-test-session",
+      now: new Date("2026-08-12T22:00:00.000Z"),
+    });
+    const agents = await captureAgentBenchmarkRuns(prepared.directory, {
+      now: () => new Date("2026-08-12T22:01:00.000Z"),
+    });
+    const manualTool = buildManualOperatorHandoff(prepared.directory);
+    const manualHtml = readFileSync(manualTool.path, "utf8");
+
+    expect(manualHtml).toContain("Offline evidence capture");
+    expect(manualHtml).not.toContain("fullCredit");
+    expect(manualHtml).not.toContain('"sourceType"');
+    expect(manualHtml).not.toContain('"candidateHash"');
+
+    const manualOutput = agents[0]!.output;
+    const validBundle = {
+      schemaVersion: "positioncrew.manual-handoff-bundle.v1",
+      sessionId: prepared.session.sessionId,
+      taskId: prepared.session.taskId,
+      taskPacketHash: manualTool.taskPacketHash,
+      startedAt: "2026-08-12T22:02:00.000Z",
+      completedAt: "2026-08-12T22:03:00.000Z",
+      outputHash: canonicalHash(manualOutput),
+      output: manualOutput,
+      metadata: {
+        operatorId: "Independent Manual Operator",
+        method: "Calculated the frozen lending task with a calculator and recorded the complete JSON result.",
+        independenceAttestation:
+          "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+        elapsedMilliseconds: 60_000,
+        directCostUsd: "0",
+        capturedAt: "2026-08-12T22:03:00.000Z",
+      },
+    } as const;
+
+    expect(() =>
+      captureManualHandoffBundle(prepared.directory, {
+        ...validBundle,
+        metadata: {
+          ...validBundle.metadata,
+          capturedAt: "2026-08-12T22:02:59.000Z",
+        },
+      }),
+    ).toThrow();
+
+    const manual = captureManualHandoffBundle(prepared.directory, validBundle);
+    expect(manual.source.type).toBe("MANUAL");
+
+    finalizeBlindBenchmark(prepared.directory, {
+      agentFirst: false,
+      now: new Date("2026-08-12T22:04:00.000Z"),
+    });
+    const evaluatorTool = buildBlindEvaluatorHandoff(prepared.directory);
+    const evaluatorHtml = readFileSync(evaluatorTool.path, "utf8");
+    expect(evaluatorHtml).toContain("PositionCrew blind evaluator");
+    expect(evaluatorHtml).toContain("Candidate A");
+    expect(evaluatorHtml).not.toContain('"sourceType"');
+    expect(evaluatorHtml).not.toContain('"elapsedMilliseconds"');
   });
 
   it("assembles only a complete three-category TermiX report", async () => {
