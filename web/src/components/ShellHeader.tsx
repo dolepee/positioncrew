@@ -1,0 +1,58 @@
+import { ExternalLink, FileCheck2, Network, Store } from "lucide-react";
+
+export type AppView = "marketplace" | "jobs" | "evidence";
+
+const views: Array<{ id: AppView; label: string; icon: typeof Store }> = [
+  { id: "marketplace", label: "Marketplace", icon: Store },
+  { id: "jobs", label: "Jobs", icon: Network },
+  { id: "evidence", label: "Evidence", icon: FileCheck2 },
+];
+
+export function ShellHeader({
+  view,
+  onNavigate,
+  apiOnline,
+  jobCount,
+}: {
+  view: AppView;
+  onNavigate: (view: AppView) => void;
+  apiOnline: boolean;
+  jobCount: number;
+}) {
+  return (
+    <header className="shell-header">
+      <div className="shell-header-inner">
+        <button className="brand-button" type="button" onClick={() => onNavigate("marketplace")}>
+          <img src="/positioncrew-mark.svg" alt="" width="34" height="34" />
+          <span><strong>PositionCrew</strong><small>BSC agent marketplace</small></span>
+        </button>
+        <nav className="global-nav" aria-label="Primary navigation">
+          {views.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                className={view === item.id ? "active" : ""}
+                aria-current={view === item.id ? "page" : undefined}
+                onClick={() => onNavigate(item.id)}
+              >
+                <Icon size={15} aria-hidden="true" />
+                {item.label}
+                {item.id === "jobs" && jobCount > 0 && <span className="nav-count">{jobCount}</span>}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="header-actions">
+          <span className={`api-state ${apiOnline ? "online" : "loading"}`}>
+            <i /> {apiOnline ? "API reachable" : "Connecting"}
+          </span>
+          <a href="https://github.com/dolepee/positioncrew" target="_blank" rel="noreferrer">
+            Source <ExternalLink size={13} aria-hidden="true" />
+          </a>
+        </div>
+      </div>
+    </header>
+  );
+}

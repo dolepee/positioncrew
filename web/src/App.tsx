@@ -1,0 +1,152 @@
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { EvidenceView } from "./components/EvidenceView";
+import { JobWorkspace } from "./components/JobWorkspace";
+import { MarketplaceView } from "./components/MarketplaceView";
+import { ShellHeader, type AppView } from "./components/ShellHeader";
+import type {
+  FixtureJobResponse,
+  MatrixResponse,
+  ProviderCatalogResponse,
+  ProviderListing,
+  ServiceId,
+  SessionJob,
+} from "./types";
+
+function viewFromHash(): AppView {
+  const value = window.location.hash.replace("#", "");
+  return value === "jobs" || value === "evidence" ? value : "marketplace";
+}
+
+async function jsonResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.text();
+    throw new Error(`${response.status} ${response.statusText}${body ? `: ${body.slice(0, 160)}` : ""}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+export default function App() {
+  const [view, setView] = useState<AppView>(viewFromHash);
+  const [selectedService, setSelectedService] = useState<ServiceId>("LENDING_RESCUE");
+  const [providers, setProviders] = useState<ProviderListing[]>([]);
+  const [matrix, setMatrix] = useState<Map<ServiceId, FixtureJobResponse>>(new Map());
+  const [sessionJobs, setSessionJobs] = useState<SessionJob[]>([]);
+  const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const provider = providers.find((candidate) => candidate.service === selectedService);
+  const fixture = matrix.get(selectedService);
+
+  async function loadRegistry() {
+    setError(null);
+    try {
+      const [catalog, matrixPayload] = await Promise.all([
+        fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
+        fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
+      ]);
+      setProviders(catalog.providers);
+      setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
+    } catch (loadError) {
+      setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
+    }
+  }
+
+  useEffect(() => {
+    void loadRegistry();
+    function onHashChange() { setView(viewFromHash()); }
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  function navigate(next: AppView) {
+    if (window.location.hash !== `#${next}`) window.location.hash = next;
+    setView(next);
+  }
+
+  function createJob(service: ServiceId) {
+    setSelectedService(service);
+    setActiveJob(null);
+    navigate("jobs");
+  }
+
+  async function runJob(request: Record<string, unknown>) {
+    setLoading(true);
+    setError(null);
+    const startedAt = performance.now();
+    try {
+      const response = await fetch("/api/jobs", {
+        method: "POST",
+        headers: { Accept: "application/json", "Content-Type": "application/json" },
+        body: JSON.stringify({ mode: "FROZEN_FIXTURE", request }),
+      });
+      const payload = await jsonResponse<FixtureJobResponse>(response);
+      const sessionJob: SessionJob = {
+        response: payload,
+        responseTimeMs: Math.max(1, Math.round(performance.now() - startedAt)),
+        ranAt: new Date().toISOString(),
+      };
+      setActiveJob(sessionJob);
+      setSessionJobs((jobs) => [sessionJob, ...jobs].slice(0, 20));
+    } catch (jobError) {
+      setError(jobError instanceof Error ? jobError.message : "Provider job failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function selectSessionJob(job: SessionJob) {
+    setSelectedService(job.response.result.request.service);
+    setActiveJob(job);
+    navigate("jobs");
+  }
+
+  const content = useMemo(() => {
+    if (view === "jobs") {
+      return (
+        <JobWorkspace
+          provider={provider}
+          fixture={fixture}
+          activeJob={activeJob}
+          sessionJobs={sessionJobs}
+          loading={loading}
+          onRun={runJob}
+          onSelectJob={selectSessionJob}
+          onSelectService={(service) => {
+            setSelectedService(service);
+            setActiveJob(null);
+          }}
+        />
+      );
+    }
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} />;
+    return (
+      <MarketplaceView
+        providers={providers}
+        matrix={matrix}
+        selectedService={selectedService}
+        onSelect={setSelectedService}
+        onCreateJob={createJob}
+      />
+    );
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService]);
+
+  return (
+    <div className="app-shell">
+      <ShellHeader
+        view={view}
+        onNavigate={navigate}
+        apiOnline={providers.length === 4 && matrix.size === 4}
+        jobCount={sessionJobs.length}
+      />
+      {error && (
+        <div className="global-error" role="alert">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span>{error}</span>
+          <button type="button" onClick={loadRegistry}><RefreshCw size={14} aria-hidden="true" /> Retry</button>
+        </div>
+      )}
+      {content}
+    </div>
+  );
+}
