@@ -2,7 +2,7 @@
 
 PositionCrew is a job-first BSC marketplace for bounded capital operations. A buyer chooses a task, sets hard limits, hires a provider, and receives either an immediately usable machine-readable action or an explicit refusal with the failed conditions.
 
-Live application: [positioncrew.vercel.app](https://positioncrew.vercel.app)
+Public application: [positioncrew.dolepee.com](https://positioncrew.dolepee.com)
 
 The product covers all four Build the Era categories with equal depth:
 
@@ -30,7 +30,7 @@ npm install
 npm run dev
 ```
 
-Vite serves the application on `http://127.0.0.1:4173`. The same Vercel functions used in production expose:
+The local Cloudflare-compatible worker serves the application on `http://127.0.0.1:4175`. The same worker routes used in production expose:
 
 - `GET /api/providers` for the provider catalog;
 - `GET /api/matrix` for all frozen conformance runs;
@@ -59,7 +59,7 @@ Deterministic `100/100` results establish provider conformance against frozen fi
 - Provider implementations use fixed-point arithmetic and deterministic refusal paths.
 - Canonical hashes bind request envelopes, deliverables, and evaluations.
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
-- Vercel functions expose the same typed core used by the CLI and tests.
+- A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary

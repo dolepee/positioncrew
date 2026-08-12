@@ -12,3 +12,4 @@ demo-script.*
 SUBMISSION_CHECKLIST.md
 submission-checklist.*
 .vercel
+.wrangler
