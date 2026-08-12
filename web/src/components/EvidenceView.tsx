@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { shortHash } from "../presentation";
 import type {
+  AgentCaptureManifestResponse,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
   ProviderListing,
@@ -24,11 +25,13 @@ export function EvidenceView({
   matrix,
   telemetry,
   benchmarks,
+  captureManifest,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
   telemetry: SystemTelemetry | null;
   benchmarks: BenchmarkRepeatabilityResponse[];
+  captureManifest: AgentCaptureManifestResponse | null;
 }) {
   const definitions: Array<{ service: TermixBenchmarkService; task: string; category: string }> = [
     { service: "LENDING_RESCUE", task: "Lending position rescue", category: "Security / DeFi" },
@@ -53,6 +56,10 @@ export function EvidenceView({
   });
   const lockedCount = benchmarkRows.filter((row) => row.lock).length;
   const repeatCount = benchmarks.reduce((total, record) => total + record.runs.length, 0);
+  const committedCandidateCount = captureManifest?.benchmarks.reduce(
+    (total, benchmark) => total + benchmark.candidates.length,
+    0,
+  ) ?? 0;
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -141,11 +148,11 @@ export function EvidenceView({
             ))}
           </div>
           <div className="method-grid">
-            <div><strong>{repeatCount}</strong><span>provider repeats</span><small>2 per locked task · $0.00 direct conformance cost</small></div>
+            <div><strong>{committedCandidateCount || repeatCount}</strong><span>source-committed agent runs</span><small>{captureManifest ? `3 matching pairs · source ${captureManifest.source.commitSha.slice(0, 7)}` : "capture manifest loading"}</small></div>
             <div><strong>{lockedCount}</strong><span>frozen task rubrics</span><small>300 total quality points · safety-critical gates</small></div>
             <div><strong>0</strong><span>blind scorecards</span><small>manual baseline and evaluator pending</small></div>
           </div>
-          <a className="benchmark-data-link" href="/api/benchmarks/repeatability" target="_blank" rel="noreferrer">Open three-task repeatability record <ExternalLink size={13} /></a>
+          <a className="benchmark-data-link" href="/api/benchmarks/captures" target="_blank" rel="noreferrer">Open source-bound capture manifest <ExternalLink size={13} /></a>
         </section>
 
         <section className="evidence-section lock-section" aria-labelledby="lock-title">
@@ -160,6 +167,10 @@ export function EvidenceView({
                 <dd>{row.lock ? `fixture ${shortHash(row.lock.fixtureHash, 13)} · rubric ${shortHash(row.lock.rubricHash, 13)} · protocol ${shortHash(row.lock.protocolHash, 13)}` : "Pending"}</dd>
               </div>
             ))}
+            <div>
+              <dt>Agent capture manifest</dt>
+              <dd>{captureManifest ? `${shortHash(captureManifest.manifestHash, 18)} · source ${captureManifest.source.commitSha.slice(0, 7)}` : "Loading"}</dd>
+            </div>
           </dl>
           <div className="claim-warning">
             <AlertTriangle size={16} aria-hidden="true" />

@@ -264,3 +264,29 @@ export interface BenchmarkRepeatabilityMatrixResponse {
   pending: ["MANUAL_BASELINES", "INDEPENDENT_BLIND_SCORECARDS"];
   boundary: string;
 }
+
+export interface AgentCaptureManifestResponse {
+  schemaVersion: "positioncrew.agent-capture-commitments.v1";
+  createdAt: string;
+  source: { repository: string; commitSha: string };
+  benchmarks: Array<{
+    benchmarkSlug: TermixBenchmarkSlug;
+    sessionId: string;
+    providerId: string;
+    benchmarkLock: {
+      schemaVersion: "positioncrew.benchmark-lock.v1";
+      taskId: string;
+      fixtureHash: string;
+      rubricHash: string;
+      protocolHash: string;
+    };
+    candidates: Array<{
+      runNumber: number;
+      candidateHash: string;
+      outputHash: string;
+      evaluationHash: string;
+    }>;
+  }>;
+  boundary: string;
+  manifestHash: string;
+}

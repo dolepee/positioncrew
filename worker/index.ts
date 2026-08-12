@@ -1,4 +1,5 @@
 import { ZodError } from "zod";
+import agentCaptureManifest from "../benchmarks/agent-capture-commitments-2026-08-12.json" with { type: "json" };
 import {
   runBenchmarkRepeatability,
   runFixtureRequest,
@@ -196,6 +197,11 @@ async function api(request: Request, url: URL): Promise<Response> {
     if (url.pathname === "/api/benchmarks/repeatability") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(await runTermixBenchmarkRepeatability());
+    }
+
+    if (url.pathname === "/api/benchmarks/captures") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(agentCaptureManifest, 200, "public, max-age=0, s-maxage=300");
     }
 
     const benchmarkRoute = url.pathname.match(

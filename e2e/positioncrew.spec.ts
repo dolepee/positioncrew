@@ -72,6 +72,8 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText("3/3", { exact: true })).toBeVisible();
   await expect(page.getByText("6", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("REPEATABLE", { exact: true })).toHaveCount(3);
+  await expect(page.getByText("source-committed agent runs", { exact: true })).toBeVisible();
+  await expect(page.getByText(/source 3b28703/).first()).toBeVisible();
   await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
   await expect(page.getByText(/backend proof completion is not represented as available/)).toBeVisible();
 
@@ -81,6 +83,12 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   expect(benchmark.schemaVersion).toBe("positioncrew.benchmark-repeatability-matrix.v1");
   expect(benchmark.records).toHaveLength(3);
   expect(benchmark.records.every((record: { runs: unknown[] }) => record.runs.length === 2)).toBe(true);
+
+  const captureResponse = await page.request.get("/api/benchmarks/captures");
+  expect(captureResponse.status()).toBe(200);
+  const captures = await captureResponse.json();
+  expect(captures.manifestHash).toBe("sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1");
+  expect(captures.benchmarks.flatMap((item: { candidates: unknown[] }) => item.candidates)).toHaveLength(6);
 });
 
 test("the app has no page-level horizontal overflow", async ({ page }) => {

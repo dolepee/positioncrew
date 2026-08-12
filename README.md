@@ -35,6 +35,7 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 - `GET /api/providers` for the provider catalog;
 - `GET /api/status` for block-pinned BSC, PancakeSwap, Venus, and AACP telemetry;
 - `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
+- `GET /api/benchmarks/captures` for the source-bound, hash-only manifest of the six precommitted agent candidates;
 - `GET /api/benchmarks/:task/repeatability` for lending-rescue, lp-rebalance, or bounded-grid evidence;
 - `GET /api/matrix` for all frozen conformance runs;
 - `GET /api/providers/:provider/health` for a provider-specific liveness and conformance probe;

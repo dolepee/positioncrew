@@ -5,6 +5,7 @@ import { JobWorkspace } from "./components/JobWorkspace";
 import { MarketplaceView } from "./components/MarketplaceView";
 import { ShellHeader, type AppView } from "./components/ShellHeader";
 import type {
+  AgentCaptureManifestResponse,
   BenchmarkRepeatabilityMatrixResponse,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
@@ -53,6 +54,7 @@ export default function App() {
   const [matrix, setMatrix] = useState<Map<ServiceId, FixtureJobResponse>>(new Map());
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkRepeatabilityResponse[]>([]);
+  const [captureManifest, setCaptureManifest] = useState<AgentCaptureManifestResponse | null>(null);
   const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
   const [loading, setLoading] = useState(false);
@@ -63,7 +65,7 @@ export default function App() {
   async function loadRegistry() {
     setError(null);
     try {
-      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload] = await Promise.all([
+      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload] = await Promise.all([
         fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
         fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
         fetch("/api/status", { headers: { Accept: "application/json" } })
@@ -72,11 +74,15 @@ export default function App() {
         fetch("/api/benchmarks/repeatability", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<BenchmarkRepeatabilityMatrixResponse>(response))
           .catch(() => null),
+        fetch("/api/benchmarks/captures", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<AgentCaptureManifestResponse>(response))
+          .catch(() => null),
       ]);
       setProviders(catalog.providers);
       setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
       setTelemetry(telemetryPayload);
       setBenchmarks(repeatabilityPayload?.records ?? []);
+      setCaptureManifest(capturePayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
@@ -159,7 +165,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -170,7 +176,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest]);
 
   return (
     <div className="app-shell">
