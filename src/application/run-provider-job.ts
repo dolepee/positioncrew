@@ -5,6 +5,7 @@ import {
   type PositionCrewRequest,
 } from "../contracts/index.js";
 import { canonicalHash } from "../core/canonical.js";
+import { jsonDataUri } from "../core/data-uri.js";
 import { evaluateProviderConformance } from "../evaluators/provider-conformance.js";
 import { executeProvider, PROVIDER_IDS } from "../providers/index.js";
 
@@ -60,7 +61,7 @@ export async function runProviderJob(
     requestHash,
     deliverableHash,
     mediaType: "application/json",
-    uri: `https://artifacts.positioncrew.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
+    uri: jsonDataUri(deliverable),
     createdAt: now.toISOString(),
   });
   const evaluation = evaluateProviderConformance(

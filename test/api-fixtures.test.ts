@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { Buffer } from "node:buffer";
 import lendingFixture from "../fixtures/lending-rescue/stressed-venus-position.v1.json" with { type: "json" };
 import {
   runFixtureRequest,
@@ -19,6 +20,16 @@ describe("public fixture job boundary", () => {
     expect(response.advantageStatus).toBe("PENDING_INDEPENDENT_BLIND_EVALUATION");
     expect(response.benchmarkLock?.fixtureHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(response.claimBoundary.join(" ")).toContain("not an AACP");
+
+    const artifactManifest = response.result.job.deliverable;
+    expect(artifactManifest).not.toBeNull();
+    if (!artifactManifest) throw new Error("Completed job is missing its artifact manifest");
+    const artifactUri = artifactManifest.uri;
+    expect(artifactUri).toMatch(/^data:application\/json;base64,/);
+    const artifact = JSON.parse(
+      Buffer.from(artifactUri.slice(artifactUri.indexOf(",") + 1), "base64").toString("utf8"),
+    );
+    expect(artifact).toEqual(response.result.deliverable);
   });
 
   it("exposes all four required categories at equal conformance depth", async () => {

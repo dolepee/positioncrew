@@ -1,6 +1,7 @@
 import type { LendingRescueRequest } from "../contracts/lending-rescue.js";
 import { LendingRescueRequestSchema } from "../contracts/lending-rescue.js";
 import { canonicalHash } from "../core/canonical.js";
+import { jsonDataUri } from "../core/data-uri.js";
 import type { CommerceAdapter, JobRecord } from "../commerce/types.js";
 import { evaluateLendingRescue } from "../evaluators/lending-rescue.js";
 import { createLendingRescueDeliverable } from "../providers/lending-rescue.js";
@@ -57,7 +58,7 @@ export async function runLendingRescueJob(
     requestHash,
     deliverableHash,
     mediaType: "application/json",
-    uri: `https://artifacts.positioncrew.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
+    uri: jsonDataUri(deliverable),
     createdAt: now.toISOString(),
   });
 
