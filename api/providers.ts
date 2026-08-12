@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
+import type { ApiRequest, ApiResponse } from "./http.js";
 
-export default function handler(request: VercelRequest, response: VercelResponse) {
+export default function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader("Cache-Control", "public, max-age=0, s-maxage=300");
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (request.method !== "GET") {

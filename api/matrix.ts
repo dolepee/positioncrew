@@ -1,7 +1,7 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { runFrozenMatrix } from "../src/api/fixture-jobs.js";
+import type { ApiRequest, ApiResponse } from "./http.js";
 
-export default async function handler(request: VercelRequest, response: VercelResponse) {
+export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader("Cache-Control", "public, max-age=0, s-maxage=300");
   response.setHeader("X-Content-Type-Options", "nosniff");
   if (request.method !== "GET") {

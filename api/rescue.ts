@@ -1,13 +1,13 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ZodError } from "zod";
 import {
   runFrozenFixture,
   runFixtureRequest,
   runSuppliedLendingRequest,
 } from "../src/api/fixture-jobs.js";
+import type { ApiRequest, ApiResponse } from "./http.js";
 
 function sendError(
-  response: VercelResponse,
+  response: ApiResponse,
   status: number,
   code: string,
   details: unknown,
@@ -19,7 +19,7 @@ function sendError(
   });
 }
 
-export default async function handler(request: VercelRequest, response: VercelResponse) {
+export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
 

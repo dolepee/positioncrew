@@ -2,6 +2,8 @@
 
 PositionCrew is a job-first BSC marketplace for bounded capital operations. A buyer chooses a task, sets hard limits, hires a provider, and receives either an immediately usable machine-readable action or an explicit refusal with the failed conditions.
 
+Live application: [positioncrew.vercel.app](https://positioncrew.vercel.app)
+
 The product covers all four Build the Era categories with equal depth:
 
 - **Lending rescue:** compute the smallest feasible repay or collateral top-up for a target health factor.
@@ -21,7 +23,7 @@ The flagship cold-buyer journey is **Rescue a lending position**. It returns exa
 
 ## Run locally
 
-Requires Node.js 22 or newer.
+Requires Node.js 22 LTS.
 
 ```bash
 npm install

@@ -1,10 +1,10 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { ZodError } from "zod";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import {
   runFixtureRequest,
   runFrozenFixture,
 } from "../src/api/fixture-jobs.js";
+import type { ApiRequest, ApiResponse } from "./http.js";
 
 const services = new Set([
   "LENDING_RESCUE",
@@ -13,7 +13,7 @@ const services = new Set([
   "BOUNDED_GRID",
 ]);
 
-export default async function handler(request: VercelRequest, response: VercelResponse) {
+export default async function handler(request: ApiRequest, response: ApiResponse) {
   response.setHeader("Cache-Control", "no-store");
   response.setHeader("X-Content-Type-Options", "nosniff");
   try {
