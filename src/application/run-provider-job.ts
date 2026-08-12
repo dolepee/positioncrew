@@ -1,8 +1,8 @@
 import type { CommerceAdapter, JobRecord } from "../commerce/types.js";
 import {
-  CapitalOpsRequestSchema,
-  type CapitalOpsDeliverable,
-  type CapitalOpsRequest,
+  PositionCrewRequestSchema,
+  type PositionCrewDeliverable,
+  type PositionCrewRequest,
 } from "../contracts/index.js";
 import { canonicalHash } from "../core/canonical.js";
 import { evaluateProviderConformance } from "../evaluators/provider-conformance.js";
@@ -16,22 +16,22 @@ const TEST_SETTLEMENT_TOKEN = {
 
 export interface ProviderJobResult {
   job: JobRecord;
-  request: CapitalOpsRequest;
-  deliverable: CapitalOpsDeliverable;
+  request: PositionCrewRequest;
+  deliverable: PositionCrewDeliverable;
   evaluation: ReturnType<typeof evaluateProviderConformance>;
 }
 
 export async function runProviderJob(
   adapter: CommerceAdapter,
-  requestInput: CapitalOpsRequest,
+  requestInput: PositionCrewRequest,
   now: Date,
 ): Promise<ProviderJobResult> {
-  const request = CapitalOpsRequestSchema.parse(requestInput);
+  const request = PositionCrewRequestSchema.parse(requestInput);
   const requestHash = canonicalHash(request);
   const providerId = PROVIDER_IDS[request.service];
-  const evaluatorId = `capitalops:evaluator:${request.service.toLowerCase()}:v1`;
+  const evaluatorId = `positioncrew:evaluator:${request.service.toLowerCase()}:v1`;
   let job = await adapter.createJob({
-    schemaVersion: "capitalops.job-envelope.v1",
+    schemaVersion: "positioncrew.job-envelope.v1",
     idempotencyKey: `${request.service.toLowerCase()}:${request.requestId}`,
     service: request.service,
     requestId: request.requestId,
@@ -56,11 +56,11 @@ export async function runProviderJob(
   const deliverable = executeProvider(request, now);
   const deliverableHash = canonicalHash(deliverable);
   job = await adapter.submitDeliverable(job.jobId, {
-    schemaVersion: "capitalops.deliverable-manifest.v1",
+    schemaVersion: "positioncrew.deliverable-manifest.v1",
     requestHash,
     deliverableHash,
     mediaType: "application/json",
-    uri: `https://artifacts.capitalops.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
+    uri: `https://artifacts.positioncrew.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
     createdAt: now.toISOString(),
   });
   const evaluation = evaluateProviderConformance(

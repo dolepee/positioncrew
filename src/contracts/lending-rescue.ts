@@ -25,7 +25,7 @@ export const AvailableAssetSchema = AssetIdentitySchema.extend({
 
 export const LendingRescueRequestSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.lending-rescue.request.v1"),
+    schemaVersion: z.literal("positioncrew.lending-rescue.request.v1"),
     service: z.literal("LENDING_RESCUE"),
     ...BaseRequestFields,
     market: AddressSchema,
@@ -79,7 +79,7 @@ export const LendingActionPlanSchema = z
 
 export const LendingRescueDeliverableSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.lending-rescue.deliverable.v1"),
+    schemaVersion: z.literal("positioncrew.lending-rescue.deliverable.v1"),
     service: z.literal("LENDING_RESCUE"),
     requestId: z.string().min(8).max(120),
     generatedAt: TimestampSchema,

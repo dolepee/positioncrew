@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "capitalops.lending-rescue.request.v1",
+  "schemaVersion": "positioncrew.lending-rescue.request.v1",
   "service": "LENDING_RESCUE",
   "requestId": "venus-stressed-position-20260812-001",
   "chainId": 56,
@@ -15,7 +15,7 @@
     {
       "sourceId": "venus-position-fixture-001",
       "label": "Frozen Venus account and oracle snapshot",
-      "uri": "https://fixtures.capitalops.invalid/venus-position-001.json",
+      "uri": "https://fixtures.positioncrew.invalid/venus-position-001.json",
       "observedAt": "2026-08-12T15:59:00.000Z"
     }
   ],

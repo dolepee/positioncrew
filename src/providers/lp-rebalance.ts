@@ -42,7 +42,7 @@ function refusal(
   reasons: string[],
 ): LpRebalanceDeliverable {
   return LpRebalanceDeliverableSchema.parse({
-    schemaVersion: "capitalops.lp-rebalance.deliverable.v1",
+    schemaVersion: "positioncrew.lp-rebalance.deliverable.v1",
     service: "LP_REBALANCE",
     requestId: request.requestId,
     generatedAt: now.toISOString(),
@@ -130,7 +130,7 @@ export function createLpRebalanceDeliverable(
 
   if (proposedDecision === null) {
     return LpRebalanceDeliverableSchema.parse({
-      schemaVersion: "capitalops.lp-rebalance.deliverable.v1",
+      schemaVersion: "positioncrew.lp-rebalance.deliverable.v1",
       service: "LP_REBALANCE",
       requestId: request.requestId,
       generatedAt: now.toISOString(),
@@ -183,7 +183,7 @@ export function createLpRebalanceDeliverable(
 
   if (!economicsPass) {
     return LpRebalanceDeliverableSchema.parse({
-      schemaVersion: "capitalops.lp-rebalance.deliverable.v1",
+      schemaVersion: "positioncrew.lp-rebalance.deliverable.v1",
       service: "LP_REBALANCE",
       requestId: request.requestId,
       generatedAt: now.toISOString(),
@@ -213,7 +213,7 @@ export function createLpRebalanceDeliverable(
     (BigInt(request.constraints.evaluationHorizonHours) * FIXED_SCALE);
   const breakEvenHours = divideFixed(totalCostUsd, hourlyIncrementalFees);
   return LpRebalanceDeliverableSchema.parse({
-    schemaVersion: "capitalops.lp-rebalance.deliverable.v1",
+    schemaVersion: "positioncrew.lp-rebalance.deliverable.v1",
     service: "LP_REBALANCE",
     requestId: request.requestId,
     generatedAt: now.toISOString(),

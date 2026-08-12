@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "capitalops.bounded-grid.request.v1",
+  "schemaVersion": "positioncrew.bounded-grid.request.v1",
   "service": "BOUNDED_GRID",
   "requestId": "bounded-grid-20260812-001",
   "chainId": 56,
@@ -15,7 +15,7 @@
     {
       "sourceId": "grid-fixture-001",
       "label": "Frozen BNB-USDT market snapshot",
-      "uri": "https://fixtures.capitalops.invalid/bnb-usdt-grid-001.json",
+      "uri": "https://fixtures.positioncrew.invalid/bnb-usdt-grid-001.json",
       "observedAt": "2026-08-12T15:59:00.000Z"
     }
   ],

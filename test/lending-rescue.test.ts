@@ -64,7 +64,7 @@ describe("lending rescue evaluator", () => {
     const evaluation = evaluateLendingRescue(
       request,
       result,
-      "capitalops:evaluator:lending-rescue:v1",
+      "positioncrew:evaluator:lending-rescue:v1",
       FIXTURE_NOW,
     );
 
@@ -81,7 +81,7 @@ describe("lending rescue evaluator", () => {
     const evaluation = evaluateLendingRescue(
       request,
       tampered,
-      "capitalops:evaluator:lending-rescue:v1",
+      "positioncrew:evaluator:lending-rescue:v1",
       FIXTURE_NOW,
     );
 
@@ -100,7 +100,7 @@ describe("lending rescue evaluator", () => {
     const evaluation = evaluateLendingRescue(
       request,
       tampered,
-      "capitalops:evaluator:lending-rescue:v1",
+      "positioncrew:evaluator:lending-rescue:v1",
       FIXTURE_NOW,
     );
 

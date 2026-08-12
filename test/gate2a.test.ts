@@ -28,7 +28,7 @@ const base = {
     {
       sourceId: "fixture-source",
       label: "Frozen fixture",
-      uri: "https://fixtures.capitalops.invalid/source.json",
+      uri: "https://fixtures.positioncrew.invalid/source.json",
       observedAt: "2026-08-12T15:59:00.000Z",
     },
   ],
@@ -91,7 +91,7 @@ describe("Gate 2A", () => {
   it("freezes strict request and deliverable contracts for the remaining services", () => {
     const lpRequest = LpRebalanceRequestSchema.parse({
       ...base,
-      schemaVersion: "capitalops.lp-rebalance.request.v1",
+      schemaVersion: "positioncrew.lp-rebalance.request.v1",
       service: "LP_REBALANCE",
       requestId: "lp-rebalance-fixture-001",
       pool: "0x2222222222222222222222222222222222222222",
@@ -132,7 +132,7 @@ describe("Gate 2A", () => {
       },
     });
     const lpResult = LpRebalanceDeliverableSchema.parse({
-      schemaVersion: "capitalops.lp-rebalance.deliverable.v1",
+      schemaVersion: "positioncrew.lp-rebalance.deliverable.v1",
       service: "LP_REBALANCE",
       requestId: lpRequest.requestId,
       generatedAt: base.requestedAt,
@@ -153,7 +153,7 @@ describe("Gate 2A", () => {
 
     const yieldRequest = YieldOptimizationRequestSchema.parse({
       ...base,
-      schemaVersion: "capitalops.yield-optimization.request.v1",
+      schemaVersion: "positioncrew.yield-optimization.request.v1",
       service: "YIELD_OPTIMIZATION",
       requestId: "yield-optimization-fixture-001",
       capitalUsd: "1000",
@@ -186,7 +186,7 @@ describe("Gate 2A", () => {
       },
     });
     const yieldResult = YieldOptimizationDeliverableSchema.parse({
-      schemaVersion: "capitalops.yield-optimization.deliverable.v1",
+      schemaVersion: "positioncrew.yield-optimization.deliverable.v1",
       service: "YIELD_OPTIMIZATION",
       requestId: yieldRequest.requestId,
       generatedAt: base.requestedAt,
@@ -209,7 +209,7 @@ describe("Gate 2A", () => {
 
     const gridRequest = BoundedGridRequestSchema.parse({
       ...base,
-      schemaVersion: "capitalops.bounded-grid.request.v1",
+      schemaVersion: "positioncrew.bounded-grid.request.v1",
       service: "BOUNDED_GRID",
       requestId: "bounded-grid-fixture-001",
       venue: "0x4444444444444444444444444444444444444444",
@@ -239,7 +239,7 @@ describe("Gate 2A", () => {
       },
     });
     const gridResult = BoundedGridDeliverableSchema.parse({
-      schemaVersion: "capitalops.bounded-grid.deliverable.v1",
+      schemaVersion: "positioncrew.bounded-grid.deliverable.v1",
       service: "BOUNDED_GRID",
       requestId: gridRequest.requestId,
       generatedAt: base.requestedAt,

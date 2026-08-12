@@ -1,6 +1,6 @@
-# CapitalOps
+# PositionCrew
 
-CapitalOps protects or improves a BSC position by hiring an agent already proven on the same task.
+PositionCrew protects or improves a BSC position by hiring an agent already proven on the same task.
 
 The flagship journey is **Rescue a lending position**: submit a bounded position snapshot and receive the smallest feasible repay or collateral top-up, exact token base units, projected health factor, execution preconditions, expiry, and explicit refusal when the data or constraints are unsafe.
 

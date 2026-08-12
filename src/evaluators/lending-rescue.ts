@@ -18,7 +18,7 @@ import {
   type EvaluationReceipt,
 } from "../commerce/types.js";
 
-const RUBRIC_VERSION = "capitalops.lending-rescue.rubric.v1";
+const RUBRIC_VERSION = "positioncrew.lending-rescue.rubric.v1";
 
 function closeEnough(actual: string | null, expected: bigint | null): boolean {
   if (actual === null || expected === null) {
@@ -191,7 +191,7 @@ export function evaluateLendingRescue(
   const score = checks.reduce((total, item) => total + (item.passed ? item.weight : 0), 0);
   const passed = score >= 90 && !checks.some((item) => item.critical && !item.passed);
   const body = {
-    schemaVersion: "capitalops.evaluation.v1" as const,
+    schemaVersion: "positioncrew.evaluation.v1" as const,
     rubricVersion: RUBRIC_VERSION,
     requestHash,
     deliverableHash,

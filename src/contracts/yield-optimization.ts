@@ -30,7 +30,7 @@ const YieldPositionSchema = z
 
 export const YieldOptimizationRequestSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.yield-optimization.request.v1"),
+    schemaVersion: z.literal("positioncrew.yield-optimization.request.v1"),
     service: z.literal("YIELD_OPTIMIZATION"),
     ...BaseRequestFields,
     capitalUsd: PositiveDecimalSchema,
@@ -53,7 +53,7 @@ export const YieldOptimizationRequestSchema = z
 
 export const YieldOptimizationDeliverableSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.yield-optimization.deliverable.v1"),
+    schemaVersion: z.literal("positioncrew.yield-optimization.deliverable.v1"),
     service: z.literal("YIELD_OPTIMIZATION"),
     requestId: z.string().min(8).max(120),
     generatedAt: TimestampSchema,

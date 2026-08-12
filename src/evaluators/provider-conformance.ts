@@ -1,8 +1,8 @@
 import {
-  CapitalOpsDeliverableSchema,
-  CapitalOpsRequestSchema,
-  type CapitalOpsDeliverable,
-  type CapitalOpsRequest,
+  PositionCrewDeliverableSchema,
+  PositionCrewRequestSchema,
+  type PositionCrewDeliverable,
+  type PositionCrewRequest,
 } from "../contracts/index.js";
 import { canonicalHash } from "../core/canonical.js";
 import {
@@ -23,7 +23,7 @@ function check(
   return { id, label, weight, critical, passed, evidence };
 }
 
-function usefulPayload(deliverable: CapitalOpsDeliverable): boolean {
+function usefulPayload(deliverable: PositionCrewDeliverable): boolean {
   if (deliverable.status !== "ACTIONABLE") {
     return deliverable.summary.length > 0;
   }
@@ -43,13 +43,13 @@ function usefulPayload(deliverable: CapitalOpsDeliverable): boolean {
 }
 
 export function evaluateProviderConformance(
-  requestInput: CapitalOpsRequest,
-  deliverableInput: CapitalOpsDeliverable,
+  requestInput: PositionCrewRequest,
+  deliverableInput: PositionCrewDeliverable,
   evaluatorId: string,
   now: Date,
 ): EvaluationReceipt {
-  const request = CapitalOpsRequestSchema.parse(requestInput);
-  const deliverable = CapitalOpsDeliverableSchema.parse(deliverableInput);
+  const request = PositionCrewRequestSchema.parse(requestInput);
+  const deliverable = PositionCrewDeliverableSchema.parse(deliverableInput);
   const expected = executeProvider(request, now);
   const requestHash = canonicalHash(request);
   const deliverableHash = canonicalHash(deliverable);
@@ -98,8 +98,8 @@ export function evaluateProviderConformance(
   const score = checks.reduce((total, item) => total + (item.passed ? item.weight : 0), 0);
   const passed = score >= 90 && !checks.some((item) => item.critical && !item.passed);
   const body = {
-    schemaVersion: "capitalops.evaluation.v1" as const,
-    rubricVersion: `capitalops.${request.service.toLowerCase()}.conformance.v1`,
+    schemaVersion: "positioncrew.evaluation.v1" as const,
+    rubricVersion: `positioncrew.${request.service.toLowerCase()}.conformance.v1`,
     requestHash,
     deliverableHash,
     evaluatorId,

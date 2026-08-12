@@ -7,22 +7,22 @@ import {
   YieldOptimizationRequestSchema,
 } from "./yield-optimization.js";
 
-export const CapitalOpsRequestSchema = z.discriminatedUnion("service", [
+export const PositionCrewRequestSchema = z.discriminatedUnion("service", [
   LendingRescueRequestSchema,
   LpRebalanceRequestSchema,
   YieldOptimizationRequestSchema,
   BoundedGridRequestSchema,
 ]);
 
-export const CapitalOpsDeliverableSchema = z.discriminatedUnion("service", [
+export const PositionCrewDeliverableSchema = z.discriminatedUnion("service", [
   LendingRescueDeliverableSchema,
   LpRebalanceDeliverableSchema,
   YieldOptimizationDeliverableSchema,
   BoundedGridDeliverableSchema,
 ]);
 
-export type CapitalOpsRequest = z.infer<typeof CapitalOpsRequestSchema>;
-export type CapitalOpsDeliverable = z.infer<typeof CapitalOpsDeliverableSchema>;
+export type PositionCrewRequest = z.infer<typeof PositionCrewRequestSchema>;
+export type PositionCrewDeliverable = z.infer<typeof PositionCrewDeliverableSchema>;
 
 export * from "./bounded-grid.js";
 export * from "./common.js";

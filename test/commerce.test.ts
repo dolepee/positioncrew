@@ -7,7 +7,7 @@ import { canonicalHash } from "../src/core/canonical.js";
 
 function envelope() {
   return {
-    schemaVersion: "capitalops.job-envelope.v1" as const,
+    schemaVersion: "positioncrew.job-envelope.v1" as const,
     idempotencyKey: "test-job-idempotency-001",
     service: "LENDING_RESCUE" as const,
     requestId: "request-commerce-001",

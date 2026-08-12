@@ -11,7 +11,7 @@ import {
 
 export const LpRebalanceRequestSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.lp-rebalance.request.v1"),
+    schemaVersion: z.literal("positioncrew.lp-rebalance.request.v1"),
     service: z.literal("LP_REBALANCE"),
     ...BaseRequestFields,
     pool: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
@@ -74,7 +74,7 @@ export const LpRebalanceRequestSchema = z
 
 export const LpRebalanceDeliverableSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.lp-rebalance.deliverable.v1"),
+    schemaVersion: z.literal("positioncrew.lp-rebalance.deliverable.v1"),
     service: z.literal("LP_REBALANCE"),
     requestId: z.string().min(8).max(120),
     generatedAt: TimestampSchema,

@@ -104,7 +104,7 @@ describe("main-track provider breadth", () => {
     const evaluation = evaluateProviderConformance(
       request,
       tampered,
-      "capitalops:evaluator:lp_rebalance:v1",
+      "positioncrew:evaluator:lp_rebalance:v1",
       FIXTURE_NOW,
     );
 

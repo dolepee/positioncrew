@@ -12,7 +12,7 @@ import {
 
 export const BoundedGridRequestSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.bounded-grid.request.v1"),
+    schemaVersion: z.literal("positioncrew.bounded-grid.request.v1"),
     service: z.literal("BOUNDED_GRID"),
     ...BaseRequestFields,
     venue: AddressSchema,
@@ -63,7 +63,7 @@ export const GridOrderSchema = z
 
 export const BoundedGridDeliverableSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.bounded-grid.deliverable.v1"),
+    schemaVersion: z.literal("positioncrew.bounded-grid.deliverable.v1"),
     service: z.literal("BOUNDED_GRID"),
     requestId: z.string().min(8).max(120),
     generatedAt: TimestampSchema,

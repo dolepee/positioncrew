@@ -44,7 +44,7 @@ export function createYieldOptimizationDeliverable(
   });
   const currentApyBps = currentWeightedApy(request);
   const base = {
-    schemaVersion: "capitalops.yield-optimization.deliverable.v1" as const,
+    schemaVersion: "positioncrew.yield-optimization.deliverable.v1" as const,
     service: "YIELD_OPTIMIZATION" as const,
     requestId: request.requestId,
     generatedAt: now.toISOString(),

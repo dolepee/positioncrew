@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { runProviderJob } from "../application/run-provider-job.js";
 import { MemoryCommerceAdapter } from "../commerce/memory-adapter.js";
-import { CapitalOpsRequestSchema } from "../contracts/index.js";
+import { PositionCrewRequestSchema } from "../contracts/index.js";
 
 const fixtureNames = [
   "lending-rescue/stressed-venus-position.v1.json",
@@ -19,7 +19,7 @@ for (const fixtureName of fixtureNames) {
   const fixturePath = fileURLToPath(
     new URL(`../../fixtures/${fixtureName}`, import.meta.url),
   );
-  const request = CapitalOpsRequestSchema.parse(
+  const request = PositionCrewRequestSchema.parse(
     JSON.parse(await readFile(fixturePath, "utf8")),
   );
   results.push(await runProviderJob(adapter, request, now));

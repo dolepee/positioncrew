@@ -27,7 +27,7 @@ function emptyResult(
   limitations: string[],
 ): BoundedGridDeliverable {
   return BoundedGridDeliverableSchema.parse({
-    schemaVersion: "capitalops.bounded-grid.deliverable.v1",
+    schemaVersion: "positioncrew.bounded-grid.deliverable.v1",
     service: "BOUNDED_GRID",
     requestId: request.requestId,
     generatedAt: now.toISOString(),
@@ -170,7 +170,7 @@ export function createBoundedGridDeliverable(
     ),
   ).toISOString();
   return BoundedGridDeliverableSchema.parse({
-    schemaVersion: "capitalops.bounded-grid.deliverable.v1",
+    schemaVersion: "positioncrew.bounded-grid.deliverable.v1",
     service: "BOUNDED_GRID",
     requestId: request.requestId,
     generatedAt: now.toISOString(),

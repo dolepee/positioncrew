@@ -25,10 +25,10 @@ export async function runLendingRescueJob(
 ): Promise<LendingRescueJobResult> {
   const request = LendingRescueRequestSchema.parse(requestInput);
   const requestHash = canonicalHash(request);
-  const providerId = "capitalops:provider:lending-rescue:v1";
-  const evaluatorId = "capitalops:evaluator:lending-rescue:v1";
+  const providerId = "positioncrew:provider:lending-rescue:v1";
+  const evaluatorId = "positioncrew:evaluator:lending-rescue:v1";
   let job = await adapter.createJob({
-    schemaVersion: "capitalops.job-envelope.v1",
+    schemaVersion: "positioncrew.job-envelope.v1",
     idempotencyKey: `lending:${request.requestId}`,
     service: request.service,
     requestId: request.requestId,
@@ -53,11 +53,11 @@ export async function runLendingRescueJob(
   const deliverable = createLendingRescueDeliverable(request, now);
   const deliverableHash = canonicalHash(deliverable);
   job = await adapter.submitDeliverable(job.jobId, {
-    schemaVersion: "capitalops.deliverable-manifest.v1",
+    schemaVersion: "positioncrew.deliverable-manifest.v1",
     requestHash,
     deliverableHash,
     mediaType: "application/json",
-    uri: `https://artifacts.capitalops.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
+    uri: `https://artifacts.positioncrew.invalid/${job.jobId}/${deliverableHash.slice(7)}.json`,
     createdAt: now.toISOString(),
   });
 

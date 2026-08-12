@@ -79,7 +79,7 @@ export function createLendingRescueDeliverable(
     targetHealthFactor: request.targetHealthFactor,
   };
   const common = {
-    schemaVersion: "capitalops.lending-rescue.deliverable.v1" as const,
+    schemaVersion: "positioncrew.lending-rescue.deliverable.v1" as const,
     service: "LENDING_RESCUE" as const,
     requestId: request.requestId,
     generatedAt: now.toISOString(),

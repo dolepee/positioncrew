@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "capitalops.lp-rebalance.request.v1",
+  "schemaVersion": "positioncrew.lp-rebalance.request.v1",
   "service": "LP_REBALANCE",
   "requestId": "v3-out-of-range-20260812-001",
   "chainId": 56,
@@ -15,7 +15,7 @@
     {
       "sourceId": "pancake-v3-fixture-001",
       "label": "Frozen PancakeSwap V3 pool and position snapshot",
-      "uri": "https://fixtures.capitalops.invalid/pancake-v3-position-001.json",
+      "uri": "https://fixtures.positioncrew.invalid/pancake-v3-position-001.json",
       "observedAt": "2026-08-12T15:59:00.000Z"
     }
   ],

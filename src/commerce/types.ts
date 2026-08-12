@@ -36,7 +36,7 @@ export const JobBudgetSchema = z
 
 export const JobEnvelopeSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.job-envelope.v1"),
+    schemaVersion: z.literal("positioncrew.job-envelope.v1"),
     idempotencyKey: z.string().min(8).max(160),
     service: ServiceTypeSchema,
     requestId: z.string().min(8).max(120),
@@ -67,7 +67,7 @@ export const FundingReceiptSchema = z
 
 export const DeliverableManifestSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.deliverable-manifest.v1"),
+    schemaVersion: z.literal("positioncrew.deliverable-manifest.v1"),
     requestHash: HashSchema,
     deliverableHash: HashSchema,
     mediaType: z.literal("application/json"),
@@ -89,7 +89,7 @@ export const EvaluationCheckSchema = z
 
 export const EvaluationReceiptSchema = z
   .object({
-    schemaVersion: z.literal("capitalops.evaluation.v1"),
+    schemaVersion: z.literal("positioncrew.evaluation.v1"),
     rubricVersion: z.string().min(1).max(120),
     requestHash: HashSchema,
     deliverableHash: HashSchema,
