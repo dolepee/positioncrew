@@ -222,9 +222,9 @@ export function JobWorkspace({
     <main className="page-shell jobs-page">
       <div className="page-title-row compact">
         <div>
-          <span className="page-kicker">Job workspace</span>
-          <h1>Create, evaluate, and inspect a provider job</h1>
-          <p>Every result binds the request, deliverable, evaluator checks, and expiry.</p>
+          <span className="page-kicker">Bounded job workspace</span>
+          <h1>Define the job. Inspect the action.</h1>
+          <p>The provider returns a machine-readable decision, execution guards, and a reproducible receipt.</p>
         </div>
         <label className="provider-select">
           <span>Provider</span>
@@ -261,13 +261,13 @@ export function JobWorkspace({
               {task.inputs.map((input) => <div key={input.label}><dt>{input.label}</dt><dd>{input.value}</dd></div>)}
             </dl>
           )}
-          <div className="request-boundary">
+          <div className="request-boundary" id="request-boundary">
             <AlertTriangle size={15} aria-hidden="true" />
             <span>{customLending ? "Custom fixture parameters are not covered by the locked benchmark hash." : "Exact frozen input matches the committed fixture."}</span>
           </div>
           <div className="composer-footer">
             <span><strong>5 TEST_USDC</strong><small>In-memory conformance rail</small></span>
-            <button className="primary-action" type="button" onClick={submitJob} disabled={loading || !fixture || (service === "LENDING_RESCUE" && !allowRepay && !allowCollateral)}>
+            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || (service === "LENDING_RESCUE" && !allowRepay && !allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
               {!loading && <ArrowRight size={15} />}
@@ -290,9 +290,13 @@ export function JobWorkspace({
                 <ReceiptView response={shownResponse} />
           ) : (
             <div className="empty-result-state">
-              <ShieldCheck size={30} strokeWidth={1.5} />
-              <h2>No result selected</h2>
-              <p>Run the configured provider job to produce a bounded action and receipt.</p>
+              <span className="empty-result-icon"><ShieldCheck size={28} strokeWidth={1.6} /></span>
+              <span className="empty-result-kicker">READY FOR REQUEST</span>
+              <h2>Your bounded action will appear here.</h2>
+              <p>One provider call produces the decision, guardrails, machine JSON, and receipt.</p>
+              <div className="empty-result-flow" aria-hidden="true">
+                <span><b>01</b> Request</span><ArrowRight size={14} /><span><b>02</b> Evaluate</span><ArrowRight size={14} /><span><b>03</b> Receipt</span>
+              </div>
             </div>
           )}
         </section>

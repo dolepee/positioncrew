@@ -2,12 +2,12 @@ import { expect, test } from "@playwright/test";
 
 test("a cold buyer can discover, hire, and inspect the lending provider", async ({ page }) => {
   await page.goto("/#marketplace");
-  await expect(page.getByRole("heading", { name: "Capital operations marketplace" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Hire a capital operator." })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).last()).toBeVisible();
   await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible();
 
-  await page.getByRole("button", { name: "Create lending rescue job" }).click();
-  await expect(page.getByRole("heading", { name: "Create, evaluate, and inspect a provider job" })).toBeVisible();
+  await page.getByRole("button", { name: "Open lending rescue workspace" }).click();
+  await expect(page.getByRole("heading", { name: "Define the job. Inspect the action." })).toBeVisible();
   await page.getByRole("button", { name: "Run lending rescue" }).click();
 
   await expect(page.getByRole("heading", { name: "Repay 152 USDT" })).toBeVisible();

@@ -24,7 +24,7 @@ export function ShellHeader({
       <div className="shell-header-inner">
         <button className="brand-button" type="button" onClick={() => onNavigate("marketplace")}>
           <img src="/positioncrew-mark.svg" alt="" width="34" height="34" />
-          <span><strong>PositionCrew</strong><small>BSC agent marketplace</small></span>
+          <span><strong>PositionCrew</strong><small>Agent capital desk</small></span>
         </button>
         <div className="header-right">
           <nav className="global-nav" aria-label="Primary navigation">
@@ -46,6 +46,7 @@ export function ShellHeader({
             })}
           </nav>
           <div className="header-actions">
+            <span className="network-chip"><i /> BNB Smart Chain</span>
             <span className={`api-state ${apiOnline ? "online" : "loading"}`} role="status">
               <i /> {apiOnline ? "API reachable" : "Connecting"}
             </span>
