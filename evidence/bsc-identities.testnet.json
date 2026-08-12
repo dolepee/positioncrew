@@ -1,0 +1,60 @@
+{
+  "schemaVersion": "positioncrew.bsc-identities.v1",
+  "network": "bsc-testnet",
+  "chainId": 97,
+  "identityRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+  "source": "BNB Agent SDK 0.4.2",
+  "providers": [
+    {
+      "slug": "lending-rescue",
+      "name": "PositionCrew Lending Rescue",
+      "category": "Health factor monitoring",
+      "service": "LENDING_RESCUE",
+      "agentId": 1810,
+      "owner": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/providers/lending-rescue/manifest",
+      "manifestSha256": "d25600bc5680603d9ccfde2abe94ba9f4365f60521cf0993286fd13e0c84b9ba",
+      "registrationTransaction": "0x828b810e1dc5f3e30859afbeb5a74deb728ed60c5d7cce09e9b44ed4be07aaaf",
+      "registeredAt": "2026-08-12T22:58:58.064204+00:00"
+    },
+    {
+      "slug": "lp-rebalance",
+      "name": "PositionCrew LP Range Operator",
+      "category": "Rebalancing",
+      "service": "LP_REBALANCE",
+      "agentId": 1811,
+      "owner": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/providers/lp-rebalance/manifest",
+      "manifestSha256": "4443c8327c831cafb7ff1d22ce037dbd396763ad0bd2b902d400652544cdd7e4",
+      "registrationTransaction": "0x7e94ae42091364cd110db183bb32055db3238008e8804dffc426dae76e393168",
+      "registeredAt": "2026-08-12T22:59:10.039631+00:00"
+    },
+    {
+      "slug": "yield-optimization",
+      "name": "PositionCrew Yield Allocator",
+      "category": "Yield optimisation",
+      "service": "YIELD_OPTIMIZATION",
+      "agentId": 1812,
+      "owner": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/providers/yield-optimization/manifest",
+      "manifestSha256": "f50974ef58b1468b51e18cc0011993c23facbc7e6978dfa58cd75d0dea4ad38e",
+      "registrationTransaction": "0xfeb0d02eaa3a57c237d22a4d574497493e28e96b19dbbb363a127d23206a29da",
+      "registeredAt": "2026-08-12T22:59:19.237757+00:00"
+    },
+    {
+      "slug": "bounded-grid",
+      "name": "PositionCrew Bounded Grid Builder",
+      "category": "Grid trading",
+      "service": "BOUNDED_GRID",
+      "agentId": 1813,
+      "owner": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/providers/bounded-grid/manifest",
+      "manifestSha256": "55650eb2a441457cebab7edca75ed878b9e263dee529e9d04a21cba2f5d84e16",
+      "registrationTransaction": "0x8466e273149a1178e15db544964de83767450450ec334abb61e9cd24df95bbb4",
+      "registeredAt": "2026-08-12T22:59:29.286692+00:00"
+    }
+  ],
+  "owner": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+  "baseUrl": "https://positioncrew.dolepee.com",
+  "verifiedAt": "2026-08-12T22:59:29.286700+00:00"
+}

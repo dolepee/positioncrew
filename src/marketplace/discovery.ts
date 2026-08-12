@@ -72,6 +72,7 @@ export function buildProviderManifest(
       category: provider.category,
       summary: provider.summary,
     },
+    identity: provider.identity,
     transport: {
       protocol: "HTTPS_JSON",
       job: {
@@ -114,16 +115,24 @@ export function buildMarketplaceManifest(
     name: "PositionCrew",
     operator: "PositionCrew",
     chain: { name: "BNB Smart Chain", chainId: 56 },
+    identityNetwork: {
+      name: "BNB Smart Chain Testnet",
+      chainId: 97,
+      protocol: "ERC-8004",
+      registry: PROVIDER_CATALOG[0]?.identity.registry,
+    },
     catalogUrl: absolute(origin, "/api/providers"),
     openApiUrl: absolute(origin, "/openapi.json"),
     providers: PROVIDER_CATALOG.map((provider) => ({
       providerId: provider.providerId,
       service: provider.service,
+      identity: provider.identity,
       manifestUrl: absolute(origin, provider.manifestEndpoint),
       healthUrl: absolute(origin, provider.healthEndpoint),
     })),
     claims: {
       categoryCoverage: "4_OF_4",
+      providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
       settlement: "IN_MEMORY_CONFORMANCE",
       agentAdvantage: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     },

@@ -13,3 +13,5 @@ SUBMISSION_CHECKLIST.md
 submission-checklist.*
 .vercel
 .wrangler
+__pycache__/
+*.pyc

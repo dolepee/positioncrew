@@ -137,7 +137,17 @@ export interface ProviderListing {
   manifestEndpoint: string;
   requestSchema: string;
   deliverableSchema: string;
-  price: { amount: "5"; token: "TEST_USDC"; chainId: 56 };
+  price: { amount: "5"; token: "TEST_USDC"; chainId: 97 };
+  identity: {
+    protocol: "ERC-8004";
+    network: "BSC_TESTNET";
+    chainId: 97;
+    registry: string;
+    agentId: number;
+    owner: string;
+    registrationTransaction: string;
+    explorerUrl: string;
+  };
   availability: "FIXTURE_API_REACHABLE";
   verification: "DETERMINISTIC_CONFORMANCE";
   settlement: "IN_MEMORY_CONFORMANCE";

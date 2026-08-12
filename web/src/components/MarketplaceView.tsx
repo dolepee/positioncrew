@@ -162,7 +162,7 @@ export function MarketplaceView({
                             onClick={() => onSelect(provider.service)}
                           >
                             <span className="provider-icon">{Icon && <Icon size={17} aria-hidden="true" />}</span>
-                            <span><strong>{provider.name}</strong><small>{shortHash(provider.providerId, 18)}</small></span>
+                            <span><strong>{provider.name}</strong><small>ERC-8004 #{provider.identity.agentId} · {shortHash(provider.providerId, 12)}</small></span>
                           </button>
                         </td>
                         <td><span className="category-label">{provider.category}</span></td>
@@ -194,6 +194,7 @@ export function MarketplaceView({
                 <dl className="provider-facts">
                   <div><dt><Server size={14} /> Endpoint</dt><dd><code>{selected.method} {selected.endpoint}</code></dd></div>
                   <div><dt><Radio size={14} /> Health</dt><dd><code>GET {selected.healthEndpoint}</code></dd></div>
+                  <div><dt><BadgeCheck size={14} /> BSC identity</dt><dd><a href={selected.identity.explorerUrl} target="_blank" rel="noreferrer">ERC-8004 #{selected.identity.agentId} <ExternalLink size={11} aria-hidden="true" /></a></dd></div>
                   <div><dt><Code2 size={14} /> Machine contract</dt><dd><a href={selected.manifestEndpoint} target="_blank" rel="noreferrer">Inspect provider manifest <ExternalLink size={11} aria-hidden="true" /></a></dd></div>
                   <div><dt><Database size={14} /> Request</dt><dd><code>{selected.requestSchema}</code></dd></div>
                   <div><dt><Code2 size={14} /> Deliverable</dt><dd><code>{selected.deliverableSchema}</code></dd></div>
@@ -212,7 +213,7 @@ export function MarketplaceView({
                 ) : null}
                 <div className="provider-boundary">
                   <strong>Environment boundary</strong>
-                  <span>Live BSC context · frozen decision fixture · AACP contracts verified, terminal settlement gated</span>
+                  <span>Live BSC context · ERC-8004 testnet identity · frozen decision fixture · AACP terminal settlement gated</span>
                 </div>
               </>
             ) : (

@@ -17,11 +17,24 @@ The product covers all four Build the Era categories with equal depth:
 
 The web application is the primary interface:
 
-- **Marketplace:** searchable provider registry with distinct provider endpoints, health routes, price, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and documented AACP testnet contracts directly from chain.
+- **Marketplace:** searchable provider registry with distinct provider endpoints, ERC-8004 identity, health routes, price, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and documented AACP testnet contracts directly from chain.
 - **Jobs:** provider selection, editable buyer constraints, a block-pinned Venus account probe, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history.
 - **Evidence:** live infrastructure register, public content-addressed receipts for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
 
 The flagship cold-buyer journey is **Rescue a lending position**. It returns exact token base units, projected health factor, execution preconditions, expiry, deterministic evaluation, and a fail-closed refusal when evidence is stale or constraints make the action unsafe.
+
+## BSC provider identity
+
+Each first-party provider has a separate ERC-8004 identity on BSC Testnet. The identity URI binds the public provider manifest and health endpoint; the scheduled production monitor resolves `ownerOf` and `tokenURI` from the registry before it accepts a provider as operational.
+
+| Provider | ERC-8004 agent | Registration |
+| --- | ---: | --- |
+| Lending Rescue | `1810` | [transaction](https://testnet.bscscan.com/tx/0x828b810e1dc5f3e30859afbeb5a74deb728ed60c5d7cce09e9b44ed4be07aaaf) |
+| LP Range Operator | `1811` | [transaction](https://testnet.bscscan.com/tx/0x7e94ae42091364cd110db183bb32055db3238008e8804dffc426dae76e393168) |
+| Yield Allocator | `1812` | [transaction](https://testnet.bscscan.com/tx/0xfeb0d02eaa3a57c237d22a4d574497493e28e96b19dbbb363a127d23206a29da) |
+| Bounded Grid Builder | `1813` | [transaction](https://testnet.bscscan.com/tx/0x8466e273149a1178e15db544964de83767450450ec334abb61e9cd24df95bbb4) |
+
+The registry is [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://testnet.bscscan.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e). Public receipts and metadata are recorded in [`evidence/bsc-identities.testnet.json`](evidence/bsc-identities.testnet.json). [`scripts/register-bsc-identities.py`](scripts/register-bsc-identities.py) reproduces the official BNB Agent SDK registration path with the pinned [`bnbagent` dependency](scripts/requirements-bsc-identity.txt), while keeping the encrypted signing wallet outside Git.
 
 ## Run locally
 
@@ -80,6 +93,7 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - Canonical hashes bind request envelopes, deliverables, and evaluations.
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
+- ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary

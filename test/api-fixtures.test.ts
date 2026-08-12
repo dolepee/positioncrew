@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Buffer } from "node:buffer";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import lendingFixture from "../fixtures/lending-rescue/stressed-venus-position.v1.json" with { type: "json" };
 import {
   runFixtureRequest,
@@ -91,6 +93,43 @@ describe("public fixture job boundary", () => {
     expect(PROVIDER_CATALOG.every((provider) => provider.healthEndpoint.startsWith("/api/providers/") && provider.healthEndpoint.endsWith("/health"))).toBe(true);
     expect(PROVIDER_CATALOG.every((provider) => provider.manifestEndpoint.startsWith("/api/providers/") && provider.manifestEndpoint.endsWith("/manifest"))).toBe(true);
     expect(PROVIDER_CATALOG.every((provider) => provider.settlement === "IN_MEMORY_CONFORMANCE")).toBe(true);
+    expect(new Set(PROVIDER_CATALOG.map((provider) => provider.identity.agentId)).size).toBe(4);
+    expect(
+      PROVIDER_CATALOG.every(
+        (provider) =>
+          provider.identity.protocol === "ERC-8004" &&
+          provider.identity.chainId === 97 &&
+          provider.identity.explorerUrl.includes(provider.identity.registrationTransaction),
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps the public ERC-8004 receipts aligned with the provider catalog", () => {
+    const path = fileURLToPath(
+      new URL("../evidence/bsc-identities.testnet.json", import.meta.url),
+    );
+    const evidence = JSON.parse(readFileSync(path, "utf8")) as {
+      chainId: number;
+      identityRegistry: string;
+      providers: Array<{
+        slug: string;
+        agentId: number;
+        owner: string;
+        registrationTransaction: string;
+      }>;
+    };
+
+    expect(evidence.chainId).toBe(97);
+    expect(evidence.providers).toHaveLength(4);
+    for (const provider of PROVIDER_CATALOG) {
+      const receipt = evidence.providers.find((candidate) => candidate.slug === provider.slug);
+      expect(receipt).toMatchObject({
+        agentId: provider.identity.agentId,
+        owner: provider.identity.owner,
+        registrationTransaction: provider.identity.registrationTransaction,
+      });
+      expect(provider.identity.registry).toBe(evidence.identityRegistry);
+    }
   });
 
   it("publishes self-describing provider contracts without overstating settlement", () => {
@@ -113,12 +152,16 @@ describe("public fixture job boundary", () => {
     expect(manifest).toMatchObject({
       schemaVersion: "positioncrew.provider-manifest.v1",
       provider: { providerId: provider.providerId, relationship: "FIRST_PARTY" },
+      identity: { protocol: "ERC-8004", agentId: provider.identity.agentId },
       commerce: { settlement: "IN_MEMORY_CONFORMANCE" },
     });
     expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
     expect(marketplace).toMatchObject({
       schemaVersion: "positioncrew.marketplace-manifest.v1",
-      claims: { categoryCoverage: "4_OF_4" },
+      claims: {
+        categoryCoverage: "4_OF_4",
+        providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
+      },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
     expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(4);
