@@ -17,6 +17,7 @@
     "test:e2e": "playwright test",
     "benchmark:verify-lock": "tsx src/cli/verify-benchmark-lock.ts",
     "benchmark:verify-locks": "tsx src/cli/verify-benchmark-lock.ts",
+    "benchmark:session": "tsx src/cli/benchmark-session.ts",
     "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
     "verify:all": "tsx src/cli/verify-all-providers.ts"
   },

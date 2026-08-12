@@ -42,7 +42,7 @@ export const BenchmarkRubricSchema = z
 
 export const BenchmarkProtocolSchema = z
   .object({
-    schemaVersion: z.literal("positioncrew.benchmark-protocol.v1"),
+    schemaVersion: z.literal("positioncrew.benchmark-protocol.v2"),
     protocolId: z.string().min(3).max(120),
     taskId: z.string().min(8).max(120),
     fixturePath: z.string().min(1).max(240),
@@ -55,7 +55,8 @@ export const BenchmarkProtocolSchema = z
     prohibitedInputs: z.array(z.string().min(1)).min(1),
     blinding: z
       .object({
-        candidateLabels: z.array(z.string().min(1)).length(3),
+        candidateLabels: z.array(z.string().min(1)).length(2),
+        agentRepresentativeSelection: z.string().min(1),
         randomization: z.string().min(1),
         mappingCustody: z.string().min(1),
         evaluator: z.string().min(1),

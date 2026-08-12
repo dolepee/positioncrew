@@ -2,11 +2,11 @@ import lendingFixture from "../../fixtures/lending-rescue/stressed-venus-positio
 import lpFixture from "../../fixtures/lp-rebalance/out-of-range-v3-position.v1.json" with { type: "json" };
 import yieldFixture from "../../fixtures/yield-optimization/venus-to-beefy.v1.json" with { type: "json" };
 import gridFixture from "../../fixtures/bounded-grid/bnb-usdt-grid.v1.json" with { type: "json" };
-import benchmarkProtocol from "../../benchmarks/lending-rescue/protocol.v1.json" with { type: "json" };
+import benchmarkProtocol from "../../benchmarks/lending-rescue/protocol.v2.json" with { type: "json" };
 import benchmarkRubric from "../../benchmarks/lending-rescue/rubric.v1.json" with { type: "json" };
-import lpBenchmarkProtocol from "../../benchmarks/lp-rebalance/protocol.v1.json" with { type: "json" };
+import lpBenchmarkProtocol from "../../benchmarks/lp-rebalance/protocol.v2.json" with { type: "json" };
 import lpBenchmarkRubric from "../../benchmarks/lp-rebalance/rubric.v1.json" with { type: "json" };
-import gridBenchmarkProtocol from "../../benchmarks/bounded-grid/protocol.v1.json" with { type: "json" };
+import gridBenchmarkProtocol from "../../benchmarks/bounded-grid/protocol.v2.json" with { type: "json" };
 import gridBenchmarkRubric from "../../benchmarks/bounded-grid/rubric.v1.json" with { type: "json" };
 import { runProviderJob, type ProviderJobResult } from "../application/run-provider-job.js";
 import type {

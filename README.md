@@ -49,6 +49,7 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 
 ```bash
 npm run benchmark:verify-lock
+npm run benchmark:session -- prepare lending-rescue
 npm run verify:gate2a
 npm run verify:all
 npm run typecheck
@@ -59,6 +60,8 @@ npm run test:e2e
 The lending result is written to `artifacts/gate2a/lending-rescue-result.json`; the four-category matrix is written to `artifacts/main-track/provider-matrix.json`.
 
 Deterministic `100/100` results establish provider conformance against frozen fixtures. They do **not** establish agent advantage over a human baseline. Lending rescue, LP rebalancing, and bounded-grid task packets, rubrics, timing rules, and blinding protocols are pre-registered under [`benchmarks`](benchmarks); independent comparisons remain pending and the UI says so.
+
+The executable [Agent Advantage evidence workflow](benchmarks/EVIDENCE_WORKFLOW.md) captures immutable agent and manual candidates, withholds answer-bearing rubric text from the manual operator, keeps duplicate agent repeats out of the blind packet, validates the independent scorecard, and reveals the committed source mapping only after scoring.
 
 ## Architecture
 

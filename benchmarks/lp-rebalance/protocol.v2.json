@@ -1,6 +1,6 @@
 {
-  "schemaVersion": "positioncrew.benchmark-protocol.v1",
-  "protocolId": "lp-rebalance-blind-v1",
+  "schemaVersion": "positioncrew.benchmark-protocol.v2",
+  "protocolId": "lp-rebalance-blind-v2",
   "taskId": "v3-out-of-range-20260812-001",
   "fixturePath": "fixtures/lp-rebalance/out-of-range-v3-position.v1.json",
   "rubricPath": "benchmarks/lp-rebalance/rubric.v1.json",
@@ -25,9 +25,10 @@
     "Changing the fixture, rubric, or scoring anchors after a result is seen"
   ],
   "blinding": {
-    "candidateLabels": ["Candidate A", "Candidate B", "Candidate C"],
-    "randomization": "Randomize the three immutable output hashes only after all runs finish.",
-    "mappingCustody": "Keep the source mapping outside the public repository until the evaluator signs the completed scorecard.",
+    "candidateLabels": ["Candidate A", "Candidate B"],
+    "agentRepresentativeSelection": "The first completed agent run is the quality candidate. The second run proves repeatability and is excluded from the blind packet so duplicate outputs cannot reveal source identity.",
+    "randomization": "Randomize the manual output and precommitted agent representative only after all three immutable runs finish.",
+    "mappingCustody": "Keep the source mapping outside the public repository until the evaluator completes and attests the scorecard.",
     "evaluator": "An independent human who did not produce any candidate and cannot see timing, cost, or source identity while scoring quality."
   },
   "reportedMetrics": [
@@ -37,5 +38,5 @@
     "criticalFailureCount",
     "outputHash"
   ],
-  "decisionRule": "Agent advantage is supported only when the median agent quality score is at least the manual score, no agent run has a critical failure, and median agent elapsed time is lower than manual elapsed time. Cost is reported and never hidden."
+  "decisionRule": "Agent advantage is supported only when the precommitted agent representative quality score is at least the manual score, both agent output hashes match, neither agent run has a critical conformance failure, and median agent elapsed time is lower than manual elapsed time. Cost is reported and never hidden."
 }

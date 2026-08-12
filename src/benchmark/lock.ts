@@ -1,7 +1,12 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { canonicalHash } from "../core/canonical.js";
-import { BenchmarkProtocolSchema, BenchmarkRubricSchema } from "./contracts.js";
+import {
+  BenchmarkProtocolSchema,
+  BenchmarkRubricSchema,
+  type BenchmarkProtocol,
+  type BenchmarkRubric,
+} from "./contracts.js";
 
 export interface BenchmarkLock {
   schemaVersion: "positioncrew.benchmark-lock.v1";
@@ -15,17 +20,17 @@ export const TERMIX_BENCHMARK_DEFINITIONS = [
   {
     slug: "lending-rescue",
     service: "LENDING_RESCUE",
-    protocolPath: "benchmarks/lending-rescue/protocol.v1.json",
+    protocolPath: "benchmarks/lending-rescue/protocol.v2.json",
   },
   {
     slug: "lp-rebalance",
     service: "LP_REBALANCE",
-    protocolPath: "benchmarks/lp-rebalance/protocol.v1.json",
+    protocolPath: "benchmarks/lp-rebalance/protocol.v2.json",
   },
   {
     slug: "bounded-grid",
     service: "BOUNDED_GRID",
-    protocolPath: "benchmarks/bounded-grid/protocol.v1.json",
+    protocolPath: "benchmarks/bounded-grid/protocol.v2.json",
   },
 ] as const;
 
@@ -39,6 +44,12 @@ export interface BenchmarkLockRecord {
   lock: BenchmarkLock;
 }
 
+export interface BenchmarkAssets extends BenchmarkLockRecord {
+  protocol: BenchmarkProtocol;
+  rubric: BenchmarkRubric;
+  fixture: unknown;
+}
+
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
 }
@@ -47,6 +58,17 @@ export function verifyBenchmarkLock(
   slug: TermixBenchmarkSlug,
   root = process.cwd(),
 ): BenchmarkLockRecord {
+  const { protocol, rubric, fixture, ...record } = loadBenchmarkAssets(slug, root);
+  void protocol;
+  void rubric;
+  void fixture;
+  return record;
+}
+
+export function loadBenchmarkAssets(
+  slug: TermixBenchmarkSlug,
+  root = process.cwd(),
+): BenchmarkAssets {
   const definition = TERMIX_BENCHMARK_DEFINITIONS.find((candidate) => candidate.slug === slug);
   if (!definition) throw new Error(`Unknown benchmark slug: ${slug}`);
   const protocol = BenchmarkProtocolSchema.parse(
@@ -78,6 +100,9 @@ export function verifyBenchmarkLock(
       rubricHash: canonicalHash(rubric),
       protocolHash: canonicalHash(protocol),
     },
+    protocol,
+    rubric,
+    fixture,
   };
 }
 
