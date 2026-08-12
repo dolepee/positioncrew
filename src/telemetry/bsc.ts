@@ -1,13 +1,14 @@
 import {
-  createPublicClient,
+  decodeFunctionResult,
+  encodeFunctionData,
   formatEther,
   formatUnits,
-  http,
   isAddress,
   parseAbi,
+  toHex,
   type Address,
+  type Hex,
 } from "viem";
-import { bsc, bscTestnet } from "viem/chains";
 
 const MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
 const TESTNET_RPC = "https://bsc-testnet-dataseed.bnbchain.org";
@@ -50,18 +51,66 @@ const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
 ]);
 
-function createMainnetClient() {
-  return createPublicClient({
-    chain: bsc,
-    transport: http(MAINNET_RPC, { retryCount: 1, timeout: 7_000 }),
+interface RpcCall {
+  method: string;
+  params: unknown[];
+}
+
+interface RpcResult {
+  id: number;
+  result?: unknown;
+  error?: { code: number; message: string; data?: unknown };
+}
+
+interface RpcBlock {
+  number: Hex;
+  timestamp: Hex;
+}
+
+async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    body: JSON.stringify(
+      calls.map((call, index) => ({
+        jsonrpc: "2.0",
+        id: index + 1,
+        method: call.method,
+        params: call.params,
+      })),
+    ),
+  });
+  if (!response.ok) throw new Error(`BSC RPC returned HTTP ${response.status}`);
+  const payload: unknown = await response.json();
+  const entries = (Array.isArray(payload) ? payload : [payload]) as RpcResult[];
+  const byId = new Map(entries.map((entry) => [entry.id, entry]));
+  return calls.map((_, index) => {
+    const entry = byId.get(index + 1);
+    if (!entry) throw new Error(`BSC RPC omitted response ${index + 1}`);
+    if (entry.error) throw new Error(`BSC RPC ${entry.error.code}: ${entry.error.message}`);
+    if (entry.result === undefined) throw new Error(`BSC RPC response ${index + 1} has no result`);
+    return entry.result;
   });
 }
 
-function createTestnetClient() {
-  return createPublicClient({
-    chain: bscTestnet,
-    transport: http(TESTNET_RPC, { retryCount: 1, timeout: 7_000 }),
-  });
+function rpcHex(value: unknown, label: string): Hex {
+  if (typeof value !== "string" || !value.startsWith("0x")) {
+    throw new Error(`${label} returned an invalid hex value`);
+  }
+  return value as Hex;
+}
+
+function rpcBlock(value: unknown, label: string): RpcBlock {
+  if (typeof value !== "object" || value === null) throw new Error(`${label} is unavailable`);
+  const candidate = value as Partial<RpcBlock>;
+  return {
+    number: rpcHex(candidate.number, `${label} number`),
+    timestamp: rpcHex(candidate.timestamp, `${label} timestamp`),
+  };
+}
+
+function ethCall(to: Address, data: Hex, blockTag: Hex): RpcCall {
+  return { method: "eth_call", params: [{ to, data }, blockTag] };
 }
 
 export interface ChainProbe {
@@ -165,77 +214,153 @@ async function chainProbe(
   name: string,
   rpcUrl: string,
   explorerUrl: string,
-  client: ReturnType<typeof createMainnetClient> | ReturnType<typeof createTestnetClient>,
 ): Promise<{ probe: ChainProbe; secondsPerBlock: number }> {
   const startedAt = nowMs();
-  const latest = await client.getBlock({ blockTag: "latest" });
-  const priorNumber = latest.number > 120n ? latest.number - 120n : 0n;
-  const [prior, gasPrice] = await Promise.all([
-    client.getBlock({ blockNumber: priorNumber }),
-    client.getGasPrice(),
+  const [latestValue, gasPriceValue] = await rpcBatch(rpcUrl, [
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
+    { method: "eth_gasPrice", params: [] },
   ]);
+  const latest = rpcBlock(latestValue, `${name} latest block`);
+  const latestNumber = BigInt(latest.number);
+  const latestTimestamp = BigInt(latest.timestamp);
+  const priorNumber = latestNumber > 120n ? latestNumber - 120n : 0n;
+  const [priorValue] = await rpcBatch(rpcUrl, [
+    { method: "eth_getBlockByNumber", params: [toHex(priorNumber), false] },
+  ]);
+  const prior = rpcBlock(priorValue, `${name} prior block`);
+  const gasPrice = BigInt(rpcHex(gasPriceValue, `${name} gas price`));
   const observedAt = Math.floor(Date.now() / 1000);
-  const secondsPerBlock = Math.max(0.1, Number(latest.timestamp - prior.timestamp) / 120);
+  const secondsPerBlock = Math.max(
+    0.1,
+    Number(latestTimestamp - BigInt(prior.timestamp)) / 120,
+  );
   return {
     probe: {
       chainId,
       name,
-      blockNumber: latest.number.toString(),
-      blockTimestamp: new Date(Number(latest.timestamp) * 1000).toISOString(),
-      blockAgeSeconds: Math.max(0, observedAt - Number(latest.timestamp)),
+      blockNumber: latestNumber.toString(),
+      blockTimestamp: new Date(Number(latestTimestamp) * 1000).toISOString(),
+      blockAgeSeconds: Math.max(0, observedAt - Number(latestTimestamp)),
       gasPriceGwei: decimal(Number(formatUnits(gasPrice, 9)), 3),
       rpcLatencyMs: Math.max(1, nowMs() - startedAt),
       rpcUrl,
-      explorerUrl: `${explorerUrl}/block/${latest.number}`,
+      explorerUrl: `${explorerUrl}/block/${latestNumber}`,
     },
     secondsPerBlock,
   };
 }
 
 export async function getSystemTelemetry(): Promise<SystemTelemetry> {
-  // Keep clients request-scoped. Viem's scheduler cache cannot be shared safely
-  // across simultaneous Cloudflare Worker request contexts.
-  const mainnetClient = createMainnetClient();
-  const testnetClient = createTestnetClient();
   const [mainnet, testnet] = await Promise.all([
-    chainProbe(56, "BNB Smart Chain", MAINNET_RPC, "https://bscscan.com", mainnetClient),
-    chainProbe(97, "BSC Testnet", TESTNET_RPC, "https://testnet.bscscan.com", testnetClient),
+    chainProbe(56, "BNB Smart Chain", MAINNET_RPC, "https://bscscan.com"),
+    chainProbe(97, "BSC Testnet", TESTNET_RPC, "https://testnet.bscscan.com"),
+  ]);
+  const mainnetBlockTag = toHex(BigInt(mainnet.probe.blockNumber));
+  const testnetBlockTag = toHex(BigInt(testnet.probe.blockNumber));
+
+  const [mainnetValues, aacpCodes] = await Promise.all([
+    rpcBatch(MAINNET_RPC, [
+      ethCall(
+        PANCAKE_V3_FACTORY,
+        encodeFunctionData({
+          abi: FACTORY_ABI,
+          functionName: "getPool",
+          args: [WBNB, USDT, 100],
+        }),
+        mainnetBlockTag,
+      ),
+      ethCall(
+        VENUS_VUSDT,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "supplyRatePerBlock" }),
+        mainnetBlockTag,
+      ),
+      ethCall(
+        VENUS_VUSDT,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "borrowRatePerBlock" }),
+        mainnetBlockTag,
+      ),
+      ethCall(
+        VENUS_VUSDT,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "getCash" }),
+        mainnetBlockTag,
+      ),
+      ethCall(
+        VENUS_VUSDT,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "totalBorrows" }),
+        mainnetBlockTag,
+      ),
+    ]),
+    rpcBatch(
+      TESTNET_RPC,
+      AACP_CONTRACTS.map(([, address]) => ({
+        method: "eth_getCode",
+        params: [address, testnetBlockTag],
+      })),
+    ),
   ]);
 
-  const poolAddress = await mainnetClient.readContract({
-    address: PANCAKE_V3_FACTORY,
+  const poolAddress = decodeFunctionResult({
     abi: FACTORY_ABI,
     functionName: "getPool",
-    args: [WBNB, USDT, 100],
+    data: rpcHex(mainnetValues[0], "PancakeSwap pool"),
   });
   if (poolAddress === "0x0000000000000000000000000000000000000000") {
     throw new Error("PancakeSwap WBNB/USDT 0.01% pool is unavailable");
   }
 
-  const [slot0, liquidity, supplyRate, borrowRate, cash, totalBorrows, aacpCodes] =
-    await Promise.all([
-      mainnetClient.readContract({ address: poolAddress, abi: POOL_ABI, functionName: "slot0" }),
-      mainnetClient.readContract({ address: poolAddress, abi: POOL_ABI, functionName: "liquidity" }),
-      mainnetClient.readContract({ address: VENUS_VUSDT, abi: VTOKEN_ABI, functionName: "supplyRatePerBlock" }),
-      mainnetClient.readContract({ address: VENUS_VUSDT, abi: VTOKEN_ABI, functionName: "borrowRatePerBlock" }),
-      mainnetClient.readContract({ address: VENUS_VUSDT, abi: VTOKEN_ABI, functionName: "getCash" }),
-      mainnetClient.readContract({ address: VENUS_VUSDT, abi: VTOKEN_ABI, functionName: "totalBorrows" }),
-      Promise.all(
-        AACP_CONTRACTS.map(async ([name, address]) => ({
-          name,
-          address,
-          bytecode: await testnetClient.getBytecode({ address }),
-        })),
-      ),
-    ]);
+  const [slot0Value, liquidityValue] = await rpcBatch(MAINNET_RPC, [
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "slot0" }),
+      mainnetBlockTag,
+    ),
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "liquidity" }),
+      mainnetBlockTag,
+    ),
+  ]);
+  const slot0 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "slot0",
+    data: rpcHex(slot0Value, "PancakeSwap slot0"),
+  });
+  const liquidity = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "liquidity",
+    data: rpcHex(liquidityValue, "PancakeSwap liquidity"),
+  });
+  const supplyRate = decodeFunctionResult({
+    abi: VTOKEN_ABI,
+    functionName: "supplyRatePerBlock",
+    data: rpcHex(mainnetValues[1], "Venus supply rate"),
+  });
+  const borrowRate = decodeFunctionResult({
+    abi: VTOKEN_ABI,
+    functionName: "borrowRatePerBlock",
+    data: rpcHex(mainnetValues[2], "Venus borrow rate"),
+  });
+  const cash = decodeFunctionResult({
+    abi: VTOKEN_ABI,
+    functionName: "getCash",
+    data: rpcHex(mainnetValues[3], "Venus cash"),
+  });
+  const totalBorrows = decodeFunctionResult({
+    abi: VTOKEN_ABI,
+    functionName: "totalBorrows",
+    data: rpcHex(mainnetValues[4], "Venus total borrows"),
+  });
 
   const generatedAt = new Date().toISOString();
-  const contracts = aacpCodes.map(({ name, address, bytecode }) => ({
-    name,
-    address,
-    deployed: Boolean(bytecode && bytecode !== "0x"),
-    explorerUrl: `https://testnet.bscscan.com/address/${address}`,
-  }));
+  const contracts = AACP_CONTRACTS.map(([name, address], index) => {
+    const bytecode = rpcHex(aacpCodes[index], `${name} bytecode`);
+    return {
+      name,
+      address,
+      deployed: bytecode !== "0x",
+      explorerUrl: `https://testnet.bscscan.com/address/${address}`,
+    };
+  });
 
   return {
     schemaVersion: "positioncrew.system-telemetry.v1",
@@ -279,34 +404,53 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
 export async function inspectVenusAccount(accountInput: string): Promise<VenusAccountProbe> {
   if (!isAddress(accountInput)) throw new Error("A valid EVM account address is required");
   const account = accountInput as Address;
-  const mainnetClient = createMainnetClient();
-  const block = await mainnetClient.getBlock({ blockTag: "latest" });
-  const [liquidityResult, enteredMarkets, nativeBalance, usdtBalance] = await Promise.all([
-    mainnetClient.readContract({
-      address: VENUS_COMPTROLLER,
-      abi: COMPTROLLER_ABI,
-      functionName: "getAccountLiquidity",
-      args: [account],
-      blockNumber: block.number,
-    }),
-    mainnetClient.readContract({
-      address: VENUS_COMPTROLLER,
-      abi: COMPTROLLER_ABI,
-      functionName: "getAssetsIn",
-      args: [account],
-      blockNumber: block.number,
-    }),
-    mainnetClient.getBalance({ address: account, blockNumber: block.number }),
-    mainnetClient.readContract({
-      address: USDT,
-      abi: ERC20_ABI,
-      functionName: "balanceOf",
-      args: [account],
-      blockNumber: block.number,
-    }),
+  const [blockValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
   ]);
-  const [errorCode, liquidity, shortfall] = liquidityResult as readonly [bigint, bigint, bigint];
-  const markets = enteredMarkets as readonly Address[];
+  const block = rpcBlock(blockValue, "BNB Smart Chain latest block");
+  const [liquidityValue, marketsValue, nativeBalanceValue, usdtBalanceValue] =
+    await rpcBatch(MAINNET_RPC, [
+      ethCall(
+        VENUS_COMPTROLLER,
+        encodeFunctionData({
+          abi: COMPTROLLER_ABI,
+          functionName: "getAccountLiquidity",
+          args: [account],
+        }),
+        block.number,
+      ),
+      ethCall(
+        VENUS_COMPTROLLER,
+        encodeFunctionData({
+          abi: COMPTROLLER_ABI,
+          functionName: "getAssetsIn",
+          args: [account],
+        }),
+        block.number,
+      ),
+      { method: "eth_getBalance", params: [account, block.number] },
+      ethCall(
+        USDT,
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "balanceOf", args: [account] }),
+        block.number,
+      ),
+    ]);
+  const [errorCode, liquidity, shortfall] = decodeFunctionResult({
+    abi: COMPTROLLER_ABI,
+    functionName: "getAccountLiquidity",
+    data: rpcHex(liquidityValue, "Venus account liquidity"),
+  });
+  const markets = decodeFunctionResult({
+    abi: COMPTROLLER_ABI,
+    functionName: "getAssetsIn",
+    data: rpcHex(marketsValue, "Venus entered markets"),
+  });
+  const nativeBalance = BigInt(rpcHex(nativeBalanceValue, "BNB balance"));
+  const usdtBalance = decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    data: rpcHex(usdtBalanceValue, "USDT balance"),
+  });
   if (errorCode !== 0n) throw new Error(`Venus Comptroller returned error code ${errorCode}`);
   const state =
     markets.length === 0 ? "NO_POSITION" : shortfall > 0n ? "SHORTFALL" : "LIQUID";
@@ -324,7 +468,7 @@ export async function inspectVenusAccount(accountInput: string): Promise<VenusAc
     enteredMarkets: [...markets],
     source: {
       comptroller: VENUS_COMPTROLLER,
-      blockNumber: block.number.toString(),
+      blockNumber: BigInt(block.number).toString(),
       explorerUrl: `https://bscscan.com/address/${account}`,
     },
     boundary:
