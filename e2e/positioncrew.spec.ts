@@ -69,8 +69,18 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await page.goto("/#evidence");
   await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("3/3", { exact: true })).toBeVisible();
+  await expect(page.getByText("6", { exact: true }).first()).toBeVisible();
+  await expect(page.getByText("REPEATABLE", { exact: true })).toHaveCount(3);
   await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
   await expect(page.getByText(/backend proof completion is not represented as available/)).toBeVisible();
+
+  const benchmarkResponse = await page.request.get("/api/benchmarks/repeatability");
+  expect(benchmarkResponse.status()).toBe(200);
+  const benchmark = await benchmarkResponse.json();
+  expect(benchmark.schemaVersion).toBe("positioncrew.benchmark-repeatability-matrix.v1");
+  expect(benchmark.records).toHaveLength(3);
+  expect(benchmark.records.every((record: { runs: unknown[] }) => record.runs.length === 2)).toBe(true);
 });
 
 test("the app has no page-level horizontal overflow", async ({ page }) => {

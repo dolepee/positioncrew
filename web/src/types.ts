@@ -227,12 +227,19 @@ export interface VenusAccountProbe {
   boundary: string;
 }
 
-export interface LendingRepeatabilityResponse {
-  schemaVersion: "positioncrew.lending-repeatability.v1";
+export type TermixBenchmarkService = "LENDING_RESCUE" | "LP_REBALANCE" | "BOUNDED_GRID";
+export type TermixBenchmarkSlug = "lending-rescue" | "lp-rebalance" | "bounded-grid";
+
+export interface BenchmarkRepeatabilityResponse {
+  schemaVersion: "positioncrew.benchmark-repeatability.v1";
   generatedAt: string;
+  benchmarkSlug: TermixBenchmarkSlug;
+  service: TermixBenchmarkService;
   taskId: string;
-  status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING";
+  status: "REPRODUCIBLE_AGENT_REPEATS_MANUAL_PENDING";
   benchmarkLock: {
+    schemaVersion: "positioncrew.benchmark-lock.v1";
+    taskId: string;
     fixtureHash: string;
     rubricHash: string;
     protocolHash: string;
@@ -247,5 +254,13 @@ export interface LendingRepeatabilityResponse {
   }>;
   medianElapsedMilliseconds: number;
   pending: ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"];
+  boundary: string;
+}
+
+export interface BenchmarkRepeatabilityMatrixResponse {
+  schemaVersion: "positioncrew.benchmark-repeatability-matrix.v1";
+  generatedAt: string;
+  records: BenchmarkRepeatabilityResponse[];
+  pending: ["MANUAL_BASELINES", "INDEPENDENT_BLIND_SCORECARDS"];
   boundary: string;
 }

@@ -34,7 +34,8 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 
 - `GET /api/providers` for the provider catalog;
 - `GET /api/status` for block-pinned BSC, PancakeSwap, Venus, and AACP telemetry;
-- `GET /api/benchmarks/lending-rescue/repeatability` for two measured provider repeats under the locked task and rubric;
+- `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
+- `GET /api/benchmarks/:task/repeatability` for lending-rescue, lp-rebalance, or bounded-grid evidence;
 - `GET /api/matrix` for all frozen conformance runs;
 - `GET /api/providers/:provider/health` for a provider-specific liveness and conformance probe;
 - `GET|POST /api/providers/:provider/jobs` for the provider-specific job route;
@@ -57,7 +58,7 @@ npm run test:e2e
 
 The lending result is written to `artifacts/gate2a/lending-rescue-result.json`; the four-category matrix is written to `artifacts/main-track/provider-matrix.json`.
 
-Deterministic `100/100` results establish provider conformance against frozen fixtures. They do **not** establish agent advantage over a human baseline. The lending task, rubric, timing method, and blinding protocol are pre-registered in [`benchmarks/lending-rescue`](benchmarks/lending-rescue); independent comparisons remain pending and the UI says so.
+Deterministic `100/100` results establish provider conformance against frozen fixtures. They do **not** establish agent advantage over a human baseline. Lending rescue, LP rebalancing, and bounded-grid task packets, rubrics, timing rules, and blinding protocols are pre-registered under [`benchmarks`](benchmarks); independent comparisons remain pending and the UI says so.
 
 ## Architecture
 

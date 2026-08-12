@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "positioncrew.benchmark-protocol.v1",
+  "protocolId": "bounded-grid-blind-v1",
+  "taskId": "bounded-grid-20260812-001",
+  "fixturePath": "fixtures/bounded-grid/bnb-usdt-grid.v1.json",
+  "rubricPath": "benchmarks/bounded-grid/rubric.v1.json",
+  "runs": {
+    "manual": 1,
+    "agent": 2
+  },
+  "timing": {
+    "start": "The timer starts when the complete frozen task packet becomes visible to the operator or agent.",
+    "stop": "The timer stops when the final candidate output is written and no further edits are permitted.",
+    "unit": "milliseconds"
+  },
+  "allowedInputs": [
+    "The frozen fixture named by fixturePath",
+    "A calculator or local arithmetic tool for the manual run",
+    "The committed PositionCrew provider for the agent runs"
+  ],
+  "prohibitedInputs": [
+    "A prior candidate output",
+    "The candidate-to-source mapping during evaluation",
+    "Post-run edits after timing stops",
+    "Changing the fixture, rubric, or scoring anchors after a result is seen"
+  ],
+  "blinding": {
+    "candidateLabels": ["Candidate A", "Candidate B", "Candidate C"],
+    "randomization": "Randomize the three immutable output hashes only after all runs finish.",
+    "mappingCustody": "Keep the source mapping outside the public repository until the evaluator signs the completed scorecard.",
+    "evaluator": "An independent human who did not produce any candidate and cannot see timing, cost, or source identity while scoring quality."
+  },
+  "reportedMetrics": [
+    "elapsedMilliseconds",
+    "directCostUsd",
+    "qualityScore",
+    "criticalFailureCount",
+    "outputHash"
+  ],
+  "decisionRule": "Agent advantage is supported only when the median agent quality score is at least the manual score, no agent run has a critical failure, and median agent elapsed time is lower than manual elapsed time. Cost is reported and never hidden."
+}

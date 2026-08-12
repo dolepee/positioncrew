@@ -5,8 +5,9 @@ import { JobWorkspace } from "./components/JobWorkspace";
 import { MarketplaceView } from "./components/MarketplaceView";
 import { ShellHeader, type AppView } from "./components/ShellHeader";
 import type {
+  BenchmarkRepeatabilityMatrixResponse,
+  BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
-  LendingRepeatabilityResponse,
   MatrixResponse,
   ProviderCatalogResponse,
   ProviderListing,
@@ -51,7 +52,7 @@ export default function App() {
   const [providers, setProviders] = useState<ProviderListing[]>([]);
   const [matrix, setMatrix] = useState<Map<ServiceId, FixtureJobResponse>>(new Map());
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
-  const [repeatability, setRepeatability] = useState<LendingRepeatabilityResponse | null>(null);
+  const [benchmarks, setBenchmarks] = useState<BenchmarkRepeatabilityResponse[]>([]);
   const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
   const [loading, setLoading] = useState(false);
@@ -68,14 +69,14 @@ export default function App() {
         fetch("/api/status", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<SystemTelemetry>(response))
           .catch(() => null),
-        fetch("/api/benchmarks/lending-rescue/repeatability", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<LendingRepeatabilityResponse>(response))
+        fetch("/api/benchmarks/repeatability", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<BenchmarkRepeatabilityMatrixResponse>(response))
           .catch(() => null),
       ]);
       setProviders(catalog.providers);
       setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
       setTelemetry(telemetryPayload);
-      setRepeatability(repeatabilityPayload);
+      setBenchmarks(repeatabilityPayload?.records ?? []);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
@@ -158,7 +159,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} repeatability={repeatability} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -169,7 +170,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, repeatability]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks]);
 
   return (
     <div className="app-shell">

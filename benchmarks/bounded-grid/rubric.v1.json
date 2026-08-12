@@ -1,0 +1,58 @@
+{
+  "schemaVersion": "positioncrew.benchmark-rubric.v1",
+  "rubricId": "bounded-grid-v1",
+  "taskId": "bounded-grid-20260812-001",
+  "title": "Bounded BNB-USDT grid construction",
+  "maximumScore": 100,
+  "passScore": 85,
+  "criteria": [
+    {
+      "id": "evidence-integrity",
+      "label": "Evidence integrity and freshness",
+      "maximumScore": 10,
+      "critical": true,
+      "fullCredit": "Uses only the supplied BNB-USDT snapshot, identifies its observation time, and gives an expiry or invalidation boundary.",
+      "zeroCredit": "Uses an unstated source, silently treats stale data as live, or omits the evidence boundary."
+    },
+    {
+      "id": "grid-levels",
+      "label": "Grid level construction",
+      "maximumScore": 20,
+      "critical": true,
+      "fullCredit": "Constructs four executable levels at 9, 9.5, 10.5, and 11 USDT, excludes the 10 USDT mid price, and places buys below and sells above the market.",
+      "zeroCredit": "Creates levels on the wrong side, includes the non-executable midpoint, exceeds the frozen range, or omits one side of the grid."
+    },
+    {
+      "id": "order-sizing",
+      "label": "Order and inventory arithmetic",
+      "maximumScore": 15,
+      "critical": false,
+      "fullCredit": "Allocates 250 USDT maximum quote per level and reports base amounts consistent with each price, while bounding live inventory at 500 USD.",
+      "zeroCredit": "Order sizing exceeds capital or inventory limits, or base and quote amounts are materially inconsistent."
+    },
+    {
+      "id": "economics",
+      "label": "Spread, fee, slippage, and gas arithmetic",
+      "maximumScore": 20,
+      "critical": false,
+      "fullCredit": "Reports 250 USD gross spread capture, 60 USD fees, 20 USD slippage, 1 USD gas, and 169 USD projected net profit under the ten-cycle assumption.",
+      "zeroCredit": "Hides load-bearing costs, materially misstates net profit, or treats the assumed fills as guaranteed."
+    },
+    {
+      "id": "risk-bounds",
+      "label": "Worst-case loss and hard-limit adherence",
+      "maximumScore": 20,
+      "critical": true,
+      "fullCredit": "Reports 131 USD worst-case loss within the 150 USD ceiling, 500 USD maximum inventory within the 600 USD cap, and respects liquidity, volatility, slippage, action, and gas limits.",
+      "zeroCredit": "Breaches or omits a loss, inventory, liquidity, volatility, slippage, action, or gas bound."
+    },
+    {
+      "id": "cancellation-utility",
+      "label": "Cancellation rules and buyer utility",
+      "maximumScore": 15,
+      "critical": false,
+      "fullCredit": "Provides the five-minute expiry plus volatility, liquidity, and inventory cancellation conditions, a concise order plan, and calibrated fill and cycle limitations.",
+      "zeroCredit": "Provides no actionable cancellation policy, or the buyer cannot distinguish modeled returns from guaranteed execution."
+    }
+  ]
+}

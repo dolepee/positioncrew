@@ -10,25 +10,49 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { shortHash } from "../presentation";
-import type { FixtureJobResponse, LendingRepeatabilityResponse, ProviderListing, ServiceId, SystemTelemetry } from "../types";
+import type {
+  BenchmarkRepeatabilityResponse,
+  FixtureJobResponse,
+  ProviderListing,
+  ServiceId,
+  SystemTelemetry,
+  TermixBenchmarkService,
+} from "../types";
 
 export function EvidenceView({
   providers,
   matrix,
   telemetry,
-  repeatability,
+  benchmarks,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
   telemetry: SystemTelemetry | null;
-  repeatability: LendingRepeatabilityResponse | null;
+  benchmarks: BenchmarkRepeatabilityResponse[];
 }) {
-  const lending = matrix.get("LENDING_RESCUE");
-  const benchmarkRows = [
-    { task: "Lending position rescue", category: "Security / DeFi", status: repeatability ? "CAPTURED" : "LOCKED", detail: repeatability ? "Two deterministic provider runs captured" : "Rubric and blind protocol committed" },
-    { task: "Yield allocation", category: "Yield", status: "PLANNED", detail: "Inputs frozen after live source adapter" },
-    { task: "Bounded grid construction", category: "Trading", status: "PLANNED", detail: "Manual baseline and evaluator required" },
+  const definitions: Array<{ service: TermixBenchmarkService; task: string; category: string }> = [
+    { service: "LENDING_RESCUE", task: "Lending position rescue", category: "Security / DeFi" },
+    { service: "LP_REBALANCE", task: "LP range rebalancing", category: "Liquidity" },
+    { service: "BOUNDED_GRID", task: "Bounded grid construction", category: "Trading" },
   ];
+  const benchmarkRows = definitions.map((definition) => {
+    const record = benchmarks.find((candidate) => candidate.service === definition.service);
+    const lock = matrix.get(definition.service)?.benchmarkLock;
+    return {
+      ...definition,
+      record,
+      lock,
+      status: record ? "REPEATABLE" : lock ? "LOCKED" : "PENDING",
+      tone: record ? "captured" : lock ? "locked" : "planned",
+      detail: record
+        ? `${record.runs.length} reproducible provider runs; manual baseline pending`
+        : lock
+          ? "Fixture, rubric, and blind protocol committed"
+          : "Benchmark lock pending",
+    };
+  });
+  const lockedCount = benchmarkRows.filter((row) => row.lock).length;
+  const repeatCount = benchmarks.reduce((total, record) => total + record.runs.length, 0);
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -40,7 +64,7 @@ export function EvidenceView({
         <div className="evidence-summary">
           <span><Radio size={16} /><strong>{telemetry ? `#${Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}` : "-"}</strong> live BSC block</span>
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
-          <span><LockKeyhole size={16} /><strong>{lending?.benchmarkLock ? "1" : "0"}</strong> benchmark locked</span>
+          <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
         </div>
       </div>
 
@@ -110,34 +134,36 @@ export function EvidenceView({
           <div className="benchmark-table">
             {benchmarkRows.map((row) => (
               <div key={row.task}>
-                <span className={`benchmark-status ${row.status.toLowerCase()}`}>{row.status === "LOCKED" || row.status === "CAPTURED" ? <LockKeyhole size={13} /> : <Clock3 size={13} />}{row.status}</span>
+                <span className={`benchmark-status ${row.tone}`}>{row.status === "LOCKED" || row.status === "REPEATABLE" ? <LockKeyhole size={13} /> : <Clock3 size={13} />}{row.status}</span>
                 <span><strong>{row.task}</strong><small>{row.category}</small></span>
                 <span>{row.detail}</span>
               </div>
             ))}
           </div>
           <div className="method-grid">
-            <div><strong>{repeatability?.runs.length ?? 0}</strong><span>provider repeats</span><small>{repeatability ? `${repeatability.medianElapsedMilliseconds} ms median · $0.00 direct` : "capture pending"}</small></div>
-            <div><strong>{repeatability?.runs[0]?.qualityScore ?? "-"}</strong><span>conformance score</span><small>{repeatability?.runs[0]?.criticalFailureCount ?? "-"} critical failures</small></div>
+            <div><strong>{repeatCount}</strong><span>provider repeats</span><small>2 per locked task · $0.00 direct conformance cost</small></div>
+            <div><strong>{lockedCount}</strong><span>frozen task rubrics</span><small>300 total quality points · safety-critical gates</small></div>
             <div><strong>0</strong><span>blind scorecards</span><small>manual baseline and evaluator pending</small></div>
           </div>
-          <a className="benchmark-data-link" href="/api/benchmarks/lending-rescue/repeatability" target="_blank" rel="noreferrer">Open provider repeatability record <ExternalLink size={13} /></a>
+          <a className="benchmark-data-link" href="/api/benchmarks/repeatability" target="_blank" rel="noreferrer">Open three-task repeatability record <ExternalLink size={13} /></a>
         </section>
 
         <section className="evidence-section lock-section" aria-labelledby="lock-title">
           <div className="section-bar">
-            <div><span className="section-kicker">Pre-registration</span><h2 id="lock-title">Lending benchmark lock</h2></div>
+            <div><span className="section-kicker">Pre-registration</span><h2 id="lock-title">Three benchmark locks</h2></div>
             <FileCheck2 size={18} aria-hidden="true" />
           </div>
           <dl className="lock-facts">
-            <div><dt>Task</dt><dd>venus-stressed-position-20260812-001</dd></div>
-            <div><dt>Fixture</dt><dd>{lending?.benchmarkLock?.fixtureHash ?? "Pending"}</dd></div>
-            <div><dt>Rubric</dt><dd>{lending?.benchmarkLock?.rubricHash ?? "Pending"}</dd></div>
-            <div><dt>Protocol</dt><dd>{lending?.benchmarkLock?.protocolHash ?? "Pending"}</dd></div>
+            {benchmarkRows.map((row) => (
+              <div key={row.service}>
+                <dt>{row.task}</dt>
+                <dd>{row.lock ? `fixture ${shortHash(row.lock.fixtureHash, 13)} · rubric ${shortHash(row.lock.rubricHash, 13)} · protocol ${shortHash(row.lock.protocolHash, 13)}` : "Pending"}</dd>
+              </div>
+            ))}
           </dl>
           <div className="claim-warning">
             <AlertTriangle size={16} aria-hidden="true" />
-            <span><strong>No advantage result is claimed.</strong>The lock proves inputs and scoring were fixed before outputs; independent scoring remains pending.</span>
+            <span><strong>No advantage result is claimed.</strong>The locks and repeats prove pre-registration and deterministic conformance; manual runs and independent scoring remain pending.</span>
           </div>
         </section>
       </div>
@@ -145,7 +171,7 @@ export function EvidenceView({
       <section className="claim-register" aria-label="Claim boundaries">
         <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
         <div><AlertTriangle size={17} /><span><strong>Settlement</strong>AACP contracts are verified on BSC testnet; backend proof completion is not represented as available.</span></div>
-        <div><Clock3 size={17} /><span><strong>Track record</strong>Blind agent-versus-manual results have not been completed or published.</span></div>
+        <div><Clock3 size={17} /><span><strong>Track record</strong>Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published.</span></div>
       </section>
     </main>
   );

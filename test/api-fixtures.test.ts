@@ -3,10 +3,12 @@ import { Buffer } from "node:buffer";
 import lendingFixture from "../fixtures/lending-rescue/stressed-venus-position.v1.json" with { type: "json" };
 import {
   runFixtureRequest,
+  runBenchmarkRepeatability,
   runFrozenFixture,
   runFrozenMatrix,
   runLendingRepeatability,
   runSuppliedLendingRequest,
+  runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
 
@@ -46,17 +48,28 @@ describe("public fixture job boundary", () => {
     ]);
     expect(matrix.every((item) => item.result.evaluation.score === 100)).toBe(true);
     expect(matrix.every((item) => item.result.job.state === "COMPLETED")).toBe(true);
+    expect(matrix.map((item) => Boolean(item.benchmarkLock))).toEqual([true, true, false, true]);
   });
 
-  it("captures deterministic provider repeats without claiming agent advantage", async () => {
-    const record = await runLendingRepeatability();
+  it("reproduces all three provider benchmarks without claiming agent advantage", async () => {
+    const matrix = await runTermixBenchmarkRepeatability();
 
-    expect(record.runs).toHaveLength(2);
-    expect(record.runs.every((run) => run.qualityScore === 100)).toBe(true);
-    expect(record.runs.every((run) => run.criticalFailureCount === 0)).toBe(true);
-    expect(new Set(record.runs.map((run) => run.outputHash)).size).toBe(1);
-    expect(record.pending).toEqual(["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"]);
-    expect(record.boundary).toContain("Agent advantage is not claimed");
+    expect(matrix.records.map((record) => record.service)).toEqual([
+      "LENDING_RESCUE",
+      "LP_REBALANCE",
+      "BOUNDED_GRID",
+    ]);
+    for (const record of matrix.records) {
+      expect(record.runs).toHaveLength(2);
+      expect(record.runs.every((run) => run.qualityScore === 100)).toBe(true);
+      expect(record.runs.every((run) => run.criticalFailureCount === 0)).toBe(true);
+      expect(new Set(record.runs.map((run) => run.outputHash)).size).toBe(1);
+      expect(record.pending).toEqual(["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"]);
+      expect(record.boundary).toContain("Agent advantage is not claimed");
+    }
+    expect(matrix.boundary).toContain("no agent-versus-manual advantage is claimed");
+    expect((await runBenchmarkRepeatability("LP_REBALANCE")).benchmarkSlug).toBe("lp-rebalance");
+    expect((await runLendingRepeatability()).benchmarkSlug).toBe("lending-rescue");
   });
 
   it("publishes one callable provider listing for every required category", () => {

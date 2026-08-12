@@ -4,8 +4,16 @@ import yieldFixture from "../../fixtures/yield-optimization/venus-to-beefy.v1.js
 import gridFixture from "../../fixtures/bounded-grid/bnb-usdt-grid.v1.json" with { type: "json" };
 import benchmarkProtocol from "../../benchmarks/lending-rescue/protocol.v1.json" with { type: "json" };
 import benchmarkRubric from "../../benchmarks/lending-rescue/rubric.v1.json" with { type: "json" };
+import lpBenchmarkProtocol from "../../benchmarks/lp-rebalance/protocol.v1.json" with { type: "json" };
+import lpBenchmarkRubric from "../../benchmarks/lp-rebalance/rubric.v1.json" with { type: "json" };
+import gridBenchmarkProtocol from "../../benchmarks/bounded-grid/protocol.v1.json" with { type: "json" };
+import gridBenchmarkRubric from "../../benchmarks/bounded-grid/rubric.v1.json" with { type: "json" };
 import { runProviderJob, type ProviderJobResult } from "../application/run-provider-job.js";
-import type { BenchmarkLock } from "../benchmark/lock.js";
+import type {
+  BenchmarkLock,
+  TermixBenchmarkService,
+  TermixBenchmarkSlug,
+} from "../benchmark/lock.js";
 import { MemoryCommerceAdapter } from "../commerce/memory-adapter.js";
 import {
   LendingRescueRequestSchema,
@@ -16,13 +24,41 @@ import { canonicalHash } from "../core/canonical.js";
 
 const FIXTURE_NOW = new Date("2026-08-12T16:00:30.000Z");
 const FIXTURES = [lendingFixture, lpFixture, yieldFixture, gridFixture] as const;
-const LENDING_BENCHMARK_LOCK: BenchmarkLock = {
-  schemaVersion: "positioncrew.benchmark-lock.v1",
-  taskId: benchmarkProtocol.taskId,
-  fixtureHash: canonicalHash(lendingFixture),
-  rubricHash: canonicalHash(benchmarkRubric),
-  protocolHash: canonicalHash(benchmarkProtocol),
-};
+const TERMIX_BENCHMARKS = [
+  {
+    slug: "lending-rescue",
+    service: "LENDING_RESCUE",
+    protocol: benchmarkProtocol,
+    rubric: benchmarkRubric,
+    fixture: lendingFixture,
+  },
+  {
+    slug: "lp-rebalance",
+    service: "LP_REBALANCE",
+    protocol: lpBenchmarkProtocol,
+    rubric: lpBenchmarkRubric,
+    fixture: lpFixture,
+  },
+  {
+    slug: "bounded-grid",
+    service: "BOUNDED_GRID",
+    protocol: gridBenchmarkProtocol,
+    rubric: gridBenchmarkRubric,
+    fixture: gridFixture,
+  },
+] as const;
+
+function benchmarkLockFor(service: TermixBenchmarkService): BenchmarkLock {
+  const benchmark = TERMIX_BENCHMARKS.find((candidate) => candidate.service === service);
+  if (!benchmark) throw new Error(`No TermiX benchmark exists for ${service}`);
+  return {
+    schemaVersion: "positioncrew.benchmark-lock.v1",
+    taskId: benchmark.protocol.taskId,
+    fixtureHash: canonicalHash(benchmark.fixture),
+    rubricHash: canonicalHash(benchmark.rubric),
+    protocolHash: canonicalHash(benchmark.protocol),
+  };
+}
 
 export const CLAIM_BOUNDARY = [
   "Frozen BSC test fixtures are used; no live wallet or protocol state is read.",
@@ -46,11 +82,13 @@ export interface FixtureJobResponse {
   result: ProviderJobResult;
 }
 
-export interface LendingRepeatabilityResponse {
-  schemaVersion: "positioncrew.lending-repeatability.v1";
+export interface BenchmarkRepeatabilityResponse {
+  schemaVersion: "positioncrew.benchmark-repeatability.v1";
   generatedAt: string;
+  benchmarkSlug: TermixBenchmarkSlug;
+  service: TermixBenchmarkService;
   taskId: string;
-  status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING";
+  status: "REPRODUCIBLE_AGENT_REPEATS_MANUAL_PENDING";
   benchmarkLock: BenchmarkLock;
   runs: Array<{
     runId: string;
@@ -64,6 +102,16 @@ export interface LendingRepeatabilityResponse {
   pending: readonly ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"];
   boundary: string;
 }
+
+export interface BenchmarkRepeatabilityMatrixResponse {
+  schemaVersion: "positioncrew.benchmark-repeatability-matrix.v1";
+  generatedAt: string;
+  records: BenchmarkRepeatabilityResponse[];
+  pending: readonly ["MANUAL_BASELINES", "INDEPENDENT_BLIND_SCORECARDS"];
+  boundary: string;
+}
+
+export type LendingRepeatabilityResponse = BenchmarkRepeatabilityResponse;
 
 export async function runFrozenFixture(
   service: PositionCrewRequest["service"],
@@ -81,9 +129,10 @@ export async function runFixtureRequest(input: unknown): Promise<FixtureJobRespo
   const isPublicFixture = FIXTURES.some(
     (fixture) => canonicalHash(request) === canonicalHash(PositionCrewRequestSchema.parse(fixture)),
   );
-  const isLockedLendingFixture =
-    request.service === "LENDING_RESCUE" &&
-    canonicalHash(request) === LENDING_BENCHMARK_LOCK.fixtureHash;
+  const benchmark = TERMIX_BENCHMARKS.find((candidate) => candidate.service === request.service);
+  const benchmarkLock = benchmark ? benchmarkLockFor(benchmark.service) : null;
+  const isLockedBenchmark =
+    benchmarkLock !== null && canonicalHash(request) === benchmarkLock.fixtureHash;
   return {
     schemaVersion: "positioncrew.fixture-job-response.v1",
     evidenceMode: "FROZEN_BSC_TEST_FIXTURE",
@@ -91,7 +140,7 @@ export async function runFixtureRequest(input: unknown): Promise<FixtureJobRespo
     advantageStatus: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     generatedAt: FIXTURE_NOW.toISOString(),
     claimBoundary: CLAIM_BOUNDARY,
-    benchmarkLock: isLockedLendingFixture ? LENDING_BENCHMARK_LOCK : null,
+    benchmarkLock: isLockedBenchmark ? benchmarkLock : null,
     receipt: {
       mode: isPublicFixture ? "PUBLIC_REPRODUCIBLE" : "SESSION_EMBEDDED",
       path: isPublicFixture
@@ -111,13 +160,18 @@ export async function runFrozenMatrix(): Promise<FixtureJobResponse[]> {
   );
 }
 
-export async function runLendingRepeatability(): Promise<LendingRepeatabilityResponse> {
-  const runs: LendingRepeatabilityResponse["runs"] = [];
+export async function runBenchmarkRepeatability(
+  service: TermixBenchmarkService,
+): Promise<BenchmarkRepeatabilityResponse> {
+  const benchmark = TERMIX_BENCHMARKS.find((candidate) => candidate.service === service);
+  if (!benchmark) throw new Error(`No TermiX benchmark exists for ${service}`);
+  const lock = benchmarkLockFor(service);
+  const runs: BenchmarkRepeatabilityResponse["runs"] = [];
   for (let index = 0; index < 2; index += 1) {
     const startedAt = performance.now();
-    const response = await runFrozenFixture("LENDING_RESCUE");
+    const response = await runFrozenFixture(service);
     const manifest = response.result.job.deliverable;
-    if (!manifest) throw new Error("Completed lending repeat is missing its deliverable manifest");
+    if (!manifest) throw new Error(`Completed ${service} repeat is missing its deliverable manifest`);
     const elapsedMilliseconds = Math.max(1, Math.round(performance.now() - startedAt));
     runs.push({
       runId: `positioncrew-provider-repeat-${index + 1}`,
@@ -133,17 +187,37 @@ export async function runLendingRepeatability(): Promise<LendingRepeatabilityRes
   const sortedTimes = runs.map((run) => run.elapsedMilliseconds).sort((a, b) => a - b);
   const medianElapsedMilliseconds = (sortedTimes[0]! + sortedTimes[1]!) / 2;
   return {
-    schemaVersion: "positioncrew.lending-repeatability.v1",
+    schemaVersion: "positioncrew.benchmark-repeatability.v1",
     generatedAt: new Date().toISOString(),
-    taskId: benchmarkProtocol.taskId,
-    status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING",
-    benchmarkLock: LENDING_BENCHMARK_LOCK,
+    benchmarkSlug: benchmark.slug,
+    service,
+    taskId: benchmark.protocol.taskId,
+    status: "REPRODUCIBLE_AGENT_REPEATS_MANUAL_PENDING",
+    benchmarkLock: lock,
     runs,
     medianElapsedMilliseconds,
     pending: ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"],
     boundary:
-      "These runs establish deterministic provider repeatability only. Agent advantage is not claimed until the manual baseline and independent blind scorecard are complete.",
+      "These reproducible conformance runs are not immutable benchmark candidates. Agent advantage is not claimed until the manual baseline, immutable candidate capture, and independent blind scorecard are complete.",
   };
+}
+
+export async function runTermixBenchmarkRepeatability(): Promise<BenchmarkRepeatabilityMatrixResponse> {
+  const records = await Promise.all(
+    TERMIX_BENCHMARKS.map((benchmark) => runBenchmarkRepeatability(benchmark.service)),
+  );
+  return {
+    schemaVersion: "positioncrew.benchmark-repeatability-matrix.v1",
+    generatedAt: new Date().toISOString(),
+    records,
+    pending: ["MANUAL_BASELINES", "INDEPENDENT_BLIND_SCORECARDS"],
+    boundary:
+      "Three tasks and rubrics are locked. The public records prove deterministic repeatability only; no agent-versus-manual advantage is claimed.",
+  };
+}
+
+export async function runLendingRepeatability(): Promise<LendingRepeatabilityResponse> {
+  return runBenchmarkRepeatability("LENDING_RESCUE");
 }
 
 export async function runSuppliedLendingRequest(

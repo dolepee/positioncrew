@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "positioncrew.benchmark-rubric.v1",
+  "rubricId": "lp-rebalance-v1",
+  "taskId": "v3-out-of-range-20260812-001",
+  "title": "Bounded concentrated-liquidity rebalance",
+  "maximumScore": 100,
+  "passScore": 85,
+  "criteria": [
+    {
+      "id": "evidence-integrity",
+      "label": "Evidence integrity and freshness",
+      "maximumScore": 10,
+      "critical": true,
+      "fullCredit": "Uses only the supplied PancakeSwap V3 snapshot, identifies its observation time, and gives an expiry or invalidation boundary.",
+      "zeroCredit": "Uses an unstated source, silently treats stale data as live, or omits the evidence boundary."
+    },
+    {
+      "id": "range-diagnosis",
+      "label": "Current range diagnosis",
+      "maximumScore": 15,
+      "critical": false,
+      "fullCredit": "Identifies that current tick 150 is outside the existing -120 to 120 range and selects a shift rather than an unsupported hold, widen, or narrow action.",
+      "zeroCredit": "Misclassifies the position as safely in range or recommends an action unrelated to the supplied tick state."
+    },
+    {
+      "id": "replacement-range",
+      "label": "Bounded replacement range",
+      "maximumScore": 20,
+      "critical": true,
+      "fullCredit": "Proposes ticks 0 to 240, aligned to 60-tick spacing, inside the 120 to 600 width bounds, and centered around the supplied market state.",
+      "zeroCredit": "Returns an invalid, misaligned, out-of-policy, or market-excluding range."
+    },
+    {
+      "id": "economics",
+      "label": "Net-benefit and break-even arithmetic",
+      "maximumScore": 20,
+      "critical": true,
+      "fullCredit": "Reports 1 USD total rebalance cost, 19 USD projected gross fees, 18 USD projected net benefit, and approximately 1.2631 hours to break even under the disclosed model.",
+      "zeroCredit": "Omits load-bearing costs, materially misstates net benefit, or recommends the move without clearing the 5 USD minimum benefit."
+    },
+    {
+      "id": "inventory-constraints",
+      "label": "Inventory and execution constraints",
+      "maximumScore": 15,
+      "critical": true,
+      "fullCredit": "Keeps projected inventory at 50/50, respects both 70 percent token caps, the 30 bps slippage bound, 0.10 USD gas ceiling, action budget, and deadline.",
+      "zeroCredit": "Violates a hard inventory, gas, slippage, budget, or expiry limit."
+    },
+    {
+      "id": "execution-plan",
+      "label": "Executable action sequence",
+      "maximumScore": 10,
+      "critical": false,
+      "fullCredit": "Provides the collect/remove, bounded inventory rebalance, and replacement-mint sequence with the proposed ticks.",
+      "zeroCredit": "Provides no usable action sequence or omits a load-bearing step."
+    },
+    {
+      "id": "buyer-utility",
+      "label": "Buyer utility and calibrated language",
+      "maximumScore": 10,
+      "critical": false,
+      "fullCredit": "Gives a concise decision, economics, constraints, expiry, limitations, and explicitly states that fees and inventory must be recomputed before execution.",
+      "zeroCredit": "The buyer cannot tell what to do, or the output presents modeled fees or inventory as guaranteed."
+    }
+  ]
+}

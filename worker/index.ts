@@ -1,11 +1,13 @@
 import { ZodError } from "zod";
 import {
+  runBenchmarkRepeatability,
   runFixtureRequest,
   runFrozenFixture,
   runFrozenMatrix,
-  runLendingRepeatability,
   runSuppliedLendingRequest,
+  runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
+import type { TermixBenchmarkService } from "../src/benchmark/lock.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
 import { getSystemTelemetry, inspectVenusAccount } from "../src/telemetry/bsc.js";
@@ -27,6 +29,12 @@ const PROVIDER_SLUGS = new Map<string, ServiceId>([
   ["lending-rescue", "LENDING_RESCUE"],
   ["lp-rebalance", "LP_REBALANCE"],
   ["yield-optimization", "YIELD_OPTIMIZATION"],
+  ["bounded-grid", "BOUNDED_GRID"],
+]);
+
+const BENCHMARK_SLUGS = new Map<string, TermixBenchmarkService>([
+  ["lending-rescue", "LENDING_RESCUE"],
+  ["lp-rebalance", "LP_REBALANCE"],
   ["bounded-grid", "BOUNDED_GRID"],
 ]);
 
@@ -185,9 +193,19 @@ async function api(request: Request, url: URL): Promise<Response> {
       );
     }
 
-    if (url.pathname === "/api/benchmarks/lending-rescue/repeatability") {
+    if (url.pathname === "/api/benchmarks/repeatability") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
-      return json(await runLendingRepeatability());
+      return json(await runTermixBenchmarkRepeatability());
+    }
+
+    const benchmarkRoute = url.pathname.match(
+      /^\/api\/benchmarks\/([^/]+)\/repeatability$/,
+    );
+    if (benchmarkRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      const service = BENCHMARK_SLUGS.get(benchmarkRoute[1]!);
+      if (!service) return apiError(404, "BENCHMARK_NOT_FOUND", ["Unknown benchmark slug."]);
+      return json(await runBenchmarkRepeatability(service));
     }
 
     const providerRoute = url.pathname.match(
