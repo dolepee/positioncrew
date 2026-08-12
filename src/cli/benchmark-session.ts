@@ -8,6 +8,7 @@ import {
   revealBenchmarkResult,
   sessionSummary,
 } from "../benchmark/evidence.js";
+import { buildAgentAdvantageReport } from "../benchmark/report.js";
 import {
   TERMIX_BENCHMARK_DEFINITIONS,
   type TermixBenchmarkSlug,
@@ -22,6 +23,7 @@ function usage(): never {
       "  npm run benchmark:session -- manual <session-directory> <output.json> <metadata.json>",
       "  npm run benchmark:session -- blind <session-directory>",
       "  npm run benchmark:session -- reveal <session-directory> <completed-scorecard.json>",
+      "  npm run benchmark:session -- report <output-directory> <lending-session> <lp-session> <grid-session>",
       "  npm run benchmark:session -- status <session-directory>",
     ].join("\n"),
   );
@@ -112,6 +114,25 @@ async function main(): Promise<void> {
     }
     case "status": {
       console.log(JSON.stringify(sessionSummary(resolve(required(args[0]))), null, 2));
+      return;
+    }
+    case "report": {
+      const outputDirectory = resolve(required(args[0]));
+      const report = buildAgentAdvantageReport(
+        [resolve(required(args[1])), resolve(required(args[2])), resolve(required(args[3]))],
+        outputDirectory,
+      );
+      console.log(
+        JSON.stringify(
+          {
+            outputDirectory,
+            reportHash: report.reportHash,
+            summary: report.summary,
+          },
+          null,
+          2,
+        ),
+      );
       return;
     }
     default:

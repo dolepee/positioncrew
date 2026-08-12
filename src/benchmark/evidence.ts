@@ -210,6 +210,55 @@ export const BlindScorecardSchema = z
   })
   .strict();
 
+export const AgentAdvantageResultSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.agent-advantage-result.v1"),
+    sessionId: z.string().min(12),
+    benchmarkSlug: BenchmarkSlugSchema,
+    taskId: z.string().min(8),
+    evaluatedAt: TimestampSchema,
+    scorecardHash: HashSchema,
+    mappingCommitment: HashSchema,
+    manual: z
+      .object({
+        candidateLabel: z.string().min(1).max(80),
+        outputHash: HashSchema,
+        operatorId: z.string().min(2).max(160),
+        method: z.string().min(10).max(1_000),
+        independenceAttestation: z.string().min(20).max(1_000),
+        score: z.number().int().min(0).max(100),
+        elapsedMilliseconds: z.number().int().min(1),
+        directCostUsd: UnsignedDecimalSchema,
+      })
+      .strict(),
+    agent: z
+      .object({
+        candidateLabel: z.string().min(1).max(80),
+        outputHash: HashSchema,
+        repeatOutputHash: HashSchema,
+        providerId: z.string().min(1).max(240),
+        score: z.number().int().min(0).max(100),
+        medianElapsedMilliseconds: z.number().min(1),
+        medianDirectCostUsd: UnsignedDecimalSchema,
+        outputHashesMatch: z.boolean(),
+        conformanceCriticalFailureCount: z.number().int().min(0),
+        blindCriticalFailureCount: z.number().int().min(0),
+      })
+      .strict(),
+    evaluator: z
+      .object({
+        displayName: z.string().min(2).max(160),
+        contactReference: z.string().min(3).max(240),
+        relationshipDisclosure: z.string().min(10).max(1_000),
+        independenceAttestation: z.string().min(20).max(1_000),
+      })
+      .strict(),
+    advantageSupported: z.boolean(),
+    decisionRule: z.string().min(20),
+    boundary: z.string().min(20),
+  })
+  .strict();
+
 export type BenchmarkSession = z.infer<typeof BenchmarkSessionSchema>;
 export type BenchmarkCandidateRecord = z.infer<typeof BenchmarkCandidateRecordSchema>;
 export type BenchmarkBlindPacket = z.infer<typeof BenchmarkBlindPacketSchema>;
@@ -224,27 +273,7 @@ export interface PreparedBenchmarkSession {
   manualMetadataTemplatePath: string;
 }
 
-export interface BenchmarkResult {
-  schemaVersion: "positioncrew.agent-advantage-result.v1";
-  sessionId: string;
-  benchmarkSlug: TermixBenchmarkSlug;
-  taskId: string;
-  evaluatedAt: string;
-  scorecardHash: string;
-  mappingCommitment: string;
-  manual: { score: number; elapsedMilliseconds: number; directCostUsd: string };
-  agent: {
-    score: number;
-    medianElapsedMilliseconds: number;
-    medianDirectCostUsd: string;
-    outputHashesMatch: boolean;
-    conformanceCriticalFailureCount: number;
-    blindCriticalFailureCount: number;
-  };
-  advantageSupported: boolean;
-  decisionRule: string;
-  boundary: string;
-}
+export type BenchmarkResult = z.infer<typeof AgentAdvantageResultSchema>;
 
 function readJson(path: string): unknown {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -637,6 +666,71 @@ function verifyMapping(packet: BenchmarkBlindPacket, mapping: PrivateSourceMappi
   }
 }
 
+interface ResolvedSourceMapping {
+  manualAssignment: PrivateSourceMapping["assignments"][number];
+  agentAssignment: PrivateSourceMapping["assignments"][number];
+  manual: BenchmarkCandidateRecord & { source: Extract<BenchmarkCandidateRecord["source"], { type: "MANUAL" }> };
+  representative: BenchmarkCandidateRecord & { source: Extract<BenchmarkCandidateRecord["source"], { type: "AGENT" }> };
+  excludedRepeat: BenchmarkCandidateRecord & { source: Extract<BenchmarkCandidateRecord["source"], { type: "AGENT" }> };
+}
+
+type ManualCandidateRecord = ResolvedSourceMapping["manual"];
+type AgentCandidateRecord = ResolvedSourceMapping["representative"];
+
+function resolveSourceMapping(
+  packet: BenchmarkBlindPacket,
+  mapping: PrivateSourceMapping,
+  records: BenchmarkCandidateRecord[],
+): ResolvedSourceMapping {
+  const byHash = new Map(records.map((record) => [record.candidateHash, record]));
+  const packetByLabel = new Map(packet.candidates.map((candidate) => [candidate.label, candidate]));
+  for (const assignment of mapping.assignments) {
+    const record = byHash.get(assignment.candidateHash);
+    const packetCandidate = packetByLabel.get(assignment.label);
+    if (!record || !packetCandidate) throw new Error("Source mapping references missing evidence");
+    if (
+      record.source.type !== assignment.sourceType ||
+      record.runNumber !== assignment.runNumber ||
+      record.outputHash !== packetCandidate.outputHash
+    ) {
+      throw new Error("Source mapping does not match the committed blind candidate");
+    }
+  }
+  const manualAssignment = mapping.assignments.find(
+    (assignment) => assignment.sourceType === "MANUAL",
+  );
+  const agentAssignment = mapping.assignments.find(
+    (assignment) => assignment.sourceType === "AGENT",
+  );
+  if (!manualAssignment || !agentAssignment) throw new Error("Source mapping is incomplete");
+  const manualRecord = byHash.get(manualAssignment.candidateHash);
+  const agentRecord = byHash.get(agentAssignment.candidateHash);
+  if (!manualRecord || manualRecord.source.type !== "MANUAL") {
+    throw new Error("Mapped manual candidate is invalid");
+  }
+  if (!agentRecord || agentRecord.source.type !== "AGENT") {
+    throw new Error("Mapped agent candidate is invalid");
+  }
+  const excludedRecord = byHash.get(mapping.excludedAgentRepeat.candidateHash);
+  if (
+    !excludedRecord ||
+    excludedRecord.source.type !== "AGENT" ||
+    excludedRecord.runNumber !== mapping.excludedAgentRepeat.runNumber ||
+    mapping.assignments.some(
+      (assignment) => assignment.candidateHash === mapping.excludedAgentRepeat.candidateHash,
+    )
+  ) {
+    throw new Error("Excluded repeat does not identify a separate agent evidence record");
+  }
+  return {
+    manualAssignment,
+    agentAssignment,
+    manual: manualRecord as ManualCandidateRecord,
+    representative: agentRecord as AgentCandidateRecord,
+    excludedRepeat: excludedRecord as AgentCandidateRecord,
+  };
+}
+
 function scoreCandidate(
   score: z.infer<typeof CandidateScoreSchema>,
   rubric: z.infer<typeof BenchmarkRubricSchema>,
@@ -733,40 +827,8 @@ export function revealBenchmarkResult(
   verifyMapping(packet, mapping);
   const { scorecard, totals } = validateBlindScorecard(packet, scorecardInput);
   const records = loadCandidates(directory, session);
-  const byHash = new Map(records.map((record) => [record.candidateHash, record]));
-  const packetByLabel = new Map(packet.candidates.map((candidate) => [candidate.label, candidate]));
-  for (const assignment of mapping.assignments) {
-    const record = byHash.get(assignment.candidateHash);
-    const packetCandidate = packetByLabel.get(assignment.label);
-    if (!record || !packetCandidate) throw new Error("Source mapping references missing evidence");
-    if (
-      record.source.type !== assignment.sourceType ||
-      record.runNumber !== assignment.runNumber ||
-      record.outputHash !== packetCandidate.outputHash
-    ) {
-      throw new Error("Source mapping does not match the committed blind candidate");
-    }
-  }
-  const excludedRepeat = byHash.get(mapping.excludedAgentRepeat.candidateHash);
-  if (
-    !excludedRepeat ||
-    excludedRepeat.source.type !== "AGENT" ||
-    excludedRepeat.runNumber !== mapping.excludedAgentRepeat.runNumber ||
-    mapping.assignments.some(
-      (assignment) => assignment.candidateHash === mapping.excludedAgentRepeat.candidateHash,
-    )
-  ) {
-    throw new Error("Excluded repeat does not identify a separate agent evidence record");
-  }
-  const assignmentBySource = new Map(
-    mapping.assignments.map((assignment) => [assignment.sourceType, assignment]),
-  );
-  const manualAssignment = assignmentBySource.get("MANUAL");
-  const agentAssignment = assignmentBySource.get("AGENT");
-  if (!manualAssignment || !agentAssignment) throw new Error("Source mapping is incomplete");
-  const manual = byHash.get(manualAssignment.candidateHash);
-  const representative = byHash.get(agentAssignment.candidateHash);
-  if (!manual || !representative) throw new Error("Source mapping references a missing candidate");
+  const { manualAssignment, agentAssignment, manual, representative, excludedRepeat } =
+    resolveSourceMapping(packet, mapping, records);
   const agents = records.filter((record) => record.source.type === "AGENT");
   const manualScore = totals.get(manualAssignment.label);
   const agentScore = totals.get(agentAssignment.label);
@@ -782,7 +844,7 @@ export function revealBenchmarkResult(
     conformanceCriticalFailureCount === 0 &&
     agentScore.criticalFailureCount === 0 &&
     median(agents.map((record) => record.elapsedMilliseconds)) < manual.elapsedMilliseconds;
-  const result: BenchmarkResult = {
+  const result = AgentAdvantageResultSchema.parse({
     schemaVersion: "positioncrew.agent-advantage-result.v1",
     sessionId: session.sessionId,
     benchmarkSlug: session.benchmarkSlug,
@@ -791,11 +853,20 @@ export function revealBenchmarkResult(
     scorecardHash: canonicalHash(scorecard),
     mappingCommitment: mapping.mappingCommitment,
     manual: {
+      candidateLabel: manualAssignment.label,
+      outputHash: manual.outputHash,
+      operatorId: manual.source.operatorId,
+      method: manual.source.method,
+      independenceAttestation: manual.source.independenceAttestation,
       score: manualScore.total,
       elapsedMilliseconds: manual.elapsedMilliseconds,
       directCostUsd: manual.directCostUsd,
     },
     agent: {
+      candidateLabel: agentAssignment.label,
+      outputHash: representative.outputHash,
+      repeatOutputHash: excludedRepeat.outputHash,
+      providerId: representative.source.providerId,
       score: agentScore.total,
       medianElapsedMilliseconds: median(agents.map((record) => record.elapsedMilliseconds)),
       medianDirectCostUsd: medianDecimal(agents.map((record) => record.directCostUsd)),
@@ -803,14 +874,87 @@ export function revealBenchmarkResult(
       conformanceCriticalFailureCount,
       blindCriticalFailureCount: agentScore.criticalFailureCount,
     },
+    evaluator: {
+      displayName: scorecard.evaluator.displayName,
+      contactReference: scorecard.evaluator.contactReference,
+      relationshipDisclosure: scorecard.evaluator.relationshipDisclosure,
+      independenceAttestation: scorecard.evaluator.independenceAttestation,
+    },
     advantageSupported,
     decisionRule: assets.protocol.decisionRule,
     boundary:
       "This result opens the committed source mapping only after independent blind scoring. It applies to the frozen benchmark task and does not establish live investment performance.",
-  };
+  });
   writeJsonExclusive(join(directory, "public", "completed-scorecard.json"), scorecard);
   writeJsonExclusive(join(directory, "public", "agent-advantage-result.json"), result);
   return result;
+}
+
+export interface CompletedBenchmarkEvidence {
+  session: BenchmarkSession;
+  packet: BenchmarkBlindPacket;
+  mapping: PrivateSourceMapping;
+  scorecard: BlindScorecard;
+  result: BenchmarkResult;
+  records: BenchmarkCandidateRecord[];
+  manual: ResolvedSourceMapping["manual"];
+  representative: ResolvedSourceMapping["representative"];
+  excludedRepeat: ResolvedSourceMapping["excludedRepeat"];
+}
+
+export function loadCompletedBenchmarkEvidence(
+  directoryInput: string,
+): CompletedBenchmarkEvidence {
+  const directory = resolve(directoryInput);
+  const session = loadSession(directory);
+  validateSessionAssets(session, loadBenchmarkAssets(session.benchmarkSlug));
+  const packet = BenchmarkBlindPacketSchema.parse(
+    readJson(join(directory, "public", "blind-evaluator-packet.json")),
+  );
+  const mapping = PrivateSourceMappingSchema.parse(
+    readJson(join(directory, "private", "source-mapping.json")),
+  );
+  verifyMapping(packet, mapping);
+  const scorecardInput = readJson(join(directory, "public", "completed-scorecard.json"));
+  const { scorecard, totals } = validateBlindScorecard(packet, scorecardInput);
+  const result = AgentAdvantageResultSchema.parse(
+    readJson(join(directory, "public", "agent-advantage-result.json")),
+  );
+  const records = loadCandidates(directory, session);
+  const resolved = resolveSourceMapping(packet, mapping, records);
+  const manualScore = totals.get(resolved.manualAssignment.label);
+  const agentScore = totals.get(resolved.agentAssignment.label);
+  if (!manualScore || !agentScore) throw new Error("Completed scorecard is missing a mapped score");
+  if (
+    result.sessionId !== session.sessionId ||
+    result.benchmarkSlug !== session.benchmarkSlug ||
+    result.taskId !== session.taskId ||
+    result.scorecardHash !== canonicalHash(scorecard) ||
+    result.mappingCommitment !== mapping.mappingCommitment ||
+    result.manual.candidateLabel !== resolved.manualAssignment.label ||
+    result.manual.outputHash !== resolved.manual.outputHash ||
+    result.manual.operatorId !== resolved.manual.source.operatorId ||
+    result.manual.score !== manualScore.total ||
+    result.agent.candidateLabel !== resolved.agentAssignment.label ||
+    result.agent.outputHash !== resolved.representative.outputHash ||
+    result.agent.repeatOutputHash !== resolved.excludedRepeat.outputHash ||
+    result.agent.providerId !== resolved.representative.source.providerId ||
+    result.agent.score !== agentScore.total ||
+    result.evaluator.displayName !== scorecard.evaluator.displayName
+  ) {
+    throw new Error("Completed Agent Advantage result does not match its source evidence");
+  }
+  return {
+    session,
+    packet,
+    mapping,
+    scorecard,
+    result,
+    records,
+    manual: resolved.manual,
+    representative: resolved.representative,
+    excludedRepeat: resolved.excludedRepeat,
+  };
 }
 
 export function readScorecard(path: string): unknown {

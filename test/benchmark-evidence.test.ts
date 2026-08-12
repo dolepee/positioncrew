@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -10,6 +10,7 @@ import {
   revealBenchmarkResult,
   validateBlindScorecard,
 } from "../src/benchmark/evidence.js";
+import { buildAgentAdvantageReport } from "../src/benchmark/report.js";
 
 const temporaryDirectories: string[] = [];
 
@@ -143,5 +144,53 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     const invalidScorecard = structuredClone(scorecard);
     invalidScorecard.candidates[0]!.criteria[0]!.score = 101;
     expect(() => validateBlindScorecard(packet, invalidScorecard)).toThrow();
+  });
+
+  it("assembles only a complete three-category TermiX report", async () => {
+    const artifactRoot = tempArtifacts();
+    const directories: string[] = [];
+    for (const slug of ["lending-rescue", "lp-rebalance", "bounded-grid"] as const) {
+      const prepared = prepareBenchmarkSession(slug, {
+        artifactRoot,
+        sessionId: `${slug}-report-test-session`,
+      });
+      const agents = await captureAgentBenchmarkRuns(prepared.directory);
+      captureManualBenchmarkRun(prepared.directory, agents[0]!.output, {
+        operatorId: "Manual Report Test Operator",
+        method: "Calculated the complete frozen task manually and rendered the result in the neutral output contract.",
+        independenceAttestation:
+          "I used no PositionCrew output, AI assistant, prior candidate output, or evaluator rubric during this test fixture run.",
+        elapsedMilliseconds: 60_000,
+        directCostUsd: "1",
+        capturedAt: "2026-08-12T22:03:00.000Z",
+      });
+      const { packet } = finalizeBlindBenchmark(prepared.directory, { agentFirst: true });
+      revealBenchmarkResult(prepared.directory, fullScorecard(packet));
+      directories.push(prepared.directory);
+    }
+    const outputDirectory = join(tempArtifacts(), "report");
+    const report = buildAgentAdvantageReport(
+      directories,
+      outputDirectory,
+      new Date("2026-08-13T02:00:00.000Z"),
+    );
+
+    expect(report.summary).toMatchObject({
+      taskCount: 3,
+      supportedAdvantageCount: 3,
+      allTasksSupportAdvantage: true,
+      agentOutputPairsMatching: 3,
+      totalCriticalFailures: 0,
+    });
+    expect(report.tasks.map((task) => task.benchmarkSlug)).toEqual([
+      "lending-rescue",
+      "lp-rebalance",
+      "bounded-grid",
+    ]);
+    expect(existsSync(join(outputDirectory, "agent-advantage-report.md"))).toBe(true);
+    expect(existsSync(join(outputDirectory, "tasks", "bounded-grid", "manual-output.json"))).toBe(true);
+    expect(readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8")).toContain(
+      "PositionCrew Agent Advantage Report",
+    );
   });
 });

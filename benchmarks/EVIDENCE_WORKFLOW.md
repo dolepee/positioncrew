@@ -53,3 +53,13 @@ Reveal fails if any fixture, rubric, protocol, candidate, packet, mapping, label
 - median agent time is lower than manual time.
 
 The resulting claim applies only to the frozen task. It is not live investment performance or proof of paid AACP settlement.
+
+## 6. Assemble the three-task report
+
+After all three reveals succeed, generate the complete Markdown and JSON report plus attached outputs, scorecards, opened mappings, and candidate records:
+
+```bash
+npm run benchmark:session -- report <output-directory> <lending-session> <lp-session> <grid-session>
+```
+
+The assembler refuses missing or duplicate categories and revalidates every completed evidence chain before writing the report.
