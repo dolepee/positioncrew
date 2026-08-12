@@ -6,7 +6,7 @@
   text-rendering: optimizeLegibility;
   --ink: #171b1a;
   --ink-soft: #3f4946;
-  --muted: #68736f;
+  --muted: #64706b;
   --graphite: #0f1312;
   --graphite-soft: #171c1a;
   --line: #d7ddd8;
@@ -302,7 +302,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .task-deck button:hover { border-color: var(--line-strong); transform: translateY(-1px); }
 .task-deck button.active { border-color: #e6c662; background: #fffdf5; }
 .task-deck button.active::before { background: var(--yellow); }
-.task-deck-top { display: flex; align-items: center; justify-content: space-between; color: #7c8782; }
+.task-deck-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); }
 .task-deck-top > span { font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
 .task-deck button.active .task-deck-top svg { color: #9d7300; }
 .task-deck button > strong { margin-top: 14px; font-size: 14px; line-height: 1.25; }
