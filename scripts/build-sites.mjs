@@ -25,6 +25,7 @@ await build({
   format: "esm",
   platform: "neutral",
   target: "es2022",
+  conditions: ["workerd", "browser", "import", "default"],
   external: ["node:buffer", "node:crypto"],
   logLevel: "info",
 });

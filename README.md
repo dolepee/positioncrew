@@ -15,9 +15,9 @@ The product covers all four Build the Era categories with equal depth:
 
 The web application is the primary interface:
 
-- **Marketplace:** searchable provider registry with price, availability, schema version, endpoint, category coverage, and conformance status.
-- **Jobs:** provider selection, editable buyer constraints, create/fund/assign/submit/evaluate/complete lifecycle, human result, machine JSON, commitments, and browser-session history.
-- **Evidence:** four-category conformance matrix, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
+- **Marketplace:** searchable provider registry with distinct provider endpoints, health routes, price, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and documented AACP testnet contracts directly from chain.
+- **Jobs:** provider selection, editable buyer constraints, a block-pinned Venus account probe, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history.
+- **Evidence:** live infrastructure register, public content-addressed receipts for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
 
 The flagship cold-buyer journey is **Rescue a lending position**. It returns exact token base units, projected health factor, execution preconditions, expiry, deterministic evaluation, and a fail-closed refusal when evidence is stale or constraints make the action unsafe.
 
@@ -33,7 +33,13 @@ npm run dev
 The local Cloudflare-compatible worker serves the application on `http://127.0.0.1:4175`. The same worker routes used in production expose:
 
 - `GET /api/providers` for the provider catalog;
+- `GET /api/status` for block-pinned BSC, PancakeSwap, Venus, and AACP telemetry;
+- `GET /api/benchmarks/lending-rescue/repeatability` for two measured provider repeats under the locked task and rubric;
 - `GET /api/matrix` for all frozen conformance runs;
+- `GET /api/providers/:provider/health` for a provider-specific liveness and conformance probe;
+- `GET|POST /api/providers/:provider/jobs` for the provider-specific job route;
+- `GET /api/receipts/:evaluationHash` for a public reproducible fixture receipt;
+- `GET /api/wallets/:address/venus` for a block-pinned Venus account-liquidity observation;
 - `GET /api/jobs?service=LENDING_RESCUE` for a frozen job;
 - `POST /api/jobs` for a caller-supplied request;
 - `GET /api/rescue` for the flagship lending fixture.
@@ -59,9 +65,9 @@ Deterministic `100/100` results establish provider conformance against frozen fi
 - Provider implementations use fixed-point arithmetic and deterministic refusal paths.
 - Canonical hashes bind request envelopes, deliverables, and evaluations.
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
-- A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests.
+- A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary
 
-The current commerce lifecycle is an in-memory conformance rail, not an AACP or mainnet settlement claim. AACP remains behind the adapter until Agent.family publishes its corrected supported integration guide and a third-party job reaches a terminal state end to end. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.
+The current commerce lifecycle is an in-memory conformance rail, not an AACP or mainnet settlement claim. The documented AACP BSC testnet contracts are verified by bytecode on every live telemetry refresh, but the documented backend host remains unreachable and terminal proof completion is therefore gated. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.

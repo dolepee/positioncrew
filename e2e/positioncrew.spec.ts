@@ -4,7 +4,7 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await page.goto("/#marketplace");
   await expect(page.getByRole("heading", { name: "Hire a capital operator." })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).last()).toBeVisible();
-  await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible();
+  await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible({ timeout: 20_000 });
 
   await page.getByRole("button", { name: "Open lending rescue workspace" }).click();
   await expect(page.getByRole("heading", { name: "Define the job. Inspect the action." })).toBeVisible();
@@ -16,6 +16,25 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await expect(page.getByText("application/json", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Receipt" }).click();
   await expect(page.getByText("Evaluation", { exact: true })).toBeVisible();
+  const receiptLink = page.getByRole("link", { name: "Public receipt" });
+  await expect(receiptLink).toBeVisible();
+  const receiptPath = await receiptLink.getAttribute("href");
+  expect(receiptPath).toMatch(/^\/api\/receipts\/sha256:[a-f0-9]{64}$/);
+  const receipt = await page.request.get(receiptPath!);
+  expect(receipt.status()).toBe(200);
+  expect((await receipt.json()).schemaVersion).toBe("positioncrew.public-receipt.v1");
+});
+
+test("live BSC telemetry and Venus wallet risk are independently inspectable", async ({ page }) => {
+  await page.goto("/#marketplace");
+  await expect(page.getByText("LIVE BSC DATA", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("8/8", { exact: true })).toBeVisible();
+
+  await page.goto("/#jobs");
+  await page.getByPlaceholder("0x account address").fill("0x0000000000000000000000000000000000000001");
+  await page.getByRole("button", { name: "Inspect" }).click();
+  await expect(page.getByText("NO POSITION", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("link", { name: /Block [0-9,]+/ })).toHaveAttribute("href", /bscscan\.com\/address/);
 });
 
 test("all four mandatory capital jobs return category-specific results", async ({ page }) => {
@@ -51,7 +70,7 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/not represented as AACP or mainnet settlement/)).toBeVisible();
+  await expect(page.getByText(/backend proof completion is not represented as available/)).toBeVisible();
 });
 
 test("the app has no page-level horizontal overflow", async ({ page }) => {

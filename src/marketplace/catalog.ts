@@ -8,7 +8,8 @@ export interface ProviderListing {
   category: string;
   summary: string;
   method: "POST";
-  endpoint: "/api/jobs";
+  endpoint: string;
+  healthEndpoint: string;
   requestSchema: string;
   deliverableSchema: string;
   price: { amount: "5"; token: "TEST_USDC"; chainId: 56 };
@@ -25,7 +26,8 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     category: "Health factor monitoring",
     summary: "Returns the smallest allowed repayment or collateral action that restores a stressed lending position.",
     method: "POST",
-    endpoint: "/api/jobs",
+    endpoint: "/api/providers/lending-rescue/jobs",
+    healthEndpoint: "/api/providers/lending-rescue/health",
     requestSchema: "positioncrew.lending-rescue.request.v1",
     deliverableSchema: "positioncrew.lending-rescue.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -40,7 +42,8 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     category: "Rebalancing",
     summary: "Proposes a bounded range change only when projected fees clear swap and gas costs.",
     method: "POST",
-    endpoint: "/api/jobs",
+    endpoint: "/api/providers/lp-rebalance/jobs",
+    healthEndpoint: "/api/providers/lp-rebalance/health",
     requestSchema: "positioncrew.lp-rebalance.request.v1",
     deliverableSchema: "positioncrew.lp-rebalance.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -55,7 +58,8 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     category: "Yield optimisation",
     summary: "Compares allowlisted venues after costs, liquidity, lockup, concentration, and risk limits.",
     method: "POST",
-    endpoint: "/api/jobs",
+    endpoint: "/api/providers/yield-optimization/jobs",
+    healthEndpoint: "/api/providers/yield-optimization/health",
     requestSchema: "positioncrew.yield-optimization.request.v1",
     deliverableSchema: "positioncrew.yield-optimization.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },
@@ -70,7 +74,8 @@ export const PROVIDER_CATALOG: readonly ProviderListing[] = [
     category: "Grid trading",
     summary: "Builds or rejects a grid under explicit inventory, loss, liquidity, volatility, and expiry limits.",
     method: "POST",
-    endpoint: "/api/jobs",
+    endpoint: "/api/providers/bounded-grid/jobs",
+    healthEndpoint: "/api/providers/bounded-grid/health",
     requestSchema: "positioncrew.bounded-grid.request.v1",
     deliverableSchema: "positioncrew.bounded-grid.deliverable.v1",
     price: { amount: "5", token: "TEST_USDC", chainId: 56 },

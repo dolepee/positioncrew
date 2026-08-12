@@ -7,11 +7,16 @@ import {
   Clipboard,
   Clock3,
   Code2,
+  Download,
+  ExternalLink,
   FileJson2,
   LoaderCircle,
   Play,
+  RefreshCw,
   ReceiptText,
   ShieldCheck,
+  Trash2,
+  WalletCards,
 } from "lucide-react";
 import {
   actionDetails,
@@ -29,6 +34,8 @@ import type {
   ProviderListing,
   ServiceId,
   SessionJob,
+  SystemTelemetry,
+  VenusAccountProbe,
 } from "../types";
 
 type ResultView = "summary" | "json" | "receipt";
@@ -104,8 +111,24 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
 
 function ReceiptView({ response }: { response: FixtureJobResponse }) {
   const { job, evaluation } = response.result;
+  function downloadReceipt() {
+    const body = JSON.stringify(response, null, 2);
+    const href = URL.createObjectURL(new Blob([body], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = href;
+    link.download = `${job.jobId}.receipt.json`;
+    link.click();
+    URL.revokeObjectURL(href);
+  }
   return (
     <div className="receipt-view">
+      <div className="receipt-actions">
+        <span><ShieldCheck size={14} /> {response.receipt.mode.replaceAll("_", " ")}</span>
+        <div>
+          {response.receipt.path && <a href={response.receipt.path} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Public receipt</a>}
+          <button type="button" onClick={downloadReceipt}><Download size={14} /> Download</button>
+        </div>
+      </div>
       <dl className="receipt-facts">
         <div><dt>Job ID</dt><dd>{job.jobId}</dd></div>
         <div><dt>Provider</dt><dd>{job.providerId}</dd></div>
@@ -124,6 +147,78 @@ function ReceiptView({ response }: { response: FixtureJobResponse }) {
         ))}
       </ol>
     </div>
+  );
+}
+
+function WalletRiskProbe({ telemetry }: { telemetry: SystemTelemetry | null }) {
+  const [account, setAccount] = useState("");
+  const [probe, setProbe] = useState<VenusAccountProbe | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function inspect() {
+    setLoading(true);
+    setError(null);
+    setProbe(null);
+    try {
+      const response = await fetch(`/api/wallets/${account.trim()}/venus`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { details?: unknown } | null;
+        throw new Error(Array.isArray(body?.details) ? String(body.details[0]) : `Wallet probe failed (${response.status})`);
+      }
+      setProbe(await response.json() as VenusAccountProbe);
+    } catch (probeError) {
+      setError(probeError instanceof Error ? probeError.message : "Wallet probe failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const tone = probe?.state === "LIQUID" ? "good" : probe?.state === "SHORTFALL" ? "warn" : "neutral";
+  return (
+    <section className="wallet-risk-probe" aria-labelledby="wallet-probe-title">
+      <div className="wallet-probe-heading">
+        <div><span className="section-kicker">Live BSC read</span><h3 id="wallet-probe-title">Venus account probe</h3></div>
+        <span>{telemetry ? `Block ${Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}` : "RPC syncing"}</span>
+      </div>
+      <div className="wallet-probe-control">
+        <label>
+          <span className="sr-only">Venus account address</span>
+          <WalletCards size={16} aria-hidden="true" />
+          <input
+            type="text"
+            inputMode="text"
+            spellCheck={false}
+            autoComplete="off"
+            placeholder="0x account address"
+            value={account}
+            onChange={(event) => setAccount(event.target.value)}
+          />
+        </label>
+        <button type="button" onClick={inspect} disabled={loading || account.trim().length !== 42}>
+          {loading ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+          {loading ? "Reading" : "Inspect"}
+        </button>
+      </div>
+      {error && <div className="wallet-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {probe && (
+        <div className="wallet-probe-result" aria-live="polite">
+          <div className="wallet-probe-state">
+            <span className={`state-label ${tone}`}>{probe.state.replaceAll("_", " ")}</span>
+            <a href={probe.source.explorerUrl} target="_blank" rel="noreferrer">Block {Number(probe.source.blockNumber).toLocaleString("en-US")} <ExternalLink size={12} /></a>
+          </div>
+          <dl>
+            <div><dt>Liquidity</dt><dd>${probe.liquidityUsd}</dd></div>
+            <div><dt>Shortfall</dt><dd>${probe.shortfallUsd}</dd></div>
+            <div><dt>Markets</dt><dd>{probe.enteredMarkets.length}</dd></div>
+            <div><dt>Gas balance</dt><dd>{probe.nativeBalanceBnb} BNB</dd></div>
+          </dl>
+          <p>{probe.boundary}</p>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -157,6 +252,8 @@ export function JobWorkspace({
   onRun,
   onSelectJob,
   onSelectService,
+  telemetry,
+  onClearJobs,
 }: {
   provider: ProviderListing | undefined;
   fixture: FixtureJobResponse | undefined;
@@ -166,6 +263,8 @@ export function JobWorkspace({
   onRun: (request: Record<string, unknown>) => Promise<void>;
   onSelectJob: (job: SessionJob) => void;
   onSelectService: (service: ServiceId) => void;
+  telemetry: SystemTelemetry | null;
+  onClearJobs: () => void;
 }) {
   const service = provider?.service ?? "LENDING_RESCUE";
   const task = TASKS.find((candidate) => candidate.id === service) ?? TASKS[0];
@@ -243,6 +342,7 @@ export function JobWorkspace({
           <p className="composer-summary">{provider?.summary ?? task.description}</p>
           {service === "LENDING_RESCUE" ? (
             <>
+              <WalletRiskProbe telemetry={telemetry} />
               <LendingPositionBar response={fixture ?? null} />
               <div className="form-grid">
                 <label><span>Target health factor</span><input disabled={!fixture || loading} type="number" min="1.01" max="3" step="0.01" value={targetHealth} onChange={(event) => setTargetHealth(event.target.value)} /></label>
@@ -304,8 +404,8 @@ export function JobWorkspace({
 
       <section className="session-jobs" aria-labelledby="session-jobs-title">
         <div className="section-bar">
-          <div><span className="section-kicker">Current browser session</span><h2 id="session-jobs-title">Job history</h2></div>
-          <span>{sessionJobs.length} jobs</span>
+          <div><span className="section-kicker">Persistent local record</span><h2 id="session-jobs-title">Job history</h2></div>
+          <div className="history-actions"><span>{sessionJobs.length} jobs</span>{sessionJobs.length > 0 && <button type="button" onClick={onClearJobs} title="Clear local job history"><Trash2 size={14} /> Clear</button>}</div>
         </div>
         <div className="history-table-wrap">
           <table className="history-table">

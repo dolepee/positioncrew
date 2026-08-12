@@ -38,7 +38,31 @@ export interface FixtureJobResponse {
   generatedAt: string;
   claimBoundary: readonly string[];
   benchmarkLock: BenchmarkLock | null;
+  receipt: {
+    mode: "PUBLIC_REPRODUCIBLE" | "SESSION_EMBEDDED";
+    path: string | null;
+    evaluationHash: string;
+  };
   result: ProviderJobResult;
+}
+
+export interface LendingRepeatabilityResponse {
+  schemaVersion: "positioncrew.lending-repeatability.v1";
+  generatedAt: string;
+  taskId: string;
+  status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING";
+  benchmarkLock: BenchmarkLock;
+  runs: Array<{
+    runId: string;
+    elapsedMilliseconds: number;
+    directCostUsd: "0.00";
+    qualityScore: number;
+    criticalFailureCount: number;
+    outputHash: string;
+  }>;
+  medianElapsedMilliseconds: number;
+  pending: readonly ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"];
+  boundary: string;
 }
 
 export async function runFrozenFixture(
@@ -54,6 +78,9 @@ export async function runFrozenFixture(
 export async function runFixtureRequest(input: unknown): Promise<FixtureJobResponse> {
   const request = PositionCrewRequestSchema.parse(input);
   const result = await runProviderJob(new MemoryCommerceAdapter(), request, FIXTURE_NOW);
+  const isPublicFixture = FIXTURES.some(
+    (fixture) => canonicalHash(request) === canonicalHash(PositionCrewRequestSchema.parse(fixture)),
+  );
   const isLockedLendingFixture =
     request.service === "LENDING_RESCUE" &&
     canonicalHash(request) === LENDING_BENCHMARK_LOCK.fixtureHash;
@@ -65,6 +92,13 @@ export async function runFixtureRequest(input: unknown): Promise<FixtureJobRespo
     generatedAt: FIXTURE_NOW.toISOString(),
     claimBoundary: CLAIM_BOUNDARY,
     benchmarkLock: isLockedLendingFixture ? LENDING_BENCHMARK_LOCK : null,
+    receipt: {
+      mode: isPublicFixture ? "PUBLIC_REPRODUCIBLE" : "SESSION_EMBEDDED",
+      path: isPublicFixture
+        ? `/api/receipts/${result.evaluation.evaluationHash}`
+        : null,
+      evaluationHash: result.evaluation.evaluationHash,
+    },
     result,
   };
 }
@@ -75,6 +109,41 @@ export async function runFrozenMatrix(): Promise<FixtureJobResponse[]> {
       runFrozenFixture(PositionCrewRequestSchema.parse(fixture).service),
     ),
   );
+}
+
+export async function runLendingRepeatability(): Promise<LendingRepeatabilityResponse> {
+  const runs: LendingRepeatabilityResponse["runs"] = [];
+  for (let index = 0; index < 2; index += 1) {
+    const startedAt = performance.now();
+    const response = await runFrozenFixture("LENDING_RESCUE");
+    const manifest = response.result.job.deliverable;
+    if (!manifest) throw new Error("Completed lending repeat is missing its deliverable manifest");
+    const elapsedMilliseconds = Math.max(1, Math.round(performance.now() - startedAt));
+    runs.push({
+      runId: `positioncrew-provider-repeat-${index + 1}`,
+      elapsedMilliseconds,
+      directCostUsd: "0.00",
+      qualityScore: response.result.evaluation.score,
+      criticalFailureCount: response.result.evaluation.checks.filter(
+        (check) => check.critical && !check.passed,
+      ).length,
+      outputHash: manifest.deliverableHash,
+    });
+  }
+  const sortedTimes = runs.map((run) => run.elapsedMilliseconds).sort((a, b) => a - b);
+  const medianElapsedMilliseconds = (sortedTimes[0]! + sortedTimes[1]!) / 2;
+  return {
+    schemaVersion: "positioncrew.lending-repeatability.v1",
+    generatedAt: new Date().toISOString(),
+    taskId: benchmarkProtocol.taskId,
+    status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING",
+    benchmarkLock: LENDING_BENCHMARK_LOCK,
+    runs,
+    medianElapsedMilliseconds,
+    pending: ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"],
+    boundary:
+      "These runs establish deterministic provider repeatability only. Agent advantage is not claimed until the manual baseline and independent blind scorecard are complete.",
+  };
 }
 
 export async function runSuppliedLendingRequest(
@@ -95,6 +164,11 @@ export async function runSuppliedLendingRequest(
       "The output must be revalidated against fresh protocol state before execution.",
     ],
     benchmarkLock: null,
+    receipt: {
+      mode: "SESSION_EMBEDDED",
+      path: null,
+      evaluationHash: result.evaluation.evaluationHash,
+    },
     result,
   };
 }

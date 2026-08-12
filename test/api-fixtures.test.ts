@@ -5,6 +5,7 @@ import {
   runFixtureRequest,
   runFrozenFixture,
   runFrozenMatrix,
+  runLendingRepeatability,
   runSuppliedLendingRequest,
 } from "../src/api/fixture-jobs.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
@@ -20,6 +21,8 @@ describe("public fixture job boundary", () => {
     expect(response.advantageStatus).toBe("PENDING_INDEPENDENT_BLIND_EVALUATION");
     expect(response.benchmarkLock?.fixtureHash).toMatch(/^sha256:[a-f0-9]{64}$/);
     expect(response.claimBoundary.join(" ")).toContain("not an AACP");
+    expect(response.receipt.mode).toBe("PUBLIC_REPRODUCIBLE");
+    expect(response.receipt.path).toBe(`/api/receipts/${response.result.evaluation.evaluationHash}`);
 
     const artifactManifest = response.result.job.deliverable;
     expect(artifactManifest).not.toBeNull();
@@ -45,6 +48,17 @@ describe("public fixture job boundary", () => {
     expect(matrix.every((item) => item.result.job.state === "COMPLETED")).toBe(true);
   });
 
+  it("captures deterministic provider repeats without claiming agent advantage", async () => {
+    const record = await runLendingRepeatability();
+
+    expect(record.runs).toHaveLength(2);
+    expect(record.runs.every((run) => run.qualityScore === 100)).toBe(true);
+    expect(record.runs.every((run) => run.criticalFailureCount === 0)).toBe(true);
+    expect(new Set(record.runs.map((run) => run.outputHash)).size).toBe(1);
+    expect(record.pending).toEqual(["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"]);
+    expect(record.boundary).toContain("Agent advantage is not claimed");
+  });
+
   it("publishes one callable provider listing for every required category", () => {
     expect(PROVIDER_CATALOG.map((provider) => provider.service)).toEqual([
       "LENDING_RESCUE",
@@ -52,7 +66,9 @@ describe("public fixture job boundary", () => {
       "YIELD_OPTIMIZATION",
       "BOUNDED_GRID",
     ]);
-    expect(PROVIDER_CATALOG.every((provider) => provider.endpoint === "/api/jobs")).toBe(true);
+    expect(new Set(PROVIDER_CATALOG.map((provider) => provider.endpoint)).size).toBe(4);
+    expect(PROVIDER_CATALOG.every((provider) => provider.endpoint.startsWith("/api/providers/") && provider.endpoint.endsWith("/jobs"))).toBe(true);
+    expect(PROVIDER_CATALOG.every((provider) => provider.healthEndpoint.startsWith("/api/providers/") && provider.healthEndpoint.endsWith("/health"))).toBe(true);
     expect(PROVIDER_CATALOG.every((provider) => provider.settlement === "IN_MEMORY_CONFORMANCE")).toBe(true);
   });
 
@@ -62,6 +78,8 @@ describe("public fixture job boundary", () => {
     const response = await runFixtureRequest(modified);
 
     expect(response.benchmarkLock).toBeNull();
+    expect(response.receipt.mode).toBe("SESSION_EMBEDDED");
+    expect(response.receipt.path).toBeNull();
     expect(response.result.deliverable.status).toBe("REFUSED_CONSTRAINTS");
   });
 

@@ -461,8 +461,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .primary-action:hover:not(:disabled) { background: #ffd133; }
 .primary-action:disabled { cursor: not-allowed; opacity: 0.55; }
 .provider-detail .primary-action { margin-top: 16px; }
-.provider-receipt-preview { display: flex; align-items: center; gap: 8px; margin-top: 13px; color: var(--muted); }
+.provider-receipt-preview { display: flex; align-items: center; gap: 8px; margin-top: 13px; color: var(--muted); text-decoration: none; }
 .provider-receipt-preview svg { color: var(--green); }
+.provider-receipt-preview > svg:last-child { margin-left: auto; color: var(--muted); }
 .provider-receipt-preview span { display: flex; min-width: 0; flex-direction: column; }
 .provider-receipt-preview strong { color: var(--ink-soft); font-size: 11px; }
 .provider-receipt-preview small { margin-top: 3px; overflow: hidden; font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
@@ -498,6 +499,26 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .state-label.warn { color: #865107; border-color: #ead19c; background: var(--amber-soft); }
 .state-label.neutral { color: var(--muted); }
 .composer-summary { margin: 12px 0 16px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+.wallet-risk-probe { margin: 0 0 15px; padding: 13px 0 15px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.wallet-probe-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.wallet-probe-heading h3 { margin: 4px 0 0; font-size: 13px; }
+.wallet-probe-heading > span { color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 9px; }
+.wallet-probe-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
+.wallet-probe-control label { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: var(--surface-soft); }
+.wallet-probe-control label:focus-within { border-color: #d2aa29; background: white; }
+.wallet-probe-control input { min-width: 0; width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-family: "SFMono-Regular", Consolas, monospace; font-size: 11px; }
+.wallet-probe-control input::placeholder { color: #929c97; }
+.wallet-probe-control button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 92px; border: 1px solid var(--line-strong); border-radius: 5px; color: var(--ink); background: white; font-size: 11px; font-weight: 750; cursor: pointer; }
+.wallet-probe-control button:disabled { cursor: not-allowed; opacity: 0.5; }
+.wallet-probe-error { display: flex; align-items: center; gap: 6px; margin-top: 9px; color: #8d3543; font-size: 10px; }
+.wallet-probe-result { margin-top: 11px; }
+.wallet-probe-state { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.wallet-probe-state a { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); font-size: 10px; text-decoration: none; }
+.wallet-probe-result dl { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 10px 0 0; border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.wallet-probe-result dl > div { min-width: 0; padding: 9px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.wallet-probe-result dt { color: var(--muted); font-size: 8px; font-weight: 800; text-transform: uppercase; }
+.wallet-probe-result dd { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 10px; font-weight: 750; }
+.wallet-probe-result p { margin: 8px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
 .position-bar { padding: 13px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-soft); }
 .position-bar-track { position: relative; display: grid; grid-template-columns: 28% 22% 50%; height: 20px; border: 1px solid #cbd2cd; overflow: visible; }
 .position-bar-track > span { display: block; }
@@ -581,6 +602,10 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .json-toolbar button { min-height: 29px; border: 1px solid #47534e; border-radius: 4px; color: #edf0ef; background: #28312e; font-size: 11px; cursor: pointer; }
 .json-view pre { max-height: 500px; margin: 0; padding: 17px; overflow: auto; color: #d7e2de; background: #111715; font-size: 11px; line-height: 1.6; white-space: pre; }
 .receipt-view { display: grid; grid-template-columns: 1fr 0.9fr; gap: 22px; padding: 20px; }
+.receipt-actions { display: flex; grid-column: 1 / -1; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--line); }
+.receipt-actions > span { display: inline-flex; align-items: center; gap: 6px; color: var(--green-dark); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.receipt-actions > div { display: flex; align-items: center; gap: 7px; }
+.receipt-actions a, .receipt-actions button { display: inline-flex; align-items: center; gap: 6px; min-height: 31px; padding: 0 9px; border: 1px solid var(--line); border-radius: 4px; color: var(--ink-soft); background: white; font-size: 10px; font-weight: 700; text-decoration: none; cursor: pointer; }
 .receipt-facts { margin: 0; }
 .receipt-facts > div { padding: 10px 0; border-bottom: 1px solid #e5eae6; }
 .receipt-facts dt { color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
@@ -594,6 +619,8 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .vertical-timeline code { color: var(--muted); font-size: 10px; }
 .session-jobs, .evidence-section { margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
 .session-jobs > .section-bar, .evidence-section > .section-bar { min-height: 58px; padding: 13px 15px; border-bottom: 1px solid var(--line); }
+.history-actions { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 10px; }
+.history-actions button { display: inline-flex; align-items: center; gap: 5px; min-height: 28px; padding: 0 8px; border: 1px solid var(--line); border-radius: 4px; color: var(--muted); background: white; font-size: 10px; cursor: pointer; }
 .history-table { min-width: 780px; }
 .history-table td { height: 53px; padding: 9px 13px; border-bottom: 1px solid #e6ebe7; color: var(--ink-soft); font-size: 11px; }
 .history-table tbody tr:last-child td { border-bottom: 0; }
@@ -607,6 +634,23 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .evidence-summary span { min-width: 138px; }
 .evidence-summary svg { color: var(--green); }
 .evidence-page .evidence-section:first-of-type { margin-top: 0; }
+.infrastructure-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.infrastructure-grid > a { position: relative; display: flex; min-width: 0; min-height: 104px; padding: 15px; border-right: 1px solid var(--line); color: var(--ink); text-decoration: none; flex-direction: column; }
+.infrastructure-grid > a:last-child { border-right: 0; }
+.infrastructure-grid > a:hover { background: #fafbf9; }
+.infrastructure-grid > a > span { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.infrastructure-grid > a > strong { margin-top: 8px; overflow-wrap: anywhere; font-size: 17px; font-variant-numeric: tabular-nums; }
+.infrastructure-grid > a > small { margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.infrastructure-grid > a > svg { position: absolute; top: 15px; right: 15px; color: #7d8883; }
+.infrastructure-loading { padding: 24px 15px; color: var(--muted); font-size: 11px; }
+.aacp-contract-strip { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); background: #fafbf9; }
+.aacp-contract-strip a { display: flex; min-width: 0; align-items: center; gap: 6px; padding: 9px 12px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); color: var(--muted); font-size: 9px; text-decoration: none; }
+.aacp-contract-strip a:nth-child(4n) { border-right: 0; }
+.aacp-contract-strip a:nth-last-child(-n + 4) { border-bottom: 0; }
+.aacp-contract-strip i { flex: 0 0 6px; width: 6px; height: 6px; border-radius: 50%; background: #9aa49f; }
+.aacp-contract-strip i.deployed { background: var(--green); }
+.aacp-contract-strip code { min-width: 0; margin-left: auto; overflow: hidden; color: #7d8883; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.receipt-table-link { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); text-decoration: none; }
 .evidence-table td:first-child strong, .evidence-table td:first-child small { display: block; }
 .evidence-table td:first-child small { margin-top: 4px; color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
 .evidence-columns { display: grid; grid-template-columns: 1.18fr 0.82fr; gap: 18px; }
@@ -617,7 +661,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .benchmark-table small { margin-top: 3px; color: var(--muted); font-size: 10px; }
 .benchmark-table > div > span:last-child { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .benchmark-status { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: max-content; min-height: 23px; padding: 0 7px; border: 1px solid var(--line); border-radius: 12px; font-size: 9px; font-weight: 800; }
-.benchmark-status.locked { color: #19604e; border-color: #b8ddd1; background: var(--green-soft); }
+.benchmark-status.locked, .benchmark-status.captured { color: #19604e; border-color: #b8ddd1; background: var(--green-soft); }
 .benchmark-status.planned { color: #7b5b1d; border-color: #e6d5ae; background: #fff8e8; }
 .method-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); }
 .method-grid > div { min-height: 92px; padding: 14px; border-right: 1px solid var(--line); background: #fafbf9; }
@@ -626,6 +670,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .method-grid strong { color: #795c00; font-size: 20px; }
 .method-grid span { margin-top: 6px; font-size: 11px; font-weight: 750; }
 .method-grid small { margin-top: 4px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.benchmark-data-link { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 38px; border-top: 1px solid var(--line); color: var(--blue); background: white; font-size: 10px; font-weight: 750; text-decoration: none; }
 .lock-facts { margin: 0; padding: 6px 15px; }
 .lock-facts > div { padding: 11px 0; border-bottom: 1px solid #e6ebe7; }
 .lock-facts dt { color: var(--muted); font-size: 9px; font-weight: 750; text-transform: uppercase; }
@@ -651,6 +696,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-metrics > div:nth-child(2) { border-right: 0; }
   .decision-metrics > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .receipt-view { grid-template-columns: 1fr; }
+  .infrastructure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .infrastructure-grid > a:nth-child(2) { border-right: 0; }
+  .infrastructure-grid > a:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
 }
 
 @media (max-width: 940px) {
@@ -672,6 +720,10 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .provider-detail { min-height: 0; }
   .evidence-columns { grid-template-columns: 1fr; gap: 0; }
   .evidence-columns .evidence-section + .evidence-section { margin-top: 18px; }
+  .aacp-contract-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aacp-contract-strip a:nth-child(2n) { border-right: 0; }
+  .aacp-contract-strip a:nth-last-child(-n + 4) { border-bottom: 1px solid var(--line); }
+  .aacp-contract-strip a:nth-last-child(-n + 2) { border-bottom: 0; }
 }
 
 @media (max-width: 680px) {
@@ -721,6 +773,10 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .fixture-fields > div:nth-last-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .fixture-fields > div:last-child { border-bottom: 0; }
   .action-options { align-items: flex-start; flex-direction: column; }
+  .wallet-probe-control { grid-template-columns: 1fr; }
+  .wallet-probe-control button { min-height: 37px; }
+  .wallet-probe-result dl { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .wallet-probe-result dl > div:nth-child(2n) { border-right: 0; }
   .composer-footer { align-items: stretch; flex-direction: column; }
   .composer-footer .primary-action { width: 100%; }
   .job-composer { padding: 15px; }
@@ -736,10 +792,58 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-detail-grid { grid-template-columns: 1fr; }
   .alternative-action { align-items: flex-start; flex-direction: column; }
   .receipt-view { padding: 15px; }
+  .receipt-actions { align-items: flex-start; flex-direction: column; }
   .vertical-timeline li { grid-template-columns: 24px 1fr; }
   .vertical-timeline code { display: none; }
   .benchmark-table > div { grid-template-columns: 76px 1fr; }
+  .infrastructure-grid { grid-template-columns: 1fr; }
+  .infrastructure-grid > a { min-height: 91px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .infrastructure-grid > a:last-child { border-bottom: 0; }
+  .aacp-contract-strip { grid-template-columns: 1fr; }
+  .aacp-contract-strip a, .aacp-contract-strip a:nth-last-child(-n + 2), .aacp-contract-strip a:nth-last-child(-n + 4) { border-right: 0; border-bottom: 1px solid var(--line); }
+  .aacp-contract-strip a:last-child { border-bottom: 0; }
   .benchmark-table > div > span:last-child { grid-column: 1 / -1; }
+  .evidence-table { min-width: 0; table-layout: auto; }
+  .evidence-table thead { display: none; }
+  .evidence-table tbody { display: block; }
+  .evidence-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 12px;
+    padding: 12px;
+    border-bottom: 1px solid #e6ebe7;
+  }
+  .evidence-table tbody tr:last-child { border-bottom: 0; }
+  .evidence-table td {
+    min-width: 0;
+    height: auto;
+    padding: 0;
+    border: 0;
+  }
+  .evidence-table td:first-child { grid-column: 1; grid-row: 1; }
+  .evidence-table td:first-child small { overflow-wrap: anywhere; }
+  .evidence-table td:nth-child(2) { grid-column: 1; grid-row: 2; color: var(--muted); }
+  .evidence-table td:nth-child(3) { grid-column: 2; grid-row: 1; }
+  .evidence-table td:nth-child(4) { grid-column: 2; grid-row: 2; text-align: right; }
+  .evidence-table td:nth-child(5), .evidence-table td:nth-child(6) {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: 76px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+    padding-top: 8px;
+    border-top: 1px solid #edf0ed;
+  }
+  .evidence-table td:nth-child(5)::before, .evidence-table td:nth-child(6)::before {
+    color: var(--muted);
+    font-size: 8px;
+    font-weight: 800;
+    text-transform: uppercase;
+  }
+  .evidence-table td:nth-child(5)::before { content: "Request"; }
+  .evidence-table td:nth-child(6)::before { content: "Receipt"; }
+  .evidence-table td code { min-width: 0; overflow-wrap: anywhere; }
   .method-grid, .claim-register { grid-template-columns: 1fr; }
   .method-grid > div, .claim-register > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .method-grid > div:last-child, .claim-register > div:last-child { border-bottom: 0; }

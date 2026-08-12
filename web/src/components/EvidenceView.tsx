@@ -3,27 +3,32 @@ import {
   BadgeCheck,
   Check,
   Clock3,
+  ExternalLink,
   FileCheck2,
   LockKeyhole,
+  Radio,
   ShieldCheck,
 } from "lucide-react";
 import { shortHash } from "../presentation";
-import type { FixtureJobResponse, ProviderListing, ServiceId } from "../types";
-
-const benchmarkRows = [
-  { task: "Lending position rescue", category: "Security / DeFi", status: "LOCKED", detail: "Rubric and blind protocol committed" },
-  { task: "Yield allocation", category: "Yield", status: "PLANNED", detail: "Inputs frozen after live source adapter" },
-  { task: "Bounded grid construction", category: "Trading", status: "PLANNED", detail: "Manual baseline and evaluator required" },
-];
+import type { FixtureJobResponse, LendingRepeatabilityResponse, ProviderListing, ServiceId, SystemTelemetry } from "../types";
 
 export function EvidenceView({
   providers,
   matrix,
+  telemetry,
+  repeatability,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
+  telemetry: SystemTelemetry | null;
+  repeatability: LendingRepeatabilityResponse | null;
 }) {
   const lending = matrix.get("LENDING_RESCUE");
+  const benchmarkRows = [
+    { task: "Lending position rescue", category: "Security / DeFi", status: repeatability ? "CAPTURED" : "LOCKED", detail: repeatability ? "Two deterministic provider runs captured" : "Rubric and blind protocol committed" },
+    { task: "Yield allocation", category: "Yield", status: "PLANNED", detail: "Inputs frozen after live source adapter" },
+    { task: "Bounded grid construction", category: "Trading", status: "PLANNED", detail: "Manual baseline and evaluator required" },
+  ];
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -33,11 +38,41 @@ export function EvidenceView({
           <p>Conformance receipts and Agent Advantage evidence are reported as separate claims.</p>
         </div>
         <div className="evidence-summary">
-          <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> provider fixtures pass</span>
+          <span><Radio size={16} /><strong>{telemetry ? `#${Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}` : "-"}</strong> live BSC block</span>
+          <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
           <span><LockKeyhole size={16} /><strong>{lending?.benchmarkLock ? "1" : "0"}</strong> benchmark locked</span>
-          <span><Clock3 size={16} /><strong>0</strong> blind comparisons complete</span>
         </div>
       </div>
+
+      <section className="evidence-section infrastructure-section" aria-labelledby="infrastructure-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">Live sources</span><h2 id="infrastructure-title">Onchain infrastructure register</h2></div>
+          <span className={`state-label ${telemetry ? "good" : "neutral"}`}><Radio size={13} /> {telemetry ? "Block pinned" : "Synchronising"}</span>
+        </div>
+        {telemetry ? (
+          <div className="infrastructure-grid">
+            <a href={telemetry.mainnet.explorerUrl} target="_blank" rel="noreferrer">
+              <span>BNB Smart Chain</span><strong>#{Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}</strong><small>{telemetry.mainnet.gasPriceGwei} Gwei · {telemetry.mainnet.rpcLatencyMs} ms</small><ExternalLink size={14} />
+            </a>
+            <a href={telemetry.market.explorerUrl} target="_blank" rel="noreferrer">
+              <span>PancakeSwap V3</span><strong>${telemetry.market.spotPriceUsd}</strong><small>{telemetry.market.pair} · tick {telemetry.market.tick}</small><ExternalLink size={14} />
+            </a>
+            <a href={telemetry.venus.explorerUrl} target="_blank" rel="noreferrer">
+              <span>Venus vUSDT</span><strong>{telemetry.venus.supplyAprPct}% APR</strong><small>${Number(telemetry.venus.availableLiquidityUsd).toLocaleString("en-US")} available</small><ExternalLink size={14} />
+            </a>
+            <a href={telemetry.testnet.explorerUrl} target="_blank" rel="noreferrer">
+              <span>AACP / BSC Testnet</span><strong>{telemetry.aacp.deployedCount}/{telemetry.aacp.contractCount}</strong><small>contracts with bytecode · settlement gated</small><ExternalLink size={14} />
+            </a>
+          </div>
+        ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
+        {telemetry && (
+          <div className="aacp-contract-strip" aria-label="Verified AACP contracts">
+            {telemetry.aacp.contracts.map((contract) => (
+              <a key={contract.address} href={contract.explorerUrl} target="_blank" rel="noreferrer"><i className={contract.deployed ? "deployed" : "missing"} />{contract.name}<code>{shortHash(contract.address, 10)}</code></a>
+            ))}
+          </div>
+        )}
+      </section>
 
       <section className="evidence-section" aria-labelledby="coverage-title">
         <div className="section-bar">
@@ -46,7 +81,7 @@ export function EvidenceView({
         </div>
         <div className="history-table-wrap">
           <table className="history-table evidence-table">
-            <thead><tr><th>Provider</th><th>Category</th><th>State</th><th>Score</th><th>Request commitment</th><th>Evaluation receipt</th></tr></thead>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Category</th><th scope="col">State</th><th scope="col">Score</th><th scope="col">Request commitment</th><th scope="col">Evaluation receipt</th></tr></thead>
             <tbody>
               {providers.map((provider) => {
                 const result = matrix.get(provider.service);
@@ -57,7 +92,7 @@ export function EvidenceView({
                     <td><span className={`state-label ${result ? "good" : "neutral"}`}>{result?.result.job.state ?? "CHECKING"}</span></td>
                     <td>{result?.result.evaluation.score ?? "-"}/100</td>
                     <td><code>{shortHash(result?.result.job.envelopeHash)}</code></td>
-                    <td><code>{shortHash(result?.result.evaluation.evaluationHash)}</code></td>
+                    <td>{result?.receipt.path ? <a className="receipt-table-link" href={result.receipt.path} target="_blank" rel="noreferrer"><code>{shortHash(result.result.evaluation.evaluationHash)}</code><ExternalLink size={12} /></a> : <code>-</code>}</td>
                   </tr>
                 );
               })}
@@ -75,17 +110,18 @@ export function EvidenceView({
           <div className="benchmark-table">
             {benchmarkRows.map((row) => (
               <div key={row.task}>
-                <span className={`benchmark-status ${row.status.toLowerCase()}`}>{row.status === "LOCKED" ? <LockKeyhole size={13} /> : <Clock3 size={13} />}{row.status}</span>
+                <span className={`benchmark-status ${row.status.toLowerCase()}`}>{row.status === "LOCKED" || row.status === "CAPTURED" ? <LockKeyhole size={13} /> : <Clock3 size={13} />}{row.status}</span>
                 <span><strong>{row.task}</strong><small>{row.category}</small></span>
                 <span>{row.detail}</span>
               </div>
             ))}
           </div>
           <div className="method-grid">
-            <div><strong>3</strong><span>candidate outputs</span><small>1 manual · 2 agent</small></div>
-            <div><strong>100</strong><span>quality points</span><small>3 critical safety gates</small></div>
-            <div><strong>Blind</strong><span>human evaluator</span><small>identity, time, and cost hidden</small></div>
+            <div><strong>{repeatability?.runs.length ?? 0}</strong><span>provider repeats</span><small>{repeatability ? `${repeatability.medianElapsedMilliseconds} ms median · $0.00 direct` : "capture pending"}</small></div>
+            <div><strong>{repeatability?.runs[0]?.qualityScore ?? "-"}</strong><span>conformance score</span><small>{repeatability?.runs[0]?.criticalFailureCount ?? "-"} critical failures</small></div>
+            <div><strong>0</strong><span>blind scorecards</span><small>manual baseline and evaluator pending</small></div>
           </div>
+          <a className="benchmark-data-link" href="/api/benchmarks/lending-rescue/repeatability" target="_blank" rel="noreferrer">Open provider repeatability record <ExternalLink size={13} /></a>
         </section>
 
         <section className="evidence-section lock-section" aria-labelledby="lock-title">
@@ -107,8 +143,8 @@ export function EvidenceView({
       </div>
 
       <section className="claim-register" aria-label="Claim boundaries">
-        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce and pass deterministic checks.</span></div>
-        <div><AlertTriangle size={17} /><span><strong>Settlement</strong>The current rail is in-memory; it is not represented as AACP or mainnet settlement.</span></div>
+        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
+        <div><AlertTriangle size={17} /><span><strong>Settlement</strong>AACP contracts are verified on BSC testnet; backend proof completion is not represented as available.</span></div>
         <div><Clock3 size={17} /><span><strong>Track record</strong>Blind agent-versus-manual results have not been completed or published.</span></div>
       </section>
     </main>

@@ -3,10 +3,12 @@ import {
   runFixtureRequest,
   runFrozenFixture,
   runFrozenMatrix,
+  runLendingRepeatability,
   runSuppliedLendingRequest,
 } from "../src/api/fixture-jobs.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
+import { getSystemTelemetry, inspectVenusAccount } from "../src/telemetry/bsc.js";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -17,6 +19,15 @@ const SERVICES = new Set([
   "LP_REBALANCE",
   "YIELD_OPTIMIZATION",
   "BOUNDED_GRID",
+]);
+
+type ServiceId = "LENDING_RESCUE" | "LP_REBALANCE" | "YIELD_OPTIMIZATION" | "BOUNDED_GRID";
+
+const PROVIDER_SLUGS = new Map<string, ServiceId>([
+  ["lending-rescue", "LENDING_RESCUE"],
+  ["lp-rebalance", "LP_REBALANCE"],
+  ["yield-optimization", "YIELD_OPTIMIZATION"],
+  ["bounded-grid", "BOUNDED_GRID"],
 ]);
 
 const API_HEADERS = {
@@ -64,6 +75,69 @@ async function jobs(request: Request, url: URL): Promise<Response> {
   return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET or POST."]);
 }
 
+async function providerJobs(request: Request, service: ServiceId): Promise<Response> {
+  if (request.method === "GET") return json(await runFrozenFixture(service));
+  if (request.method !== "POST") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET or POST."]);
+
+  const body: unknown = await request.json();
+  if (typeof body !== "object" || body === null || !("request" in body)) {
+    return apiError(422, "INVALID_JOB_REQUEST", ["body.request is required"]);
+  }
+  const parsed = PositionCrewRequestSchema.parse(body.request);
+  if (parsed.service !== service) {
+    return apiError(409, "PROVIDER_SERVICE_MISMATCH", [
+      `This provider accepts ${service} requests, not ${parsed.service}.`,
+    ]);
+  }
+  return json(await runFixtureRequest(parsed));
+}
+
+async function providerHealth(service: ServiceId): Promise<Response> {
+  const startedAt = performance.now();
+  const response = await runFrozenFixture(service);
+  const provider = PROVIDER_CATALOG.find((candidate) => candidate.service === service);
+  return json(
+    {
+      schemaVersion: "positioncrew.provider-health.v1",
+      checkedAt: new Date().toISOString(),
+      status: response.result.evaluation.passed ? "OPERATIONAL" : "DEGRADED",
+      service,
+      providerId: provider?.providerId,
+      endpoint: provider?.endpoint,
+      latencyMs: Math.max(1, Math.round(performance.now() - startedAt)),
+      conformance: {
+        score: response.result.evaluation.score,
+        evaluationHash: response.result.evaluation.evaluationHash,
+        receiptPath: response.receipt.path,
+      },
+    },
+    200,
+    "public, max-age=0, s-maxage=30, stale-while-revalidate=60",
+  );
+}
+
+async function publicReceipt(hash: string): Promise<Response> {
+  const matrix = await runFrozenMatrix();
+  const response = matrix.find(
+    (candidate) => candidate.result.evaluation.evaluationHash.toLowerCase() === hash.toLowerCase(),
+  );
+  if (!response) return apiError(404, "RECEIPT_NOT_FOUND", ["No public fixture receipt matches this hash."]);
+  return json(
+    {
+      schemaVersion: "positioncrew.public-receipt.v1",
+      publishedAt: response.generatedAt,
+      receiptHash: response.result.evaluation.evaluationHash,
+      claimBoundary: response.claimBoundary,
+      request: response.result.request,
+      deliverable: response.result.deliverable,
+      job: response.result.job,
+      evaluation: response.result.evaluation,
+    },
+    200,
+    "public, max-age=3600, s-maxage=86400, immutable",
+  );
+}
+
 async function rescue(request: Request): Promise<Response> {
   if (request.method === "GET") return json(await runFrozenFixture("LENDING_RESCUE"));
 
@@ -99,6 +173,49 @@ async function api(request: Request, url: URL): Promise<Response> {
         },
         200,
         "public, max-age=0, s-maxage=300",
+      );
+    }
+
+    if (url.pathname === "/api/status") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        await getSystemTelemetry(),
+        200,
+        "public, max-age=0, s-maxage=15, stale-while-revalidate=30",
+      );
+    }
+
+    if (url.pathname === "/api/benchmarks/lending-rescue/repeatability") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(await runLendingRepeatability());
+    }
+
+    const providerRoute = url.pathname.match(
+      /^\/api\/providers\/([^/]+)\/(health|jobs)$/,
+    );
+    if (providerRoute) {
+      const service = PROVIDER_SLUGS.get(providerRoute[1]!);
+      if (!service) return apiError(404, "PROVIDER_NOT_FOUND", ["Unknown provider slug."]);
+      if (providerRoute[2] === "health") {
+        if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+        return providerHealth(service);
+      }
+      return providerJobs(request, service);
+    }
+
+    const receiptRoute = url.pathname.match(/^\/api\/receipts\/(sha256:[0-9a-fA-F]{64})$/);
+    if (receiptRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return publicReceipt(receiptRoute[1]!);
+    }
+
+    const venusAccountRoute = url.pathname.match(/^\/api\/wallets\/(0x[0-9a-fA-F]{40})\/venus$/);
+    if (venusAccountRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        await inspectVenusAccount(venusAccountRoute[1]!),
+        200,
+        "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
       );
     }
 

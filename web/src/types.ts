@@ -84,6 +84,11 @@ export interface FixtureJobResponse {
     rubricHash: string;
     protocolHash: string;
   } | null;
+  receipt: {
+    mode: "PUBLIC_REPRODUCIBLE" | "SESSION_EMBEDDED";
+    path: string | null;
+    evaluationHash: string;
+  };
   result: {
     job: {
       jobId: string;
@@ -126,7 +131,8 @@ export interface ProviderListing {
   category: string;
   summary: string;
   method: "POST";
-  endpoint: "/api/jobs";
+  endpoint: string;
+  healthEndpoint: string;
   requestSchema: string;
   deliverableSchema: string;
   price: { amount: "5"; token: "TEST_USDC"; chainId: 56 };
@@ -146,4 +152,100 @@ export interface SessionJob {
   response: FixtureJobResponse;
   responseTimeMs: number;
   ranAt: string;
+}
+
+export interface ChainProbe {
+  chainId: 56 | 97;
+  name: string;
+  blockNumber: string;
+  blockTimestamp: string;
+  blockAgeSeconds: number;
+  gasPriceGwei: string;
+  rpcLatencyMs: number;
+  rpcUrl: string;
+  explorerUrl: string;
+}
+
+export interface SystemTelemetry {
+  schemaVersion: "positioncrew.system-telemetry.v1";
+  generatedAt: string;
+  mainnet: ChainProbe;
+  testnet: ChainProbe;
+  market: {
+    pair: "WBNB/USDT";
+    venue: "PancakeSwap V3";
+    poolAddress: string;
+    feeTier: 100;
+    spotPriceUsd: string;
+    tick: number;
+    liquidityRaw: string;
+    observedAt: string;
+    explorerUrl: string;
+  };
+  venus: {
+    market: "vUSDT";
+    address: string;
+    supplyAprPct: string;
+    borrowAprPct: string;
+    availableLiquidityUsd: string;
+    totalBorrowsUsd: string;
+    observedAt: string;
+    explorerUrl: string;
+  };
+  aacp: {
+    chainId: 97;
+    state: "CONTRACTS_VERIFIED_BACKEND_GATED";
+    deployedCount: number;
+    contractCount: number;
+    contracts: Array<{
+      name: string;
+      address: string;
+      deployed: boolean;
+      explorerUrl: string;
+    }>;
+    docsUrl: string;
+    boundary: string;
+  };
+}
+
+export interface VenusAccountProbe {
+  schemaVersion: "positioncrew.venus-account-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  account: string;
+  state: "NO_POSITION" | "LIQUID" | "SHORTFALL";
+  nativeBalanceBnb: string;
+  usdtBalance: string;
+  liquidityUsd: string;
+  shortfallUsd: string;
+  enteredMarkets: string[];
+  source: {
+    comptroller: string;
+    blockNumber: string;
+    explorerUrl: string;
+  };
+  boundary: string;
+}
+
+export interface LendingRepeatabilityResponse {
+  schemaVersion: "positioncrew.lending-repeatability.v1";
+  generatedAt: string;
+  taskId: string;
+  status: "AGENT_RUNS_CAPTURED_MANUAL_PENDING";
+  benchmarkLock: {
+    fixtureHash: string;
+    rubricHash: string;
+    protocolHash: string;
+  };
+  runs: Array<{
+    runId: string;
+    elapsedMilliseconds: number;
+    directCostUsd: "0.00";
+    qualityScore: number;
+    criticalFailureCount: number;
+    outputHash: string;
+  }>;
+  medianElapsedMilliseconds: number;
+  pending: ["MANUAL_BASELINE", "INDEPENDENT_BLIND_SCORECARD"];
+  boundary: string;
 }

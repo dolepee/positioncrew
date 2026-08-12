@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Code2,
   Database,
+  ExternalLink,
   Radio,
   Search,
   Server,
@@ -13,7 +14,7 @@ import {
 } from "lucide-react";
 import { TASKS } from "../task-config";
 import { serviceLabel, shortHash } from "../presentation";
-import type { FixtureJobResponse, ProviderListing, ServiceId } from "../types";
+import type { FixtureJobResponse, ProviderListing, ServiceId, SystemTelemetry } from "../types";
 
 export function MarketplaceView({
   providers,
@@ -21,12 +22,14 @@ export function MarketplaceView({
   selectedService,
   onSelect,
   onCreateJob,
+  telemetry,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
   selectedService: ServiceId;
   onSelect: (service: ServiceId) => void;
   onCreateJob: (service: ServiceId) => void;
+  telemetry: SystemTelemetry | null;
 }) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => {
@@ -44,7 +47,6 @@ export function MarketplaceView({
   const selectedTask = TASKS.find((task) => task.id === selectedService);
   const SelectedIcon = selectedTask?.icon;
   const catalogLoading = providers.length === 0;
-  const verifiedCount = Array.from(matrix.values()).filter((item) => item.result.evaluation.passed).length;
 
   return (
     <main className="marketplace-page">
@@ -59,14 +61,14 @@ export function MarketplaceView({
             </button>
           </div>
           <div className="market-system-panel" aria-label="Marketplace system status">
-            <span className={`system-live ${matrix.size === 4 ? "online" : "loading"}`} role="status"><Radio size={14} aria-hidden="true" /> {matrix.size === 4 ? "SYSTEM ONLINE" : "SYNCING PROVIDERS"}</span>
+            <span className={`system-live ${telemetry ? "online" : "loading"}`} role="status"><Radio size={14} aria-hidden="true" /> {telemetry ? "LIVE BSC DATA" : "SYNCING BSC"}</span>
             <div className="market-system-grid">
-              <div><strong>{providers.length || "-"}</strong><span>capital operators</span></div>
-              <div><strong>{matrix.size || "-"}/4</strong><span>API reachable</span></div>
-              <div><strong>{verifiedCount || "-"}/4</strong><span>fixtures verified</span></div>
-              <div><strong>56</strong><span>BNB chain ID</span></div>
+              <div><strong>{telemetry ? Number(telemetry.mainnet.blockNumber).toLocaleString("en-US") : "-"}</strong><span>BSC block</span></div>
+              <div><strong>{telemetry ? `$${telemetry.market.spotPriceUsd}` : "-"}</strong><span>WBNB / USDT</span></div>
+              <div><strong>{telemetry ? `${telemetry.venus.supplyAprPct}%` : "-"}</strong><span>Venus vUSDT APR</span></div>
+              <div><strong>{telemetry ? `${telemetry.aacp.deployedCount}/${telemetry.aacp.contractCount}` : "-"}</strong><span>AACP contracts</span></div>
             </div>
-            <p>No wallet required to inspect a provider result. Every response includes a machine deliverable and receipt.</p>
+            <p>{telemetry ? `Block-pinned RPC reads · ${telemetry.mainnet.rpcLatencyMs} ms · ${new Date(telemetry.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Provider decisions remain available while live chain telemetry synchronises."}</p>
           </div>
         </div>
       </section>
@@ -102,7 +104,7 @@ export function MarketplaceView({
           <div className="registry-summary" aria-label="Registry status">
             <span><strong>{providers.length || "-"}</strong> providers</span>
             <span><strong>4/4</strong> categories</span>
-            <span><strong>{matrix.size ? `${matrix.size}/4` : "-"}</strong> reachable</span>
+            <span><strong>{matrix.size ? `${matrix.size}/4` : "-"}</strong> conformance</span>
           </div>
         </div>
 
@@ -191,6 +193,7 @@ export function MarketplaceView({
                 <p className="provider-summary">{selected.summary}</p>
                 <dl className="provider-facts">
                   <div><dt><Server size={14} /> Endpoint</dt><dd><code>{selected.method} {selected.endpoint}</code></dd></div>
+                  <div><dt><Radio size={14} /> Health</dt><dd><code>GET {selected.healthEndpoint}</code></dd></div>
                   <div><dt><Database size={14} /> Request</dt><dd><code>{selected.requestSchema}</code></dd></div>
                   <div><dt><Code2 size={14} /> Deliverable</dt><dd><code>{selected.deliverableSchema}</code></dd></div>
                   <div><dt><BadgeCheck size={14} /> Conformance</dt><dd>{selectedResult?.result.evaluation.score ?? "-"}/100 · {selectedResult?.result.job.state ?? "Checking"}</dd></div>
@@ -199,13 +202,16 @@ export function MarketplaceView({
                   Open {serviceLabel(selected.service).toLowerCase()} workspace
                   <ArrowRight size={16} aria-hidden="true" />
                 </button>
-                <div className="provider-receipt-preview">
-                  <CheckCircle2 size={15} aria-hidden="true" />
-                  <span><strong>Latest reproducible receipt</strong><small>{shortHash(selectedResult?.result.evaluation.evaluationHash)}</small></span>
-                </div>
+                {selectedResult?.receipt.path ? (
+                  <a className="provider-receipt-preview" href={selectedResult.receipt.path} target="_blank" rel="noreferrer">
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    <span><strong>Open public receipt</strong><small>{shortHash(selectedResult.result.evaluation.evaluationHash)}</small></span>
+                    <ExternalLink size={13} aria-hidden="true" />
+                  </a>
+                ) : null}
                 <div className="provider-boundary">
                   <strong>Environment boundary</strong>
-                  <span>Frozen BSC fixture · in-memory conformance · AACP adapter pending supported guide</span>
+                  <span>Live BSC context · frozen decision fixture · AACP contracts verified, terminal settlement gated</span>
                 </div>
               </>
             ) : (

@@ -6,12 +6,31 @@ import { MarketplaceView } from "./components/MarketplaceView";
 import { ShellHeader, type AppView } from "./components/ShellHeader";
 import type {
   FixtureJobResponse,
+  LendingRepeatabilityResponse,
   MatrixResponse,
   ProviderCatalogResponse,
   ProviderListing,
   ServiceId,
   SessionJob,
+  SystemTelemetry,
 } from "./types";
+
+const SESSION_STORAGE_KEY = "positioncrew.session-jobs.v1";
+
+function storedSessionJobs(): SessionJob[] {
+  try {
+    const value = JSON.parse(window.localStorage.getItem(SESSION_STORAGE_KEY) ?? "[]") as unknown;
+    if (!Array.isArray(value)) return [];
+    return value.filter((candidate): candidate is SessionJob =>
+      typeof candidate === "object" &&
+      candidate !== null &&
+      "ranAt" in candidate &&
+      "response" in candidate,
+    ).slice(0, 20);
+  } catch {
+    return [];
+  }
+}
 
 function viewFromHash(): AppView {
   const value = window.location.hash.replace("#", "");
@@ -31,7 +50,9 @@ export default function App() {
   const [selectedService, setSelectedService] = useState<ServiceId>("LENDING_RESCUE");
   const [providers, setProviders] = useState<ProviderListing[]>([]);
   const [matrix, setMatrix] = useState<Map<ServiceId, FixtureJobResponse>>(new Map());
-  const [sessionJobs, setSessionJobs] = useState<SessionJob[]>([]);
+  const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
+  const [repeatability, setRepeatability] = useState<LendingRepeatabilityResponse | null>(null);
+  const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,12 +62,20 @@ export default function App() {
   async function loadRegistry() {
     setError(null);
     try {
-      const [catalog, matrixPayload] = await Promise.all([
+      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload] = await Promise.all([
         fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
         fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
+        fetch("/api/status", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<SystemTelemetry>(response))
+          .catch(() => null),
+        fetch("/api/benchmarks/lending-rescue/repeatability", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<LendingRepeatabilityResponse>(response))
+          .catch(() => null),
       ]);
       setProviders(catalog.providers);
       setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
+      setTelemetry(telemetryPayload);
+      setRepeatability(repeatabilityPayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
@@ -58,6 +87,10 @@ export default function App() {
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionJobs));
+  }, [sessionJobs]);
 
   function navigate(next: AppView) {
     if (window.location.hash !== `#${next}`) window.location.hash = next;
@@ -75,7 +108,8 @@ export default function App() {
     setError(null);
     const startedAt = performance.now();
     try {
-      const response = await fetch("/api/jobs", {
+      const endpoint = providers.find((candidate) => candidate.service === request.service)?.endpoint ?? "/api/jobs";
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
         body: JSON.stringify({ mode: "FROZEN_FIXTURE", request }),
@@ -116,10 +150,15 @@ export default function App() {
             setSelectedService(service);
             setActiveJob(null);
           }}
+          telemetry={telemetry}
+          onClearJobs={() => {
+            setSessionJobs([]);
+            setActiveJob(null);
+          }}
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} repeatability={repeatability} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -127,9 +166,10 @@ export default function App() {
         selectedService={selectedService}
         onSelect={setSelectedService}
         onCreateJob={createJob}
+        telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, repeatability]);
 
   return (
     <div className="app-shell">
