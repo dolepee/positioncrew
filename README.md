@@ -27,6 +27,7 @@ Run the reproducible flow:
 
 ```bash
 npm install
+npm run benchmark:verify-lock
 npm run verify:gate2a
 npm run verify:all
 ```
@@ -35,6 +36,8 @@ The lending-rescue result is written to `artifacts/gate2a/lending-rescue-result.
 The four-category matrix is written to `artifacts/main-track/provider-matrix.json`.
 
 These `100/100` scores prove deterministic provider conformance against frozen fixtures. They are not the independent human-versus-agent measurements required by the TermiX Agent Advantage Report.
+
+The first Agent Advantage task, rubric, timing rule, and blinding protocol are pre-registered in [`benchmarks/lending-rescue`](benchmarks/lending-rescue). The lock command reproduces their hashes before any comparison output is accepted.
 
 ## Current boundary
 

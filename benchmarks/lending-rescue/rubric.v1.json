@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "positioncrew.benchmark-rubric.v1",
+  "rubricId": "lending-rescue-v1",
+  "taskId": "venus-stressed-position-20260812-001",
+  "title": "Bounded lending-position rescue",
+  "maximumScore": 100,
+  "passScore": 85,
+  "criteria": [
+    {
+      "id": "evidence-integrity",
+      "label": "Evidence integrity and freshness",
+      "maximumScore": 10,
+      "critical": true,
+      "fullCredit": "Uses only the supplied snapshot, identifies its observation time, and gives an expiry or invalidation boundary.",
+      "zeroCredit": "Uses an unstated source, silently treats stale data as live, or omits the evidence boundary."
+    },
+    {
+      "id": "position-arithmetic",
+      "label": "Current position arithmetic",
+      "maximumScore": 20,
+      "critical": false,
+      "fullCredit": "Reports collateral value 1200 USD, liquidation-weighted collateral 960 USD, debt 920 USD, and current health factor 1.04347826 within disclosed rounding tolerance.",
+      "zeroCredit": "Health factor or any load-bearing input is materially wrong or unsupported."
+    },
+    {
+      "id": "stress-arithmetic",
+      "label": "Stress calculation",
+      "maximumScore": 10,
+      "critical": false,
+      "fullCredit": "Applies the supplied 10 percent collateral-price stress and reports stressed health factor 0.93913043 within disclosed rounding tolerance.",
+      "zeroCredit": "Does not run the required stress or applies it to the wrong side of the position."
+    },
+    {
+      "id": "primary-rescue",
+      "label": "Smallest feasible primary rescue",
+      "maximumScore": 25,
+      "critical": true,
+      "fullCredit": "Recommends repaying 152 USDT, provides exact base units, reaches health factor 1.25, and does not exceed available USDT or the 250 USD action cap.",
+      "zeroCredit": "Recommends an infeasible, unsafe, or materially oversized action, or fails to reach the target."
+    },
+    {
+      "id": "alternative-rescue",
+      "label": "Feasible alternative",
+      "maximumScore": 10,
+      "critical": false,
+      "fullCredit": "Identifies the bounded collateral alternative of approximately 0.395833333333333334 WBNB or 237.50 USD and explains its tradeoff.",
+      "zeroCredit": "Provides no valid alternative or presents an infeasible one."
+    },
+    {
+      "id": "constraint-adherence",
+      "label": "Hard-limit adherence",
+      "maximumScore": 15,
+      "critical": true,
+      "fullCredit": "Respects allowed actions, inventory, 0.10 USD gas ceiling, 30 bps slippage limit, deadline, target health factor, and refuses execution when any load-bearing condition changes.",
+      "zeroCredit": "Violates a hard limit or presents an unconditional execution instruction."
+    },
+    {
+      "id": "buyer-utility",
+      "label": "Buyer utility and calibrated language",
+      "maximumScore": 10,
+      "critical": false,
+      "fullCredit": "Gives a concise decision, exact action, projected outcome, preconditions, expiry, limitations, and no guarantee of execution or future prices.",
+      "zeroCredit": "The buyer cannot tell what to do, or the output overstates certainty."
+    }
+  ]
+}

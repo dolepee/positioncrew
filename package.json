@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "benchmark:verify-lock": "tsx src/cli/verify-benchmark-lock.ts",
     "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
     "verify:all": "tsx src/cli/verify-all-providers.ts"
   },
