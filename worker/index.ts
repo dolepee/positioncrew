@@ -10,6 +10,7 @@ import {
   runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import type { TermixBenchmarkService } from "../src/benchmark/lock.js";
+import { buildErc8183TestnetDeliverable } from "../src/commerce/erc8183-evidence.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
 import {
@@ -230,6 +231,20 @@ async function api(request: Request, url: URL): Promise<Response> {
         200,
         "public, max-age=3600, s-maxage=86400, immutable",
       );
+    }
+
+    const erc8183DeliverableRoute = url.pathname.match(
+      /^\/api\/commerce\/erc8183\/jobs\/(\d+)\/deliverable$/,
+    );
+    if (erc8183DeliverableRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      const deliverable = await buildErc8183TestnetDeliverable(
+        Number.parseInt(erc8183DeliverableRoute[1]!, 10),
+      );
+      if (!deliverable) {
+        return apiError(404, "ERC8183_DELIVERABLE_NOT_FOUND", ["Unknown testnet job ID."]);
+      }
+      return json(deliverable, 200, "public, max-age=3600, s-maxage=86400, immutable");
     }
 
     const benchmarkRoute = url.pathname.match(
