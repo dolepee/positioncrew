@@ -1,5 +1,6 @@
 import { ZodError } from "zod";
 import agentCaptureManifest from "../benchmarks/agent-capture-commitments-2026-08-12.json" with { type: "json" };
+import erc8183Job489Deliverable from "../evidence/erc8183-job-489.deliverable.json" with { type: "json" };
 import {
   runBenchmarkRepeatability,
   runFixtureRequest,
@@ -220,6 +221,15 @@ async function api(request: Request, url: URL): Promise<Response> {
     if (url.pathname === "/api/benchmarks/captures") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(agentCaptureManifest, 200, "public, max-age=0, s-maxage=300");
+    }
+
+    if (url.pathname === "/api/commerce/erc8183/jobs/489/deliverable") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        erc8183Job489Deliverable,
+        200,
+        "public, max-age=3600, s-maxage=86400, immutable",
+      );
     }
 
     const benchmarkRoute = url.pathname.match(

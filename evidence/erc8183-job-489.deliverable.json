@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "job_id": 489,
+  "chain_id": 97,
+  "contracts": {
+    "commerce": "0xa206c0517B6371C6638CD9e4a42Cc9f02A33B0DE",
+    "router": "0xD7d36D66d2F1B608A0F943f722D27e3744f66F25",
+    "policy": "0xd6a4217588F6B1F5657a92A3e94E6422aD771cEA"
+  },
+  "response": {
+    "content": "{\"schemaVersion\":\"positioncrew.erc8183-delivery.v1\",\"service\":\"LENDING_RESCUE\",\"requestId\":\"venus-stressed-position-20260812-001\",\"sourceMode\":\"FROZEN_BSC_TEST_FIXTURE\",\"fixtureObservedAt\":\"2026-08-12T15:59:00.000Z\",\"status\":\"ACTIONABLE\",\"decision\":\"REPAY_DEBT\",\"summary\":\"Repay 152 USDT to raise health factor from 1.04347826 to 1.25.\",\"recommendation\":{\"kind\":\"REPAY_DEBT\",\"chainId\":56,\"protocol\":\"Venus\",\"asset\":{\"symbol\":\"USDT\",\"address\":\"0x55d398326f99059fF775485246999027B3197955\",\"decimals\":18},\"amount\":\"152\",\"amountBaseUnits\":\"152000000000000000000\",\"amountUsd\":\"152\",\"projectedHealthFactor\":\"1.25\",\"maxSlippageBps\":30,\"preconditions\":[\"Position debt and collateral balances still match the frozen request\",\"Oracle deviation remains within 100 bps\",\"Estimated gas remains at or below 0.10 USD\"]},\"requestHash\":\"sha256:068d71bfd268e11bae12e1d26fa3ab4c73c845d42c7d7d150bd05aee1eb81e8d\",\"deliverableHash\":\"sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f\",\"evaluation\":{\"score\":100,\"passed\":true,\"evaluationHash\":\"sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870\"},\"claimBoundary\":[\"This delivery evaluates a frozen BSC fixture; it does not read live wallet state.\",\"The 100/100 score is deterministic conformance, not an agent-advantage claim.\",\"Revalidate position and oracle state before any execution.\"],\"receiptUrl\":\"https://positioncrew.dolepee.com/api/receipts/sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870\"}",
+    "content_type": "application/json"
+  },
+  "metadata": {
+    "schemaVersion": "positioncrew.erc8183-deliverable-metadata.v1",
+    "service": "LENDING_RESCUE",
+    "providerAgentId": 1810,
+    "providerRegistry": "0x8004A818BFB912233c491871b3d84c89A494BD9e",
+    "providerWallet": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+    "sourceMode": "FROZEN_BSC_TEST_FIXTURE",
+    "sourceEndpoint": "https://positioncrew.dolepee.com/api/providers/lending-rescue/jobs",
+    "receiptUrl": "https://positioncrew.dolepee.com/api/receipts/sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870",
+    "requestHash": "sha256:068d71bfd268e11bae12e1d26fa3ab4c73c845d42c7d7d150bd05aee1eb81e8d",
+    "deliverableHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+    "evaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870"
+  }
+}
