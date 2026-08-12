@@ -1,4 +1,4 @@
-import { ExternalLink, FileCheck2, Network, Store } from "lucide-react";
+import { FileCheck2, GitBranch, Network, Store } from "lucide-react";
 
 export type AppView = "marketplace" | "jobs" | "evidence";
 
@@ -26,31 +26,33 @@ export function ShellHeader({
           <img src="/positioncrew-mark.svg" alt="" width="34" height="34" />
           <span><strong>PositionCrew</strong><small>BSC agent marketplace</small></span>
         </button>
-        <nav className="global-nav" aria-label="Primary navigation">
-          {views.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.id}
-                type="button"
-                className={view === item.id ? "active" : ""}
-                aria-current={view === item.id ? "page" : undefined}
-                onClick={() => onNavigate(item.id)}
-              >
-                <Icon size={15} aria-hidden="true" />
-                {item.label}
-                {item.id === "jobs" && jobCount > 0 && <span className="nav-count">{jobCount}</span>}
-              </button>
-            );
-          })}
-        </nav>
-        <div className="header-actions">
-          <span className={`api-state ${apiOnline ? "online" : "loading"}`}>
-            <i /> {apiOnline ? "API reachable" : "Connecting"}
-          </span>
-          <a href="https://github.com/dolepee/positioncrew" target="_blank" rel="noreferrer">
-            Source <ExternalLink size={13} aria-hidden="true" />
-          </a>
+        <div className="header-right">
+          <nav className="global-nav" aria-label="Primary navigation">
+            {views.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  className={view === item.id ? "active" : ""}
+                  aria-current={view === item.id ? "page" : undefined}
+                  onClick={() => onNavigate(item.id)}
+                >
+                  <Icon size={15} aria-hidden="true" />
+                  {item.label}
+                  {item.id === "jobs" && jobCount > 0 && <span className="nav-count">{jobCount}</span>}
+                </button>
+              );
+            })}
+          </nav>
+          <div className="header-actions">
+            <span className={`api-state ${apiOnline ? "online" : "loading"}`} role="status">
+              <i /> {apiOnline ? "API reachable" : "Connecting"}
+            </span>
+            <a href="https://github.com/dolepee/positioncrew" target="_blank" rel="noreferrer">
+              <GitBranch size={15} aria-hidden="true" /> Source
+            </a>
+          </div>
         </div>
       </div>
     </header>

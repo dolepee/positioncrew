@@ -41,6 +41,7 @@ export function MarketplaceView({
   const selectedResult = matrix.get(selectedService);
   const selectedTask = TASKS.find((task) => task.id === selectedService);
   const SelectedIcon = selectedTask?.icon;
+  const catalogLoading = providers.length === 0;
 
   return (
     <main className="page-shell">
@@ -51,9 +52,9 @@ export function MarketplaceView({
           <p>Callable providers with bounded inputs, machine deliverables, and reproducible receipts.</p>
         </div>
         <div className="registry-summary" aria-label="Registry status">
-          <span><strong>{providers.length || 4}</strong> providers</span>
+          <span><strong>{providers.length || "-"}</strong> providers</span>
           <span><strong>4/4</strong> categories</span>
-          <span><strong>{matrix.size}/4</strong> reachable</span>
+          <span><strong>{matrix.size ? `${matrix.size}/4` : "-"}</strong> reachable</span>
         </div>
       </div>
 
@@ -74,7 +75,7 @@ export function MarketplaceView({
       <div className="market-layout">
         <section className="registry-panel" aria-label="Available providers">
           <div className="registry-table-wrap">
-            <table className="registry-table">
+            <table className="registry-table" aria-busy={catalogLoading}>
               <thead>
                 <tr>
                   <th>Provider</th>
@@ -85,7 +86,16 @@ export function MarketplaceView({
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((provider) => {
+                {catalogLoading && Array.from({ length: 4 }, (_, index) => (
+                  <tr className="provider-loading-row" key={`provider-loading-${index}`}>
+                    <td><span className="skeleton-provider"><i /><b /></span></td>
+                    <td><span className="skeleton-line medium" /></td>
+                    <td><span className="skeleton-line short" /></td>
+                    <td><span className="skeleton-line short" /></td>
+                    <td><span className="skeleton-line medium" /></td>
+                  </tr>
+                ))}
+                {!catalogLoading && filtered.map((provider) => {
                   const task = TASKS.find((candidate) => candidate.id === provider.service);
                   const Icon = task?.icon;
                   const result = matrix.get(provider.service);
@@ -114,7 +124,7 @@ export function MarketplaceView({
                 })}
               </tbody>
             </table>
-            {filtered.length === 0 && <div className="empty-table">No provider matches “{query}”.</div>}
+            {!catalogLoading && filtered.length === 0 && <div className="empty-table">No provider matches “{query}”.</div>}
           </div>
         </section>
 
@@ -124,6 +134,10 @@ export function MarketplaceView({
               <div className="provider-detail-title">
                 <span className="provider-icon large">{SelectedIcon && <SelectedIcon size={21} aria-hidden="true" />}</span>
                 <div><span>{selected.category}</span><h2>{selected.name}</h2></div>
+              </div>
+              <div className="provider-detail-meta">
+                <strong>{selected.price.amount} {selected.price.token}<small>per completed job</small></strong>
+                <span className={`availability-label ${selectedResult ? "ready" : "pending"}`}><i /> {selectedResult ? "Reachable" : "Checking"}</span>
               </div>
               <p className="provider-summary">{selected.summary}</p>
               <dl className="provider-facts">
@@ -146,7 +160,12 @@ export function MarketplaceView({
               </div>
             </>
           ) : (
-            <div className="provider-detail-empty">Provider catalog is loading.</div>
+            <div className="provider-detail-loading" aria-label="Loading provider details">
+              <span className="skeleton-detail-heading"><i /><b /></span>
+              <span className="skeleton-line full" />
+              <span className="skeleton-line full" />
+              <span className="skeleton-line medium" />
+            </div>
           )}
         </aside>
       </div>
