@@ -686,8 +686,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .receipt-table-link { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); text-decoration: none; }
 .evidence-table td:first-child strong, .evidence-table td:first-child small { display: block; }
 .evidence-table td:first-child small { margin-top: 4px; color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
+.evidence-table td:first-child .receipt-table-link { margin-top: 6px; font-size: 10px; }
 .evidence-columns { display: grid; grid-template-columns: 1.18fr 0.82fr; gap: 18px; }
-.benchmark-table > div { display: grid; grid-template-columns: 80px 1fr 1.2fr; align-items: center; gap: 13px; min-height: 64px; padding: 10px 15px; border-bottom: 1px solid #e6ebe7; }
+.benchmark-table > div { display: grid; grid-template-columns: 100px 1fr 1.2fr; align-items: center; gap: 13px; min-height: 64px; padding: 10px 15px; border-bottom: 1px solid #e6ebe7; }
 .benchmark-table > div:last-child { border-bottom: 0; }
 .benchmark-table > div > span:nth-child(2) { display: flex; flex-direction: column; }
 .benchmark-table strong { font-size: 11px; }
@@ -712,11 +713,11 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .claim-warning svg { flex: 0 0 16px; }
 .claim-warning span { font-size: 11px; line-height: 1.45; }
 .claim-warning strong { display: block; margin-bottom: 3px; }
-.claim-register { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
+.claim-register { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
 .claim-register > div { display: flex; align-items: flex-start; gap: 10px; min-height: 82px; padding: 15px; border-right: 1px solid var(--line); }
 .claim-register > div:last-child { border-right: 0; }
 .claim-register svg { flex: 0 0 17px; color: var(--green); }
-.claim-register > div:nth-child(2) svg, .claim-register > div:nth-child(3) svg { color: var(--amber); }
+.claim-register > div:nth-child(3) svg, .claim-register > div:nth-child(4) svg { color: var(--amber); }
 .claim-register span { color: var(--muted); font-size: 11px; line-height: 1.45; }
 .claim-register strong { display: block; margin-bottom: 4px; color: var(--ink); font-size: 10px; text-transform: uppercase; }
 
@@ -828,7 +829,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .receipt-actions { align-items: flex-start; flex-direction: column; }
   .vertical-timeline li { grid-template-columns: 24px 1fr; }
   .vertical-timeline code { display: none; }
-  .benchmark-table > div { grid-template-columns: 76px 1fr; }
+  .benchmark-table > div { grid-template-columns: 100px 1fr; }
   .infrastructure-grid { grid-template-columns: 1fr; }
   .infrastructure-grid > a { min-height: 91px; border-right: 0; border-bottom: 1px solid var(--line); }
   .infrastructure-grid > a:last-child { border-bottom: 0; }

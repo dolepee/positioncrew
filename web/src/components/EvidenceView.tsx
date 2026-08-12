@@ -70,6 +70,7 @@ export function EvidenceView({
         </div>
         <div className="evidence-summary">
           <span><Radio size={16} /><strong>{telemetry ? `#${Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}` : "-"}</strong> live BSC block</span>
+          <span><BadgeCheck size={16} /><strong>{providers.length}/4</strong> BSC identities</span>
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
         </div>
@@ -91,8 +92,8 @@ export function EvidenceView({
             <a href={telemetry.venus.explorerUrl} target="_blank" rel="noreferrer">
               <span>Venus vUSDT</span><strong>{telemetry.venus.supplyAprPct}% APR</strong><small>${Number(telemetry.venus.availableLiquidityUsd).toLocaleString("en-US")} available</small><ExternalLink size={14} />
             </a>
-            <a href={telemetry.testnet.explorerUrl} target="_blank" rel="noreferrer">
-              <span>AACP / BSC Testnet</span><strong>{telemetry.aacp.deployedCount}/{telemetry.aacp.contractCount}</strong><small>contracts with bytecode · settlement gated</small><ExternalLink size={14} />
+            <a href={providers[0]?.identity.explorerUrl ?? telemetry.testnet.explorerUrl} target="_blank" rel="noreferrer">
+              <span>ERC-8004 / BSC Testnet</span><strong>{providers.length}/4</strong><small>provider identities · endpoints bound</small><ExternalLink size={14} />
             </a>
           </div>
         ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
@@ -118,7 +119,7 @@ export function EvidenceView({
                 const result = matrix.get(provider.service);
                 return (
                   <tr key={provider.providerId}>
-                    <td><strong>{provider.name}</strong><small>{provider.providerId}</small></td>
+                    <td><strong>{provider.name}</strong><small>{provider.providerId}</small><a className="receipt-table-link" href={provider.identity.explorerUrl} target="_blank" rel="noreferrer">ERC-8004 #{provider.identity.agentId}<ExternalLink size={12} /></a></td>
                     <td>{provider.category}</td>
                     <td><span className={`state-label ${result ? "good" : "neutral"}`}>{result?.result.job.state ?? "CHECKING"}</span></td>
                     <td>{result?.result.evaluation.score ?? "-"}/100</td>
@@ -180,6 +181,7 @@ export function EvidenceView({
       </div>
 
       <section className="claim-register" aria-label="Claim boundaries">
+        <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
         <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
         <div><AlertTriangle size={17} /><span><strong>Settlement</strong>AACP contracts are verified on BSC testnet; backend proof completion is not represented as available.</span></div>
         <div><Clock3 size={17} /><span><strong>Track record</strong>Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published.</span></div>
