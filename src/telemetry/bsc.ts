@@ -50,17 +50,19 @@ const ERC20_ABI = parseAbi([
   "function balanceOf(address account) view returns (uint256)",
 ]);
 
-const mainnetClient = createPublicClient({
-  chain: bsc,
-  batch: { multicall: true },
-  transport: http(MAINNET_RPC, { batch: true, retryCount: 1, timeout: 7_000 }),
-});
+function createMainnetClient() {
+  return createPublicClient({
+    chain: bsc,
+    transport: http(MAINNET_RPC, { retryCount: 1, timeout: 7_000 }),
+  });
+}
 
-const testnetClient = createPublicClient({
-  chain: bscTestnet,
-  batch: { multicall: true },
-  transport: http(TESTNET_RPC, { batch: true, retryCount: 1, timeout: 7_000 }),
-});
+function createTestnetClient() {
+  return createPublicClient({
+    chain: bscTestnet,
+    transport: http(TESTNET_RPC, { retryCount: 1, timeout: 7_000 }),
+  });
+}
 
 export interface ChainProbe {
   chainId: 56 | 97;
@@ -163,7 +165,7 @@ async function chainProbe(
   name: string,
   rpcUrl: string,
   explorerUrl: string,
-  client: typeof mainnetClient | typeof testnetClient,
+  client: ReturnType<typeof createMainnetClient> | ReturnType<typeof createTestnetClient>,
 ): Promise<{ probe: ChainProbe; secondsPerBlock: number }> {
   const startedAt = nowMs();
   const latest = await client.getBlock({ blockTag: "latest" });
@@ -191,6 +193,10 @@ async function chainProbe(
 }
 
 export async function getSystemTelemetry(): Promise<SystemTelemetry> {
+  // Keep clients request-scoped. Viem's scheduler cache cannot be shared safely
+  // across simultaneous Cloudflare Worker request contexts.
+  const mainnetClient = createMainnetClient();
+  const testnetClient = createTestnetClient();
   const [mainnet, testnet] = await Promise.all([
     chainProbe(56, "BNB Smart Chain", MAINNET_RPC, "https://bscscan.com", mainnetClient),
     chainProbe(97, "BSC Testnet", TESTNET_RPC, "https://testnet.bscscan.com", testnetClient),
@@ -273,6 +279,7 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
 export async function inspectVenusAccount(accountInput: string): Promise<VenusAccountProbe> {
   if (!isAddress(accountInput)) throw new Error("A valid EVM account address is required");
   const account = accountInput as Address;
+  const mainnetClient = createMainnetClient();
   const block = await mainnetClient.getBlock({ blockTag: "latest" });
   const [liquidityResult, enteredMarkets, nativeBalance, usdtBalance] = await Promise.all([
     mainnetClient.readContract({
