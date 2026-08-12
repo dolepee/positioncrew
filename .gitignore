@@ -1,0 +1,10 @@
+node_modules/
+dist/
+artifacts/
+.env
+.DS_Store
+DEMO_SCRIPT.md
+demo-script.*
+*-demo-script.*
+SUBMISSION_CHECKLIST.md
+submission-checklist.*
