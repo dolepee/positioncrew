@@ -20,7 +20,8 @@
     "benchmark:verify-captures": "tsx src/cli/verify-agent-capture-manifest.ts",
     "benchmark:session": "tsx src/cli/benchmark-session.ts",
     "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
-    "verify:all": "tsx src/cli/verify-all-providers.ts"
+    "verify:all": "tsx src/cli/verify-all-providers.ts",
+    "verify:production": "node scripts/verify-production.mjs"
   },
   "engines": {
     "node": "22.x"

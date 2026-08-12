@@ -1,0 +1,38 @@
+name: Production smoke
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "17,47 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: positioncrew-production-smoke
+  cancel-in-progress: false
+
+jobs:
+  verify-production:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Verify marketplace and all four providers
+        env:
+          POSITIONCREW_BASE_URL: https://positioncrew.dolepee.com
+          POSITIONCREW_HEALTH_OUTPUT: /tmp/positioncrew-production-health.json
+        run: npm run verify:production
+      - name: Preserve timestamped health report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: positioncrew-production-health-${{ github.run_id }}
+          path: /tmp/positioncrew-production-health.json
+          if-no-files-found: error
+          retention-days: 30

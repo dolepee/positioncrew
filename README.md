@@ -4,6 +4,8 @@ PositionCrew is a job-first BSC marketplace for bounded capital operations. A bu
 
 Public application: [positioncrew.dolepee.com](https://positioncrew.dolepee.com)
 
+[![Production smoke](https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml/badge.svg)](https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml)
+
 The product covers all four Build the Era categories with equal depth:
 
 - **Lending rescue:** compute the smallest feasible repay or collateral top-up for a target health factor.
@@ -60,6 +62,7 @@ npm run verify:all
 npm run typecheck
 npm test
 npm run test:e2e
+npm run verify:production
 ```
 
 The lending result is written to `artifacts/gate2a/lending-rescue-result.json`; the four-category matrix is written to `artifacts/main-track/provider-matrix.json`.
