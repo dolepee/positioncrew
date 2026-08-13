@@ -26,6 +26,7 @@ import {
   getSystemTelemetry,
   inspectPancakeGridMarket,
   inspectVenusAccount,
+  inspectVenusStableYields,
 } from "../src/telemetry/bsc.js";
 
 interface Env {
@@ -351,6 +352,15 @@ async function api(request: Request, url: URL): Promise<Response> {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(
         await inspectPancakeGridMarket(),
+        200,
+        "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
+      );
+    }
+
+    if (url.pathname === "/api/markets/venus/stable-yields") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        await inspectVenusStableYields(),
         200,
         "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
       );

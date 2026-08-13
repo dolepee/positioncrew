@@ -38,6 +38,7 @@ import type {
   SessionJob,
   SystemTelemetry,
   VenusAccountProbe,
+  VenusYieldProbe,
 } from "../types";
 
 type ResultView = "summary" | "json" | "receipt";
@@ -173,7 +174,11 @@ function draftFromRequest(request: JobRequest | undefined): JobDraft {
   };
 }
 
-function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
+function applyDraft(
+  request: JobRequest,
+  draft: JobDraft,
+  lockObservations = false,
+): JobRequest {
   const next = structuredClone(request);
   if (next.service === "LENDING_RESCUE") {
     next.targetHealthFactor = draft.targetHealth;
@@ -187,7 +192,7 @@ function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
   } else if (next.service === "LP_REBALANCE") {
     const market = objectValue(next.marketState);
     const constraints = objectValue(next.constraints);
-    market.currentTick = Number(draft.lpCurrentTick);
+    if (!lockObservations) market.currentTick = Number(draft.lpCurrentTick);
     constraints.minimumNetBenefitUsd = draft.lpMinimumBenefit;
     constraints.estimatedGasUsd = draft.lpGas;
     constraints.estimatedSwapCostUsd = draft.lpSwapCost;
@@ -198,8 +203,17 @@ function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
     const opportunities = Array.isArray(next.opportunities) ? next.opportunities : [];
     const candidate = objectValue(opportunities[0]);
     next.capitalUsd = draft.yieldCapital;
-    candidate.amountUsd = draft.yieldCapital;
-    candidate.grossApyBps = Number(draft.yieldCandidateApy);
+    for (const opportunity of opportunities) {
+      const market = objectValue(opportunity);
+      const liquidityUsd = Number(market.liquidityUsd);
+      const capitalUsd = Number(draft.yieldCapital);
+      market.amountUsd = String(
+        Number.isFinite(liquidityUsd) && Number.isFinite(capitalUsd)
+          ? Math.min(capitalUsd, liquidityUsd)
+          : draft.yieldCapital,
+      );
+    }
+    if (!lockObservations) candidate.grossApyBps = Number(draft.yieldCandidateApy);
     constraints.minimumLiquidityUsd = draft.yieldMinimumLiquidity;
     constraints.minimumNetBenefitUsd = draft.yieldMinimumBenefit;
     constraints.evaluationHorizonDays = Number(draft.yieldHorizon);
@@ -207,7 +221,7 @@ function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
   } else {
     const market = objectValue(next.marketState);
     const constraints = objectValue(next.constraints);
-    market.midPrice = draft.gridMidPrice;
+    if (!lockObservations) market.midPrice = draft.gridMidPrice;
     constraints.lowerPrice = draft.gridLowerPrice;
     constraints.upperPrice = draft.gridUpperPrice;
     constraints.capitalUsd = draft.gridCapital;
@@ -369,6 +383,9 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
   const usesBlockPinnedPancakeInput = sources.some((source) =>
     String(objectValue(source).sourceId ?? "").startsWith("pancake-v3-mainnet-block-"),
   );
+  const usesBlockPinnedVenusYieldInput = sources.some((source) =>
+    String(objectValue(source).sourceId ?? "").startsWith("venus-yield-mainnet-block-"),
+  );
   return (
     <div className="result-summary-view">
       <div className="decision-header">
@@ -387,6 +404,8 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
           ? "Locked historical fixture. This is a reproducible receipt, not a currently executable instruction."
           : usesBlockPinnedVenusInput
             ? "Block-pinned Venus input. The provider output is unsigned and must be revalidated against current protocol state before execution."
+            : usesBlockPinnedVenusYieldInput
+              ? "Block-pinned Venus yield input. Base rates exclude incentives; the unsigned allocation must be revalidated before execution."
             : usesBlockPinnedPancakeInput
               ? "Block-pinned PancakeSwap input. The grid is unsigned, assumes future fills, and must be re-quoted before execution."
             : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
@@ -616,6 +635,76 @@ function GridMarketProbe({ onUseRequest }: { onUseRequest: (request: JobRequest)
   );
 }
 
+function YieldMarketProbe({ onUseRequest }: { onUseRequest: (request: JobRequest) => void }) {
+  const [probe, setProbe] = useState<VenusYieldProbe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function inspect(signal?: AbortSignal) {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/markets/venus/stable-yields", {
+        headers: { Accept: "application/json" },
+        signal,
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { details?: unknown } | null;
+        throw new Error(Array.isArray(body?.details) ? String(body.details[0]) : `Yield probe failed (${response.status})`);
+      }
+      const next = await response.json() as VenusYieldProbe;
+      if (signal?.aborted) return;
+      setProbe(next);
+      onUseRequest(next.yieldRequest);
+    } catch (probeError) {
+      if (signal?.aborted) return;
+      setError(probeError instanceof Error ? probeError.message : "Yield probe failed");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void inspect(controller.signal);
+    return () => controller.abort();
+  }, []);
+
+  const bestMarket = probe?.markets.length
+    ? probe.markets.reduce((best, market) =>
+        market.baseSupplyApyBps > best.baseSupplyApyBps ? market : best,
+      )
+    : null;
+
+  return (
+    <section className="wallet-risk-probe yield-market-probe" aria-labelledby="yield-probe-title">
+      <div className="wallet-probe-heading">
+        <div><span className="section-kicker">Live BSC read</span><h3 id="yield-probe-title">Venus stablecoin probe</h3></div>
+        <button type="button" onClick={() => void inspect()} disabled={loading} title="Refresh pinned yield state">
+          {loading ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}
+          {loading ? "Reading" : "Refresh"}
+        </button>
+      </div>
+      {error && <div className="wallet-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {probe && bestMarket && (
+        <div className="wallet-probe-result" aria-live="polite">
+          <div className="wallet-probe-state">
+            <span className="state-label good">{probe.state}</span>
+            <a href={probe.source.explorerUrl} target="_blank" rel="noreferrer">Block {Number(probe.source.blockNumber).toLocaleString("en-US")} <ExternalLink size={12} /></a>
+          </div>
+          <dl>
+            <div><dt>Best base APY</dt><dd>{(bestMarket.baseSupplyApyBps / 100).toFixed(2)}%</dd></div>
+            <div><dt>Leading market</dt><dd>{bestMarket.symbol}</dd></div>
+            <div><dt>Available cash</dt><dd>${Number(bestMarket.availableLiquidityUsd).toLocaleString("en-US", { maximumFractionDigits: 0 })}</dd></div>
+            <div><dt>Markets checked</dt><dd>{probe.markets.length}</dd></div>
+          </dl>
+          <p>{probe.boundary}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function MachineJson({ response }: { response: FixtureJobResponse }) {
   const [copied, setCopied] = useState(false);
   const json = JSON.stringify(response.result.deliverable, null, 2);
@@ -680,7 +769,9 @@ export function JobWorkspace({
   const liveBlockNumber = liveSourceId.replace(/^.*-block-/, "");
   const liveSourceLabel = liveSourceId.startsWith("pancake-v3-mainnet-block-")
     ? "PancakeSwap market"
-    : "Venus position";
+    : liveSourceId.startsWith("venus-yield-mainnet-block-")
+      ? "Venus yield market"
+      : "Venus position";
 
   useEffect(() => {
     setResultView("summary");
@@ -695,15 +786,16 @@ export function JobWorkspace({
   }, [fixtureRequest]);
 
   const draftRequest = useMemo(
-    () => inputRequest ? applyDraft(inputRequest, draft) : null,
-    [inputRequest, draft],
+    () => inputRequest ? applyDraft(inputRequest, draft, Boolean(liveRequest)) : null,
+    [inputRequest, draft, liveRequest],
   );
   const customRequest = useMemo(
     () => inputMode === "interactive" && Boolean(inputRequest && draftRequest && JSON.stringify(inputRequest) !== JSON.stringify(draftRequest)),
     [inputMode, inputRequest, draftRequest],
   );
-  const liveGridPending = service === "BOUNDED_GRID" && inputMode === "interactive" && !liveRequest;
-  const inputsDisabled = !fixture || loading || inputMode === "locked" || liveGridPending;
+  const liveMarketPending = inputMode === "interactive" && !liveRequest &&
+    (service === "BOUNDED_GRID" || service === "YIELD_OPTIMIZATION");
+  const inputsDisabled = !fixture || loading || inputMode === "locked" || liveMarketPending;
 
   function updateDraft<K extends keyof JobDraft>(key: K, value: JobDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -793,7 +885,7 @@ export function JobWorkspace({
             <>
               <div className="request-context"><span>PancakeSwap V3</span><strong>Current range -120 to 120</strong><small>$10,000 position</small></div>
               <div className="form-grid">
-                <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={inputsDisabled} min="-887272" max="887272" step="1" />
+                <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={inputsDisabled || Boolean(liveRequest)} min="-887272" max="887272" step="1" />
                 <NumberField label="Minimum net benefit (USD)" value={draft.lpMinimumBenefit} onChange={(value) => updateDraft("lpMinimumBenefit", value)} disabled={inputsDisabled} min="0" max="100000" step="0.01" />
                 <NumberField label="Estimated gas (USD)" value={draft.lpGas} onChange={(value) => updateDraft("lpGas", value)} disabled={inputsDisabled} min="0" max="10000" step="0.01" />
                 <NumberField label="Estimated swap cost (USD)" value={draft.lpSwapCost} onChange={(value) => updateDraft("lpSwapCost", value)} disabled={inputsDisabled} min="0" max="10000" step="0.01" />
@@ -803,10 +895,11 @@ export function JobWorkspace({
             </>
           ) : service === "YIELD_OPTIMIZATION" ? (
             <>
-              <div className="request-context"><span>Venus to Beefy</span><strong>Current APY 4.00%</strong><small>Allowlisted BSC venues</small></div>
+              <YieldMarketProbe onUseRequest={useLiveRequest} />
+              <div className="request-context"><span>Venus stablecoin markets</span><strong>Base rates only</strong><small>No incentive assumptions</small></div>
               <div className="form-grid">
                 <NumberField label="Capital (USD)" value={draft.yieldCapital} onChange={(value) => updateDraft("yieldCapital", value)} disabled={inputsDisabled} min="1" max="10000000" step="1" />
-                <NumberField label="Candidate APY (bps)" value={draft.yieldCandidateApy} onChange={(value) => updateDraft("yieldCandidateApy", value)} disabled={inputsDisabled} min="0" max="1000000" step="1" />
+                <NumberField label="Leading base APY (bps)" value={draft.yieldCandidateApy} onChange={(value) => updateDraft("yieldCandidateApy", value)} disabled={inputsDisabled || Boolean(liveRequest)} min="0" max="1000000" step="1" />
                 <NumberField label="Minimum liquidity (USD)" value={draft.yieldMinimumLiquidity} onChange={(value) => updateDraft("yieldMinimumLiquidity", value)} disabled={inputsDisabled} min="0" max="10000000000" step="1" />
                 <NumberField label="Minimum net benefit (USD)" value={draft.yieldMinimumBenefit} onChange={(value) => updateDraft("yieldMinimumBenefit", value)} disabled={inputsDisabled} min="0" max="1000000" step="0.01" />
                 <NumberField label="Evaluation horizon (days)" value={draft.yieldHorizon} onChange={(value) => updateDraft("yieldHorizon", value)} disabled={inputsDisabled} min="1" max="365" step="1" />
@@ -818,7 +911,7 @@ export function JobWorkspace({
               <GridMarketProbe onUseRequest={useLiveRequest} />
               <div className="request-context"><span>WBNB / USDT</span><strong>PancakeSwap execution policy</strong><small>Both sides required</small></div>
               <div className="form-grid dense">
-                <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={inputsDisabled || Boolean(liveRequest)} min="0.000001" max="10000000" step="0.01" />
                 <NumberField label="Lower price" value={draft.gridLowerPrice} onChange={(value) => updateDraft("gridLowerPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
                 <NumberField label="Upper price" value={draft.gridUpperPrice} onChange={(value) => updateDraft("gridUpperPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
                 <NumberField label="Capital (USD)" value={draft.gridCapital} onChange={(value) => updateDraft("gridCapital", value)} disabled={inputsDisabled} min="1" max="10000000" step="1" />
@@ -837,15 +930,17 @@ export function JobWorkspace({
               ? "Historical August 12 fixture. The public receipt is reproducible, but the instruction is no longer executable."
               : liveRequest
                 ? `Block-pinned ${liveSourceLabel} from BSC block ${liveBlockNumber || "unknown"}. Limits remain editable; observations are not rebased.`
-              : liveGridPending
-                ? "Waiting for a block-pinned PancakeSwap market read. Interactive grid construction stays disabled if live price, reserve, volatility, or gas evidence is unavailable."
+              : liveMarketPending
+                ? service === "YIELD_OPTIMIZATION"
+                  ? "Waiting for a block-pinned Venus market read. Interactive allocation stays disabled if rates, cash, oracle, token, or gas evidence is unavailable."
+                  : "Waiting for a block-pinned PancakeSwap market read. Interactive grid construction stays disabled if live price, reserve, volatility, or gas evidence is unavailable."
               : customRequest
                 ? "Current-clock scenario with custom bounds. Inputs and timestamps are caller-controlled; this is not benchmark evidence or live wallet execution."
                 : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>
           </div>
           <div className="composer-footer">
             <span><strong>5 TEST_USDC</strong><small>{inputMode === "locked" ? "Public locked receipt" : "Current-clock scenario · in-memory rail"}</small></span>
-            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || liveGridPending || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
+            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || liveMarketPending || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
               {!loading && <ArrowRight size={15} />}

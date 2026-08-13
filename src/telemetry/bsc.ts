@@ -17,6 +17,10 @@ import {
   LendingRescueRequestSchema,
   type LendingRescueRequest,
 } from "../contracts/lending-rescue.js";
+import {
+  YieldOptimizationRequestSchema,
+  type YieldOptimizationRequest,
+} from "../contracts/yield-optimization.js";
 import { FIXED_SCALE, formatFixed } from "../core/fixed.js";
 
 const MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
@@ -29,6 +33,28 @@ const USDT = "0x55d398326f99059fF775485246999027B3197955" as Address;
 const VENUS_COMPTROLLER = "0xfD36E2c2a6789Db23113685031d7F16329158384" as Address;
 const VENUS_VUSDT = "0xfD5840Cd36d94D7229439859C0112a4185BC0255" as Address;
 const VENUS_VBNB = "0xA07c5b74C9B40447a954e1466938b865b6BBea36" as Address;
+const VENUS_STABLE_MARKETS = [
+  {
+    symbol: "USDC",
+    vToken: "0xecA88125a5ADbe82614ffC12D0DB554E2e2867C8" as Address,
+    underlying: "0x8AC76a51cc950d9822D68b83fE1Ad97B32Cd580d" as Address,
+  },
+  {
+    symbol: "USDT",
+    vToken: VENUS_VUSDT,
+    underlying: USDT,
+  },
+  {
+    symbol: "DAI",
+    vToken: "0x334b3eCB4DCa3593BCCC3c7EBD1A1C1d1780FBF1" as Address,
+    underlying: "0x1AF3F329e8BE154074D8769D1FFa4eE058B1DBc3" as Address,
+  },
+  {
+    symbol: "FDUSD",
+    vToken: "0xC4eF4229FEc74Ccfe17B2bdeF7715fAC740BA0ba" as Address,
+    underlying: "0xc5f0f7b66764F6ec8C8Dff7BA683102295E16409" as Address,
+  },
+] as const;
 
 const AACP_CONTRACTS = [
   ["ACPCore", "0x4e07f9C438ba784653b39eB9aE39b1eFF470b6c9"],
@@ -286,6 +312,36 @@ export interface PancakeGridRequestOptions {
   capitalUsd?: number;
 }
 
+export interface VenusYieldProbe {
+  schemaVersion: "positioncrew.venus-yield-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  markets: Array<{
+    opportunityId: string;
+    symbol: string;
+    vToken: Address;
+    underlying: Address;
+    baseSupplyApyBps: number;
+    availableLiquidityUsd: string;
+  }>;
+  yieldRequest: YieldOptimizationRequest;
+  source: {
+    comptroller: Address;
+    oracle: Address;
+    blockNumber: string;
+    blockTimestamp: string;
+    measuredSecondsPerBlock: number;
+    explorerUrl: string;
+  };
+  boundary: string;
+}
+
+export interface VenusYieldRequestOptions {
+  account?: string;
+  capitalUsd?: number;
+}
+
 function nowMs(): number {
   return Date.now();
 }
@@ -380,6 +436,17 @@ export function annualizedRatePct(ratePerBlock: bigint, secondsPerBlock: number)
   if (secondsPerBlock <= 0) return 0;
   const blocksPerYear = 31_536_000 / secondsPerBlock;
   return Number(formatUnits(ratePerBlock, 18)) * blocksPerYear * 100;
+}
+
+export function annualizedYieldBps(ratePerBlock: bigint, secondsPerBlock: number): number {
+  if (ratePerBlock < 0n || secondsPerBlock <= 0) return 0;
+  const rate = Number(formatUnits(ratePerBlock, 18));
+  const blocksPerYear = 31_536_000 / secondsPerBlock;
+  const annualYield = Math.expm1(blocksPerYear * Math.log1p(rate));
+  if (!Number.isFinite(annualYield) || annualYield < 0) {
+    throw new Error("Venus supply rate cannot be annualized safely");
+  }
+  return Math.min(1_000_000, Math.round(annualYield * 10_000));
 }
 
 export function realizedVolatilityBpsFromTickCumulatives(
@@ -849,6 +916,255 @@ export async function inspectPancakeGridMarket(
     },
     boundary:
       "Token ordering, spot price, current active virtual liquidity, reserve balances, volatility observations, and gas were read for one BSC block. The grid is unsigned, assumes future completed cycles, and must be re-quoted and bound to the executing account before any order is placed.",
+  };
+}
+
+export async function inspectVenusStableYields(
+  options: VenusYieldRequestOptions = {},
+): Promise<VenusYieldProbe> {
+  const accountInput = options.account ?? NATIVE_BNB;
+  if (!isAddress(accountInput)) throw new Error("A valid EVM account address is required");
+  const account = accountInput as Address;
+  const capitalUsd = options.capitalUsd ?? 1_000;
+  if (!Number.isFinite(capitalUsd) || capitalUsd < 1 || capitalUsd > 10_000_000) {
+    throw new Error("capitalUsd must be between 1 and 10000000");
+  }
+
+  const [blockValue, gasPriceValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
+    { method: "eth_gasPrice", params: [] },
+  ]);
+  const block = rpcBlock(blockValue, "BNB Smart Chain latest block");
+  const blockNumber = BigInt(block.number);
+  const priorBlockNumber = blockNumber > 120n ? blockNumber - 120n : 0n;
+  const [priorBlockValue, oracleValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: [toHex(priorBlockNumber), false] },
+    ethCall(
+      VENUS_COMPTROLLER,
+      encodeFunctionData({ abi: COMPTROLLER_ABI, functionName: "oracle" }),
+      block.number,
+    ),
+  ]);
+  const priorBlock = rpcBlock(priorBlockValue, "BNB Smart Chain prior block");
+  const oracle = decodeFunctionResult({
+    abi: COMPTROLLER_ABI,
+    functionName: "oracle",
+    data: rpcHex(oracleValue, "Venus oracle"),
+  });
+  const secondsPerBlock = Math.max(
+    0.1,
+    Number(BigInt(block.timestamp) - BigInt(priorBlock.timestamp)) / 120,
+  );
+
+  const marketCalls: RpcCall[] = [];
+  for (const market of VENUS_STABLE_MARKETS) {
+    marketCalls.push(
+      ethCall(
+        VENUS_COMPTROLLER,
+        encodeFunctionData({
+          abi: COMPTROLLER_ABI,
+          functionName: "markets",
+          args: [market.vToken],
+        }),
+        block.number,
+      ),
+      ethCall(
+        market.vToken,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "underlying" }),
+        block.number,
+      ),
+      ethCall(
+        market.vToken,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "supplyRatePerBlock" }),
+        block.number,
+      ),
+      ethCall(
+        market.vToken,
+        encodeFunctionData({ abi: VTOKEN_ABI, functionName: "getCash" }),
+        block.number,
+      ),
+      ethCall(
+        oracle,
+        encodeFunctionData({
+          abi: ORACLE_ABI,
+          functionName: "getUnderlyingPrice",
+          args: [market.vToken],
+        }),
+        block.number,
+      ),
+      ethCall(
+        market.underlying,
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "symbol" }),
+        block.number,
+      ),
+      ethCall(
+        market.underlying,
+        encodeFunctionData({ abi: ERC20_ABI, functionName: "decimals" }),
+        block.number,
+      ),
+    );
+  }
+  marketCalls.push(
+    ethCall(
+      oracle,
+      encodeFunctionData({
+        abi: ORACLE_ABI,
+        functionName: "getUnderlyingPrice",
+        args: [VENUS_VBNB],
+      }),
+      block.number,
+    ),
+  );
+  const marketValues = await rpcBatchChunked(MAINNET_RPC, marketCalls);
+  let cursor = 0;
+  const decodedMarkets = VENUS_STABLE_MARKETS.map((market) => {
+    const listing = decodeFunctionResult({
+      abi: COMPTROLLER_ABI,
+      functionName: "markets",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} Venus listing`),
+    });
+    const underlying = decodeFunctionResult({
+      abi: VTOKEN_ABI,
+      functionName: "underlying",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} underlying`),
+    });
+    const supplyRate = decodeFunctionResult({
+      abi: VTOKEN_ABI,
+      functionName: "supplyRatePerBlock",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} supply rate`),
+    });
+    const cash = decodeFunctionResult({
+      abi: VTOKEN_ABI,
+      functionName: "getCash",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} cash`),
+    });
+    const price = decodeFunctionResult({
+      abi: ORACLE_ABI,
+      functionName: "getUnderlyingPrice",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} oracle price`),
+    });
+    const symbol = decodeFunctionResult({
+      abi: ERC20_ABI,
+      functionName: "symbol",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} symbol`),
+    });
+    const decimals = decodeFunctionResult({
+      abi: ERC20_ABI,
+      functionName: "decimals",
+      data: rpcHex(marketValues[cursor++], `${market.symbol} decimals`),
+    });
+    if (!listing[0]) throw new Error(`Venus ${market.symbol} market is no longer listed`);
+    if (underlying.toLowerCase() !== market.underlying.toLowerCase()) {
+      throw new Error(`Venus ${market.symbol} underlying changed unexpectedly`);
+    }
+    if (symbol !== market.symbol || decimals !== 18) {
+      throw new Error(`Venus ${market.symbol} token metadata changed unexpectedly`);
+    }
+    if (price <= 0n) throw new Error(`Venus ${market.symbol} has no oracle price`);
+    const availableLiquidityUsdFixed = venusUsdValueFixed(cash, price);
+    return {
+      ...market,
+      baseSupplyApyBps: annualizedYieldBps(supplyRate, secondsPerBlock),
+      availableLiquidityUsdFixed,
+      availableLiquidityUsd: formatFixed(availableLiquidityUsdFixed, 2),
+    };
+  });
+  const vBnbPrice = decodeFunctionResult({
+    abi: ORACLE_ABI,
+    functionName: "getUnderlyingPrice",
+    data: rpcHex(marketValues[cursor], "Venus BNB oracle price"),
+  });
+  if (vBnbPrice <= 0n) throw new Error("Venus BNB oracle price is unavailable");
+
+  const bnbPriceUsd = Number(formatFixed(oraclePriceFixed(vBnbPrice, 18), 8));
+  const gasPrice = BigInt(rpcHex(gasPriceValue, "BSC gas price"));
+  const estimatedEntryCostUsd = Math.max(
+    0.01,
+    Number(formatEther(gasPrice * 350_000n)) * bnbPriceUsd,
+  );
+  const observedAt = new Date(Number(BigInt(block.timestamp)) * 1_000).toISOString();
+  const requestedAtDate = new Date();
+  const requestedAt = requestedAtDate.toISOString();
+  const deadline = new Date(requestedAtDate.getTime() + 120_000).toISOString();
+  const sourceId = `venus-yield-mainnet-block-${blockNumber}`;
+  const explorerUrl = `https://bscscan.com/block/${blockNumber}`;
+  const rankedMarkets = [...decodedMarkets].sort(
+    (left, right) => right.baseSupplyApyBps - left.baseSupplyApyBps,
+  );
+  const yieldRequest = YieldOptimizationRequestSchema.parse({
+    schemaVersion: "positioncrew.yield-optimization.request.v1",
+    service: "YIELD_OPTIMIZATION",
+    requestId: `venus-yield-${blockNumber}`,
+    chainId: 56,
+    account,
+    protocol: "Venus Core Pool stablecoin supply",
+    requestedAt,
+    deadline,
+    maxDataAgeSeconds: 120,
+    maxActionUsd: decimal(Math.max(0.25, estimatedEntryCostUsd * 2), 6),
+    maxGasUsd: decimal(Math.max(0.25, estimatedEntryCostUsd * 2), 6),
+    maxSlippageBps: 0,
+    sources: [{
+      sourceId,
+      label: "Block-pinned Venus Core Pool stablecoin base-rate state",
+      uri: explorerUrl,
+      observedAt,
+    }],
+    capitalUsd: decimal(capitalUsd, 2),
+    currentPositions: [],
+    opportunities: rankedMarkets.map((market) => ({
+      opportunityId: `venus-core-${market.symbol.toLowerCase()}-supply`,
+      protocol: "Venus Core Pool",
+      vaultOrMarket: market.vToken,
+      asset: { symbol: market.symbol, address: market.underlying, decimals: 18 },
+      amountUsd: decimal(
+        Math.min(capitalUsd, Number(formatFixed(market.availableLiquidityUsdFixed, 8))),
+        2,
+      ),
+      grossApyBps: market.baseSupplyApyBps,
+      liquidityUsd: market.availableLiquidityUsd,
+      lockupSeconds: 0,
+      estimatedEntryCostUsd: decimal(estimatedEntryCostUsd, 6),
+      estimatedExitCostUsd: decimal(estimatedEntryCostUsd, 6),
+      riskTier: "MEDIUM",
+      observedAt,
+      sourceId,
+    })),
+    constraints: {
+      protocolAllowlist: ["Venus Core Pool"],
+      maximumRiskTier: "MEDIUM",
+      maximumProtocolConcentrationBps: 10_000,
+      maximumLockupSeconds: 0,
+      minimumLiquidityUsd: "100000",
+      minimumNetBenefitUsd: "1",
+      evaluationHorizonDays: 90,
+    },
+  });
+
+  return {
+    schemaVersion: "positioncrew.venus-yield-probe.v1",
+    generatedAt: requestedAt,
+    chainId: 56,
+    state: "READY",
+    markets: rankedMarkets.map((market) => ({
+      opportunityId: `venus-core-${market.symbol.toLowerCase()}-supply`,
+      symbol: market.symbol,
+      vToken: market.vToken,
+      underlying: market.underlying,
+      baseSupplyApyBps: market.baseSupplyApyBps,
+      availableLiquidityUsd: market.availableLiquidityUsd,
+    })),
+    yieldRequest,
+    source: {
+      comptroller: VENUS_COMPTROLLER,
+      oracle,
+      blockNumber: blockNumber.toString(),
+      blockTimestamp: observedAt,
+      measuredSecondsPerBlock: Number(secondsPerBlock.toFixed(4)),
+      explorerUrl,
+    },
+    boundary:
+      "Base supply APYs, available cash, oracle prices, token metadata, gas, and measured block time were read for one BSC block. Incentive rewards are excluded. Rates are variable, stablecoins can depeg, and the unsigned allocation must be revalidated before execution.",
   };
 }
 

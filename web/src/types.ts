@@ -287,6 +287,31 @@ export interface PancakeGridProbe {
   boundary: string;
 }
 
+export interface VenusYieldProbe {
+  schemaVersion: "positioncrew.venus-yield-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  markets: Array<{
+    opportunityId: string;
+    symbol: string;
+    vToken: string;
+    underlying: string;
+    baseSupplyApyBps: number;
+    availableLiquidityUsd: string;
+  }>;
+  yieldRequest: FixtureJobResponse["result"]["request"];
+  source: {
+    comptroller: string;
+    oracle: string;
+    blockNumber: string;
+    blockTimestamp: string;
+    measuredSecondsPerBlock: number;
+    explorerUrl: string;
+  };
+  boundary: string;
+}
+
 export type TermixBenchmarkService = "LENDING_RESCUE" | "LP_REBALANCE" | "BOUNDED_GRID";
 export type TermixBenchmarkSlug = "lending-rescue" | "lp-rebalance" | "bounded-grid";
 

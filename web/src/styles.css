@@ -597,6 +597,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .form-grid input, .form-grid select { width: 100%; min-height: 39px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font-size: 12px; }
 .form-grid select { padding-right: 30px; }
 .form-grid input:focus, .form-grid select:focus { border-color: #d2aa29; }
+.form-grid input:disabled, .form-grid select:disabled { cursor: not-allowed; color: #69736e; background: #f0f3f1; }
 .action-options { display: flex; gap: 17px; margin: 14px 0 0; padding: 11px; border: 1px solid var(--line); border-radius: 5px; }
 .action-options legend { padding: 0 5px; color: var(--muted); font-size: 10px; font-weight: 800; text-transform: uppercase; }
 .action-options label { display: inline-flex; align-items: center; gap: 6px; }

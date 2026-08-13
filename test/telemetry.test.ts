@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   annualizedRatePct,
+  annualizedYieldBps,
   pancakeActiveLiquidityUsd,
   poolPriceFromSqrtPriceX96,
   realizedVolatilityBpsFromTickCumulatives,
@@ -27,6 +28,12 @@ describe("BSC telemetry math", () => {
     const annualized = annualizedRatePct(267_884_853n, 0.75);
     expect(annualized).toBeGreaterThan(1);
     expect(annualized).toBeLessThan(1.2);
+  });
+
+  it("compounds a Venus base supply rate into bounded APY basis points", () => {
+    expect(annualizedYieldBps(267_884_853n, 0.75)).toBe(113);
+    expect(annualizedYieldBps(0n, 0.75)).toBe(0);
+    expect(annualizedYieldBps(267_884_853n, 0)).toBe(0);
   });
 
   it("derives realized volatility from ordered onchain tick cumulatives", () => {

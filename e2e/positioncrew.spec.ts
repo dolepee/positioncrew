@@ -169,18 +169,45 @@ test("a block-pinned Pancake market can become a bounded grid request", async ({
   expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
 });
 
+test("block-pinned Venus stablecoin rates can become a yield request", async ({ page }) => {
+  await page.goto("/#jobs");
+  await page.getByRole("combobox", { name: "Provider" }).selectOption("YIELD_OPTIMIZATION");
+  await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("Venus stablecoin probe", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Block-pinned Venus yield market from BSC block/)).toBeVisible();
+  await expect(page.getByLabel("Leading base APY (bps)")).toBeDisabled();
+  await page.getByRole("button", { name: "Run yield optimisation" }).click();
+  await expect(page.getByRole("heading", { name: /SUPPLY to venus-core-/ })).toBeVisible();
+  await expect(page.getByText(/Block-pinned Venus yield input/)).toBeVisible();
+
+  const response = await page.request.get("/api/markets/venus/stable-yields");
+  expect(response.status()).toBe(200);
+  const probe = await response.json();
+  expect(probe).toMatchObject({
+    schemaVersion: "positioncrew.venus-yield-probe.v1",
+    chainId: 56,
+    state: "READY",
+    yieldRequest: { service: "YIELD_OPTIMIZATION", chainId: 56 },
+  });
+  expect(probe.markets).toHaveLength(4);
+  expect(probe.markets.every((market: { availableLiquidityUsd: string }) =>
+    Number(market.availableLiquidityUsd) > 0)).toBe(true);
+  expect(probe.source.measuredSecondsPerBlock).toBeGreaterThan(0);
+  expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
+});
+
 test("all four mandatory capital jobs return category-specific results", async ({ page }) => {
   await page.goto("/#jobs");
   const provider = page.getByRole("combobox", { name: "Provider" });
   await expect(provider).toBeVisible();
   const cases = [
     { value: "LP_REBALANCE", button: "Run lp rebalance", output: "SHIFT range to 0...240" },
-    { value: "YIELD_OPTIMIZATION", button: "Run yield optimisation", output: "MIGRATE to beefy-usdt-vault" },
+    { value: "YIELD_OPTIMIZATION", button: "Run yield optimisation", output: /SUPPLY to venus-core-/ },
     { value: "BOUNDED_GRID", button: "Run bounded grid", output: "Build 4 bounded orders" },
   ];
   for (const candidate of cases) {
     await provider.selectOption(candidate.value);
-    if (candidate.value === "BOUNDED_GRID") {
+    if (candidate.value === "BOUNDED_GRID" || candidate.value === "YIELD_OPTIMIZATION") {
       await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
     }
     await page.getByRole("button", { name: candidate.button }).click();
@@ -215,8 +242,8 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
     },
     {
       service: "YIELD_OPTIMIZATION",
-      field: "Candidate APY (bps)",
-      value: "300",
+      field: "Minimum net benefit (USD)",
+      value: "1000",
       button: "Run yield optimisation",
       decision: "HOLD",
     },
@@ -231,13 +258,15 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
 
   for (const candidate of cases) {
     await provider.selectOption(candidate.service);
-    if (candidate.service === "BOUNDED_GRID") {
+    if (candidate.service === "BOUNDED_GRID" || candidate.service === "YIELD_OPTIMIZATION") {
       await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
     }
     await page.getByLabel(candidate.field).fill(candidate.value);
     await expect(page.getByText(
       candidate.service === "BOUNDED_GRID"
         ? /Block-pinned PancakeSwap market/
+        : candidate.service === "YIELD_OPTIMIZATION"
+          ? /Block-pinned Venus yield market/
         : /Current-clock scenario with custom bounds/,
     )).toBeVisible();
     await page.getByRole("button", { name: candidate.button }).click();
@@ -246,6 +275,8 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
     await expect(page.getByText(
       candidate.service === "BOUNDED_GRID"
         ? /Block-pinned PancakeSwap market/
+        : candidate.service === "YIELD_OPTIMIZATION"
+          ? /Block-pinned Venus yield market/
         : /Current-clock simulation seeded from the August 12 fixture/,
     )).toBeVisible();
   }

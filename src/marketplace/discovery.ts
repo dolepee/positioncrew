@@ -235,6 +235,16 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
         },
       },
     },
+    "/api/markets/venus/stable-yields": {
+      get: {
+        summary: "Build an unsigned yield-allocation request from one pinned Venus block",
+        operationId: "inspectVenusStableYields",
+        responses: {
+          "200": { description: "Pinned Venus stablecoin base-rate probe and unsigned allocation request" },
+          "500": { description: "Pinned market, oracle, token, or gas reads were unavailable" },
+        },
+      },
+    },
   };
   return {
     openapi: "3.1.0",

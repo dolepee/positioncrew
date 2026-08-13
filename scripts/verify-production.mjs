@@ -208,11 +208,16 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 7, "OpenAPI does not expose all job and live-input paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 8, "OpenAPI does not expose all job and live-input paths");
   assert(
     openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===
       "inspectPancakeGridMarket",
     "OpenAPI omits the live Pancake grid probe",
+  );
+  assert(
+    openApi.paths?.["/api/markets/venus/stable-yields"]?.get?.operationId ===
+      "inspectVenusStableYields",
+    "OpenAPI omits the live Venus yield probe",
   );
 
   const zeroVenus = await fetchJson(
@@ -276,6 +281,52 @@ try {
   );
   assert(pancakeGridJob.result?.job?.state === "COMPLETED", "Pancake grid job did not complete");
   assert(pancakeGridJob.result?.evaluation?.score === 100, "Pancake grid job score is not 100/100");
+
+  const venusYield = await fetchJson(
+    "venus-yield-market",
+    "/api/markets/venus/stable-yields",
+  );
+  assert(
+    venusYield.schemaVersion === "positioncrew.venus-yield-probe.v1",
+    "Unexpected Venus yield probe schema",
+  );
+  assert(venusYield.state === "READY", "Venus yield probe is not ready");
+  assert(venusYield.markets?.length === 4, "Venus yield probe does not cover four stable markets");
+  assert(
+    new Set(venusYield.markets.map((market) => market.symbol)).size === 4,
+    "Venus yield markets are duplicated",
+  );
+  assert(
+    venusYield.markets.every(
+      (market) => market.baseSupplyApyBps >= 0 && Number(market.availableLiquidityUsd) > 0,
+    ),
+    "Venus yield probe contains an invalid APY or available-cash value",
+  );
+  assert(
+    Number(venusYield.source?.measuredSecondsPerBlock) > 0,
+    "Venus yield probe has no measured block interval",
+  );
+  assert(
+    /^https:\/\/bscscan\.com\/block\/\d+$/.test(venusYield.source?.explorerUrl ?? ""),
+    "Venus yield probe is not linked to its pinned BSC block",
+  );
+  assert(
+    venusYield.yieldRequest?.opportunities?.every(
+      (opportunity) => opportunity.sourceId === venusYield.yieldRequest?.sources?.[0]?.sourceId,
+    ),
+    "Venus yield request source binding is inconsistent",
+  );
+  const venusYieldJob = await postJson(
+    "venus-yield-live-job",
+    "/api/providers/yield-optimization/jobs",
+    { request: venusYield.yieldRequest },
+  );
+  assert(
+    venusYieldJob.evidenceMode === "CALLER_SUPPLIED_OBSERVATIONS",
+    "Venus yield job changed its evidence mode",
+  );
+  assert(venusYieldJob.result?.job?.state === "COMPLETED", "Venus yield job did not complete");
+  assert(venusYieldJob.result?.evaluation?.score === 100, "Venus yield job score is not 100/100");
 
   for (const entry of marketplace.providers) {
     assert(expectedServices.has(entry.service), `Unexpected provider service: ${entry.service}`);
