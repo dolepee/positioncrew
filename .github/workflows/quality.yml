@@ -36,6 +36,8 @@ jobs:
           npm test
       - name: Build production bundle
         run: npm run build
+      - name: Install browser runtime
+        run: npx playwright install --with-deps chromium
       - name: Browser workflows
         run: |
           npx wrangler dev --config dist/server/wrangler.json --port 4175 >/tmp/positioncrew-preview.log 2>&1 &
