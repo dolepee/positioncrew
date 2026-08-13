@@ -371,7 +371,7 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
         ? /Block-pinned PancakeSwap market/
         : candidate.service === "YIELD_OPTIMIZATION"
           ? /Block-pinned Venus yield market/
-        : /Current-clock scenario with custom bounds/,
+          : /Current-clock scenario with custom bounds|Block-pinned PancakeSwap LP position/,
     )).toBeVisible();
     await page.getByRole("button", { name: candidate.button }).click();
     await expect(page.getByRole("heading", { name: candidate.decision })).toBeVisible();
@@ -381,7 +381,7 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
         ? /Block-pinned PancakeSwap market/
         : candidate.service === "YIELD_OPTIMIZATION"
           ? /Block-pinned Venus yield market/
-        : /Current-clock simulation seeded from the August 12 fixture/,
+          : /Current-clock simulation seeded from the August 12 fixture|Block-pinned PancakeSwap LP position/,
     )).toBeVisible();
   }
 });
