@@ -1,7 +1,15 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
-import { createPublicClient, defineChain, http, keccak256, parseAbi, stringToHex } from "viem";
+import {
+  createPublicClient,
+  defineChain,
+  http,
+  keccak256,
+  parseAbi,
+  parseEventLogs,
+  stringToHex,
+} from "viem";
 
 const baseUrl = new URL(
   process.env.POSITIONCREW_BASE_URL ?? "https://positioncrew.dolepee.com",
@@ -35,8 +43,8 @@ const erc8183CommerceAbi = parseAbi([
   "function platformFeeBP() view returns (uint256)",
 ]);
 const erc8183RouterAbi = parseAbi([
-  "function jobPolicy(uint256 jobId) view returns (address)",
   "function policyWhitelist(address policy) view returns (bool)",
+  "event JobRegistered(uint256 indexed jobId,address indexed policy,address indexed client)",
 ]);
 const erc8183PolicyAbi = parseAbi([
   "function disputeWindow() view returns (uint256)",
@@ -245,22 +253,26 @@ try {
   report.commerce = [];
   for (const ledgerJob of commerceLedger.jobs) {
     const startedAt = performance.now();
-    const [onchainJob, jobPolicy, settleReceipt, manifest] = await Promise.all([
+    const [onchainJob, registerReceipt, settleReceipt, manifest] = await Promise.all([
       identityClient.readContract({
         address: commerceAddress,
         abi: erc8183CommerceAbi,
         functionName: "getJob",
         args: [BigInt(ledgerJob.jobId)],
       }),
-      identityClient.readContract({
-        address: routerAddress,
-        abi: erc8183RouterAbi,
-        functionName: "jobPolicy",
-        args: [BigInt(ledgerJob.jobId)],
-      }),
+      identityClient.getTransactionReceipt({ hash: ledgerJob.transactions.register }),
       identityClient.getTransactionReceipt({ hash: ledgerJob.transactions.settle }),
       fetchJson(`erc8183-job-${ledgerJob.jobId}-manifest`, ledgerJob.manifestUrl),
     ]);
+    // APEX clears jobPolicy after settlement, so policy provenance lives in JobRegistered.
+    const registrationEvents = parseEventLogs({
+      abi: erc8183RouterAbi,
+      eventName: "JobRegistered",
+      logs: registerReceipt.logs,
+    });
+    assert(registerReceipt.status === "success", `ERC-8183 job ${ledgerJob.jobId} registration failed`);
+    assert(registrationEvents.length === 1, `ERC-8183 job ${ledgerJob.jobId} registration event missing`);
+    const registration = registrationEvents[0].args;
     checks.push({
       name: `erc8183-job-${ledgerJob.jobId}-chain`,
       url: bscTestnetRpc,
@@ -285,8 +297,16 @@ try {
       `ERC-8183 job ${ledgerJob.jobId} onchain manifest mismatch`,
     );
     assert(
-      jobPolicy.toLowerCase() === policyAddress.toLowerCase(),
-      `ERC-8183 job ${ledgerJob.jobId} policy mismatch`,
+      registration.jobId === BigInt(ledgerJob.jobId),
+      `ERC-8183 job ${ledgerJob.jobId} registration ID mismatch`,
+    );
+    assert(
+      registration.policy.toLowerCase() === policyAddress.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} registered policy mismatch`,
+    );
+    assert(
+      registration.client.toLowerCase() === commerceLedger.parties.client.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} registered client mismatch`,
     );
     assert(settleReceipt.status === "success", `ERC-8183 job ${ledgerJob.jobId} settlement failed`);
     assert(
@@ -299,6 +319,7 @@ try {
       status: "COMPLETED",
       budgetBaseUnits: ledgerJob.budgetBaseUnits,
       manifestHash: ledgerJob.manifestHash,
+      registrationTransaction: ledgerJob.transactions.register,
       settlementTransaction: ledgerJob.transactions.settle,
     });
   }
