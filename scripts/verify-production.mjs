@@ -113,7 +113,10 @@ async function fetchJson(name, input) {
   const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
   const body = await response.json().catch(() => null);
   checks.push({ name, url: url.toString(), status: response.status, latencyMs });
-  assert(response.ok, `${name} returned HTTP ${response.status}`);
+  const failureDetail = body && typeof body === "object"
+    ? `: ${JSON.stringify(body).slice(0, 500)}`
+    : "";
+  assert(response.ok, `${name} returned HTTP ${response.status}${failureDetail}`);
   assert(body && typeof body === "object", `${name} did not return a JSON object`);
   return body;
 }

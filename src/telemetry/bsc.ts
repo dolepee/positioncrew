@@ -30,6 +30,8 @@ import { FIXED_SCALE, formatFixed } from "../core/fixed.js";
 const MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
 const LOG_RPC = "https://bsc-rpc.publicnode.com";
 const TESTNET_RPC = "https://bsc-testnet-dataseed.bnbchain.org";
+const RPC_TRANSPORT_ATTEMPTS = 2;
+const RPC_RETRY_DELAY_MS = 150;
 
 const PANCAKE_V3_FACTORY = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865" as Address;
 const PANCAKE_V3_POSITION_MANAGER = "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364" as Address;
@@ -144,6 +146,10 @@ function rpcFallbacks(primary: string): readonly string[] {
   return [primary];
 }
 
+function wait(milliseconds: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 export function isRetryableRpcFailure(error: NonNullable<RpcResult["error"]>): boolean {
   const executionFailure = /execution reverted|invalid opcode|out of gas|revert/i.test(
     `${error.message} ${typeof error.data === "string" ? error.data : ""}`,
@@ -206,13 +212,17 @@ async function rpcBatchOnce(rpcUrl: string, calls: readonly RpcCall[]): Promise<
 
 async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
   const failures: string[] = [];
-  for (const candidate of rpcFallbacks(rpcUrl)) {
-    try {
-      return await rpcBatchOnce(candidate, calls);
-    } catch (error) {
-      if (!(error instanceof RpcTransportError)) throw error;
-      failures.push(`${new URL(candidate).host}: ${error.message}`);
+  const candidates = rpcFallbacks(rpcUrl);
+  for (let attempt = 1; attempt <= RPC_TRANSPORT_ATTEMPTS; attempt += 1) {
+    for (const candidate of candidates) {
+      try {
+        return await rpcBatchOnce(candidate, calls);
+      } catch (error) {
+        if (!(error instanceof RpcTransportError)) throw error;
+        failures.push(`attempt ${attempt} ${new URL(candidate).host}: ${error.message}`);
+      }
     }
+    if (attempt < RPC_TRANSPORT_ATTEMPTS) await wait(RPC_RETRY_DELAY_MS);
   }
   throw new RpcTransportError(`BSC RPC providers unavailable (${failures.join("; ")})`);
 }
@@ -245,13 +255,17 @@ async function rpcRequestOnce(rpcUrl: string, call: RpcCall): Promise<unknown> {
 
 async function rpcRequest(rpcUrl: string, call: RpcCall): Promise<unknown> {
   const failures: string[] = [];
-  for (const candidate of rpcFallbacks(rpcUrl)) {
-    try {
-      return await rpcRequestOnce(candidate, call);
-    } catch (error) {
-      if (!(error instanceof RpcTransportError)) throw error;
-      failures.push(`${new URL(candidate).host}: ${error.message}`);
+  const candidates = rpcFallbacks(rpcUrl);
+  for (let attempt = 1; attempt <= RPC_TRANSPORT_ATTEMPTS; attempt += 1) {
+    for (const candidate of candidates) {
+      try {
+        return await rpcRequestOnce(candidate, call);
+      } catch (error) {
+        if (!(error instanceof RpcTransportError)) throw error;
+        failures.push(`attempt ${attempt} ${new URL(candidate).host}: ${error.message}`);
+      }
     }
+    if (attempt < RPC_TRANSPORT_ATTEMPTS) await wait(RPC_RETRY_DELAY_MS);
   }
   throw new RpcTransportError(`BSC RPC providers unavailable (${failures.join("; ")})`);
 }
