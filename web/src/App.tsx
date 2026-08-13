@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
+import { PROVIDER_CATALOG } from "../../src/marketplace/catalog.js";
 import { EvidenceView } from "./components/EvidenceView";
 import { JobWorkspace } from "./components/JobWorkspace";
 import { MarketplaceView } from "./components/MarketplaceView";
@@ -56,7 +57,8 @@ async function jsonResponse<T>(response: Response): Promise<T> {
 export default function App() {
   const [view, setView] = useState<AppView>(viewFromHash);
   const [selectedService, setSelectedService] = useState<ServiceId>("LENDING_RESCUE");
-  const [providers, setProviders] = useState<ProviderListing[]>([]);
+  const [providers, setProviders] = useState<ProviderListing[]>(() => [...PROVIDER_CATALOG]);
+  const [catalogOnline, setCatalogOnline] = useState(false);
   const [matrix, setMatrix] = useState<Map<ServiceId, FixtureJobResponse>>(new Map());
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkRepeatabilityResponse[]>([]);
@@ -75,6 +77,7 @@ export default function App() {
 
   async function loadRegistry() {
     setError(null);
+    setCatalogOnline(false);
 
     const contextualLoads = [
       fetch("/api/matrix", { headers: { Accept: "application/json" } })
@@ -115,6 +118,7 @@ export default function App() {
         headers: { Accept: "application/json" },
       }).then((response) => jsonResponse<ProviderCatalogResponse>(response));
       setProviders(catalog.providers);
+      setCatalogOnline(catalog.providers.length === 4);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
@@ -216,7 +220,7 @@ export default function App() {
       <ShellHeader
         view={view}
         onNavigate={navigate}
-        apiOnline={providers.length === 4 && matrix.size === 4}
+        apiOnline={catalogOnline && matrix.size === 4}
         jobCount={sessionJobs.length}
       />
       {error && (

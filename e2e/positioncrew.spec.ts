@@ -104,8 +104,8 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   expect((await receipt.json()).schemaVersion).toBe("positioncrew.public-receipt.v1");
 });
 
-test("slow evidence hydration never blocks provider discovery", async ({ page }) => {
-  await page.route("**/api/commerce/aacp", async (route) => {
+test("slow remote hydration never blocks provider discovery", async ({ page }) => {
+  await page.route(/\/api\/(providers|commerce\/aacp)(\?.*)?$/, async (route) => {
     await new Promise((resolve) => setTimeout(resolve, 10_000));
     await route.abort("timedout");
   });
@@ -118,6 +118,7 @@ test("slow evidence hydration never blocks provider discovery", async ({ page })
   await expect(page.getByRole("button", { name: /LP Range Operator v1/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Yield Allocator v1/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Bounded Grid Builder v1/ })).toBeVisible();
+  await expect(page.getByText("Connecting", { exact: true })).toHaveText("Connecting");
 });
 
 test("live BSC telemetry and Venus wallet risk are independently inspectable", async ({ page }) => {

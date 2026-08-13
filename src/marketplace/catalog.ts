@@ -1,5 +1,5 @@
 import type { PositionCrewRequest } from "../contracts/index.js";
-import { PROVIDER_IDS } from "../providers/index.js";
+import { PROVIDER_IDS } from "../providers/ids.js";
 
 export interface ProviderListing {
   providerId: string;
