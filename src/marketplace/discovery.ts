@@ -113,10 +113,10 @@ export function buildProviderManifest(
     },
     commerce: {
       settlement: provider.settlement,
-      adapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
+      adapter: "AACP_PRODUCTION_RUNTIME_PENDING",
       readinessUrl: absolute(origin, "/api/commerce/aacp"),
       boundary:
-        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately. Production AACP contracts and onboarding state are independently reported, but no paid AACP order or revenue is claimed.",
+        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately. Four 5 USDC Agent.family listings are public; their A2A runtimes and any paid AACP order or revenue remain pending.",
     },
   };
 }
@@ -153,7 +153,7 @@ export function buildMarketplaceManifest(
       categoryCoverage: "4_OF_4",
       providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
       settlement: "IN_MEMORY_CONFORMANCE",
-      aacp: "PRODUCTION_ONBOARDING_PENDING",
+      aacp: "PRODUCTION_RUNTIME_PENDING",
       judgeTrial: "NO_WALLET_PROVIDER_CALL",
       agentAdvantage: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     },

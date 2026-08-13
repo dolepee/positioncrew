@@ -6,6 +6,7 @@ import {
   parseAbi,
 } from "viem";
 import termixIdentityEvidence from "../../evidence/termix-identities.mainnet.json" with { type: "json" };
+import termixListingEvidence from "../../evidence/termix-listings.mainnet.json" with { type: "json" };
 import { AddressSchema, ServiceTypeSchema } from "../contracts/common.js";
 import {
   TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
@@ -68,6 +69,46 @@ const AacpMainnetIdentityEvidenceSchema = z
         .strict(),
     ).length(4),
     totalGasCostBnb: z.string().regex(/^0\.\d+$/),
+    verifiedAt: z.string().datetime(),
+    boundaries: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
+
+const AacpMainnetListingEvidenceSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.termix-listings.v1"),
+    network: z.literal("bsc-mainnet"),
+    chainId: z.literal(56),
+    owner: AddressSchema,
+    listings: z.array(
+      z
+        .object({
+          service: ServiceTypeSchema,
+          handle: z.string().regex(/^positioncrew-[a-z0-9-]+\.agent$/),
+          agentId: z.string().min(1),
+          agentTokenId: z.string().regex(/^\d+$/),
+          listingId: z.string().min(1),
+          listingUrl: z.string().url(),
+          title: z.string().min(1),
+          category: z.literal("Market & Protocol Research"),
+          skillTag: z.string().min(1),
+          tags: z.array(z.string().min(1)).min(1),
+          basePrice: z.literal("5"),
+          currency: z.literal("USDC"),
+          deliveryDays: z.literal(1),
+          instantBuyable: z.literal(true),
+          publicSearch: z.literal(true),
+          challengeWindowHours: z.literal(24),
+          settlementType: z.literal("escrow"),
+          proofMethod: z.literal("optimistic"),
+          bondAmount: z.literal("0"),
+          packageScope: z.literal("One bounded decision or explicit refusal"),
+          coverImageUrl: z.string().url(),
+          coverImageState: z.literal("DEFAULT_PLATFORM_BANNER"),
+          createdAt: z.string().datetime(),
+        })
+        .strict(),
+    ).length(4),
     verifiedAt: z.string().datetime(),
     boundaries: z.array(z.string().min(1)).min(1),
   })
@@ -268,7 +309,7 @@ export interface AacpProviderBlueprint {
     title: string;
     category: "Market & Protocol Research";
     basePrice: "5";
-    currency: "USDT";
+    currency: "USDC";
     deliveryDays: 1;
     description: string;
     skillTag: string;
@@ -291,7 +332,9 @@ function blueprint(
   description: string,
   title: string,
   skillTag: string,
-  tags: string[],
+  coverSlug: string,
+  agentTags: string[],
+  listingTags: string[] = agentTags,
 ): AacpProviderBlueprint {
   return {
     service,
@@ -300,23 +343,23 @@ function blueprint(
     displayName,
     category: "Market & Protocol Research",
     description,
-    tags,
+    tags: agentTags,
     listing: {
       title,
       category: "Market & Protocol Research",
       basePrice: "5",
-      currency: "USDT",
+      currency: "USDC",
       deliveryDays: 1,
       description: `${description} The deliverable is machine-readable JSON with source commitments, execution bounds, expiry, and an explicit refusal when the evidence or buyer limits do not support a safe action. A no-wallet trial is available at https://positioncrew.dolepee.com.`,
       skillTag,
-      tags,
+      tags: listingTags,
       instantBuyable: true,
       publicSearch: true,
       challengeWindowHours: 24,
       settlementType: "escrow",
       proofMethod: "optimistic",
       bondAmount: "0",
-      coverImageUrl: `https://positioncrew.dolepee.com/listing-media/${skillTag}.png`,
+      coverImageUrl: `https://positioncrew.dolepee.com/listing-media/${coverSlug}.png`,
       coverImageAlt: `${displayName} example deliverable with bounded inputs, decision, execution guards, and evidence status.`,
     },
   };
@@ -329,8 +372,10 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
     "PositionCrew Lending Rescue",
     "Computes the smallest bounded Venus debt repayment or collateral top-up needed to reach a buyer-selected health factor.",
     "Rescue a Venus lending position",
+    "On-chain Analytics",
     "lending-rescue",
-    ["Venus", "Health Factor", "Risk Management"],
+    ["Monitor", "On-chain Analytics", "Financial Advisor"],
+    ["On-chain Analytics", "Financial Advisor", "Portfolio Management"],
   ),
   blueprint(
     "LP_REBALANCE",
@@ -338,8 +383,9 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
     "PositionCrew LP Range Operator",
     "Evaluates a PancakeSwap V3 position and proposes a cost-, slippage-, inventory-, and break-even-bounded range shift or HOLD.",
     "Rebalance a PancakeSwap V3 LP range",
+    "DeFi Yield Optimizer",
     "lp-rebalance",
-    ["PancakeSwap", "Liquidity", "Rebalancing"],
+    ["DeFi Yield Optimizer", "Portfolio Management", "On-chain Analytics"],
   ),
   blueprint(
     "YIELD_OPTIMIZATION",
@@ -347,8 +393,9 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
     "PositionCrew Yield Allocator",
     "Compares block-pinned Venus stablecoin markets and returns a liquidity-, concentration-, migration-cost-, and risk-bounded allocation or HOLD.",
     "Optimise a Venus stablecoin allocation",
+    "DeFi Yield Optimizer",
     "yield-optimization",
-    ["Venus", "Yield", "Stablecoins"],
+    ["DeFi Yield Optimizer", "Portfolio Management", "On-chain Analytics"],
   ),
   blueprint(
     "BOUNDED_GRID",
@@ -356,13 +403,17 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
     "PositionCrew Bounded Grid Builder",
     "Constructs or rejects a PancakeSwap WBNB/USDT grid under explicit volatility, fee, slippage, inventory, gas, and maximum-loss limits.",
     "Build or reject a bounded PancakeSwap grid",
+    "Trading Bot",
     "bounded-grid",
-    ["PancakeSwap", "Grid Trading", "Risk Management"],
+    ["Trading Bot", "Quant Strategy", "Technical Analysis"],
   ),
 ] as const;
 
 export const AACP_MAINNET_IDENTITY_EVIDENCE =
   AacpMainnetIdentityEvidenceSchema.parse(termixIdentityEvidence);
+
+export const AACP_MAINNET_LISTING_EVIDENCE =
+  AacpMainnetListingEvidenceSchema.parse(termixListingEvidence);
 
 for (const blueprintValue of AACP_PROVIDER_BLUEPRINTS) {
   const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
@@ -373,50 +424,79 @@ for (const blueprintValue of AACP_PROVIDER_BLUEPRINTS) {
   }
   if (
     identity.handle !== blueprintValue.handle ||
-    identity.description !== blueprintValue.description
+    identity.description !== blueprintValue.description ||
+    JSON.stringify(identity.tags) !== JSON.stringify(blueprintValue.tags)
   ) {
     throw new Error(`Mainnet identity evidence drifted for ${blueprintValue.service}`);
   }
+  const listing = AACP_MAINNET_LISTING_EVIDENCE.listings.find(
+    (candidate) => candidate.service === blueprintValue.service,
+  );
+  if (!listing) {
+    throw new Error(`Missing mainnet listing evidence for ${blueprintValue.service}`);
+  }
+  if (
+    listing.handle !== blueprintValue.handle ||
+    listing.agentTokenId !== identity.agentTokenId ||
+    listing.title !== blueprintValue.listing.title ||
+    listing.category !== blueprintValue.listing.category ||
+    listing.skillTag !== blueprintValue.listing.skillTag ||
+    JSON.stringify(listing.tags) !== JSON.stringify(blueprintValue.listing.tags) ||
+    listing.basePrice !== blueprintValue.listing.basePrice ||
+    listing.currency !== blueprintValue.listing.currency ||
+    listing.deliveryDays !== blueprintValue.listing.deliveryDays ||
+    listing.instantBuyable !== blueprintValue.listing.instantBuyable ||
+    listing.publicSearch !== blueprintValue.listing.publicSearch ||
+    listing.challengeWindowHours !== blueprintValue.listing.challengeWindowHours ||
+    listing.settlementType !== blueprintValue.listing.settlementType ||
+    listing.proofMethod !== blueprintValue.listing.proofMethod ||
+    listing.bondAmount !== blueprintValue.listing.bondAmount
+  ) {
+    throw new Error(`Mainnet listing evidence drifted for ${blueprintValue.service}`);
+  }
 }
 
-const ExplorerAgentSchema = z
+const ListingDetailSchema = z
   .object({
-    agent: z
+    id: z.string().min(1),
+    title: z.string().min(1),
+    category: z.string().min(1),
+    skillTag: z.string().min(1),
+    tags: z.array(z.string().min(1)).min(1),
+    description: z.string().min(1),
+    status: z.string().min(1),
+    instantBuyable: z.boolean(),
+    coverImageUrl: z.string().url(),
+    coverImageAlt: z.string().nullable(),
+    basePrice: z.string().min(1),
+    currency: z.string().min(1),
+    deliveryDays: z.number().int().positive(),
+    proofMethod: z.string().min(1),
+    settlementType: z.string().min(1),
+    challengeWindowHours: z.number().int().nonnegative(),
+    bondAmount: z.string(),
+    publicSearch: z.boolean(),
+    createdAt: z.string().datetime(),
+    providerAgent: z
       .object({
-        id: z.string().min(1),
-        agentTokenId: z.string().regex(/^\d+$/),
-        name: z.string().min(1),
-        a2aStatus: z.string(),
-        presence: z.string(),
-        verified: z.boolean(),
-      })
-      .passthrough(),
-  })
-  .passthrough();
-
-const ExplorerResponseSchema = z
-  .object({
-    items: z.array(ExplorerAgentSchema),
-    total: z.number().int().nonnegative(),
-  })
-  .passthrough();
-
-const ListingResponseSchema = z
-  .object({
-    items: z.array(
-      z
-        .object({
           id: z.string().min(1),
-          status: z.string(),
-          title: z.string(),
-          basePrice: z.string(),
-          currency: z.string(),
-          providerAgent: z
-            .object({ id: z.string().min(1), name: z.string().min(1) })
-            .passthrough(),
+          agentTokenId: z.string().regex(/^\d+$/),
+          name: z.string().min(1),
+          a2aStatus: z.string().min(1),
+          presence: z.string().min(1),
+          verified: z.boolean(),
         })
         .passthrough(),
-    ),
+    packages: z.array(
+      z
+        .object({
+          id: z.enum(["basic", "standard", "premium"]),
+          price: z.string().min(1),
+          scope: z.string().min(1),
+          delivery: z.string().min(1),
+        })
+        .passthrough(),
+    ).length(3),
   })
   .passthrough();
 
@@ -614,60 +694,22 @@ function recordedIdentity(
   };
 }
 
-function identityBackedProvider(
-  blueprintValue: AacpProviderBlueprint,
-  identity: VerifiedAacpIdentity,
-  status: "IDENTITY_ONCHAIN" | "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED",
-) {
-  return {
-    service: blueprintValue.service,
-    handle: blueprintValue.handle,
-    agentId: null,
-    agentTokenId: identity.agentTokenId,
-    listingId: null,
-    listingStatus: null,
-    a2aStatus: null,
-    presence: null,
-    verified: false,
-    status,
-    identity,
-  };
-}
-
 async function discoverProvider(
   blueprintValue: AacpProviderBlueprint,
   identity: VerifiedAacpIdentity,
   fetchImpl: typeof fetch,
 ) {
-  let search: z.infer<typeof ExplorerResponseSchema>;
-  try {
-    search = ExplorerResponseSchema.parse(
-      await fetchJson(
-        `${AACP_BSC_API}/api/v1/explorer/agents?query=${encodeURIComponent(blueprintValue.handle)}&page=1&pageSize=100`,
-        fetchImpl,
-      ),
-    );
-  } catch {
-    return identityBackedProvider(
-      blueprintValue,
-      identity,
-      "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED",
-    );
-  }
-  const matched = search.items.find(
-    (item) => item.agent.name.toLowerCase() === blueprintValue.handle.toLowerCase(),
+  const recorded = AACP_MAINNET_LISTING_EVIDENCE.listings.find(
+    (candidate) => candidate.service === blueprintValue.service,
   );
-  if (!matched) {
-    return identityBackedProvider(blueprintValue, identity, "IDENTITY_ONCHAIN");
+  if (!recorded) {
+    throw new Error(`Recorded Agent.family listing missing for ${blueprintValue.handle}`);
   }
-  if (matched.agent.agentTokenId !== identity.agentTokenId) {
-    throw new Error(`Agent.family token ID mismatch for ${blueprintValue.handle}`);
-  }
-  let listings: z.infer<typeof ListingResponseSchema>;
+  let listing: z.infer<typeof ListingDetailSchema>;
   try {
-    listings = ListingResponseSchema.parse(
+    listing = ListingDetailSchema.parse(
       await fetchJson(
-        `${AACP_BSC_API}/api/v1/listings?providerAgentId=${encodeURIComponent(matched.agent.id)}&page=1&pageSize=100`,
+        `${AACP_BSC_API}/api/v1/listings/${encodeURIComponent(recorded.listingId)}`,
         fetchImpl,
       ),
     );
@@ -675,32 +717,76 @@ async function discoverProvider(
     return {
       service: blueprintValue.service,
       handle: blueprintValue.handle,
-      agentId: matched.agent.id,
-      agentTokenId: matched.agent.agentTokenId,
-      listingId: null,
+      agentId: null,
+      agentTokenId: identity.agentTokenId,
+      listingId: recorded.listingId,
       listingStatus: null,
-      a2aStatus: matched.agent.a2aStatus,
-      presence: matched.agent.presence,
-      verified: matched.agent.verified,
+      listingUrl: recorded.listingUrl,
+      liveListingVerified: false,
+      a2aStatus: null,
+      presence: null,
+      verified: false,
       status: "LISTING_DISCOVERY_UNAVAILABLE" as const,
       identity,
     };
   }
-  const listing = listings.items.find(
-    (item) => item.providerAgent.id === matched.agent.id && item.status === "PUBLISHED",
-  );
-  const online = matched.agent.a2aStatus === "ONLINE" || matched.agent.presence === "online";
+
+  const expectedFields = [
+    ["listing ID", listing.id, recorded.listingId],
+    ["title", listing.title, blueprintValue.listing.title],
+    ["category", listing.category, blueprintValue.listing.category],
+    ["skill tag", listing.skillTag, blueprintValue.listing.skillTag],
+    ["description", listing.description, blueprintValue.listing.description],
+    ["status", listing.status, "PUBLISHED"],
+    ["base price", listing.basePrice, blueprintValue.listing.basePrice],
+    ["currency", listing.currency, blueprintValue.listing.currency],
+    ["delivery days", listing.deliveryDays, blueprintValue.listing.deliveryDays],
+    ["instant buy", listing.instantBuyable, blueprintValue.listing.instantBuyable],
+    ["public search", listing.publicSearch, blueprintValue.listing.publicSearch],
+    ["challenge window", listing.challengeWindowHours, blueprintValue.listing.challengeWindowHours],
+    ["settlement type", listing.settlementType, blueprintValue.listing.settlementType],
+    ["proof method", listing.proofMethod, blueprintValue.listing.proofMethod],
+    ["bond amount", listing.bondAmount, blueprintValue.listing.bondAmount],
+    ["cover image", listing.coverImageUrl, recorded.coverImageUrl],
+    ["created at", listing.createdAt, recorded.createdAt],
+    ["agent ID", listing.providerAgent.id, recorded.agentId],
+    ["agent token ID", listing.providerAgent.agentTokenId, identity.agentTokenId],
+    ["agent handle", listing.providerAgent.name, blueprintValue.handle],
+  ] as const;
+  for (const [field, actual, expected] of expectedFields) {
+    if (actual !== expected) {
+      throw new Error(`Agent.family ${field} mismatch for ${blueprintValue.handle}`);
+    }
+  }
+  if (JSON.stringify(listing.tags) !== JSON.stringify(blueprintValue.listing.tags)) {
+    throw new Error(`Agent.family listing tags mismatch for ${blueprintValue.handle}`);
+  }
+  for (const packageId of ["basic", "standard", "premium"] as const) {
+    const servicePackage = listing.packages.find((candidate) => candidate.id === packageId);
+    if (
+      !servicePackage ||
+      servicePackage.price !== blueprintValue.listing.basePrice ||
+      servicePackage.delivery !== String(blueprintValue.listing.deliveryDays) ||
+      servicePackage.scope !== recorded.packageScope
+    ) {
+      throw new Error(`Agent.family ${packageId} package mismatch for ${blueprintValue.handle}`);
+    }
+  }
+
+  const online = listing.providerAgent.a2aStatus === "ONLINE";
   return {
     service: blueprintValue.service,
     handle: blueprintValue.handle,
-    agentId: matched.agent.id,
-    agentTokenId: matched.agent.agentTokenId,
-    listingId: listing?.id ?? null,
-    listingStatus: listing?.status ?? null,
-    a2aStatus: matched.agent.a2aStatus,
-    presence: matched.agent.presence,
-    verified: matched.agent.verified,
-    status: listing ? (online ? "ONLINE_AND_LISTED" : "LISTED_OFFLINE") : "AGENT_INDEXED",
+    agentId: listing.providerAgent.id,
+    agentTokenId: listing.providerAgent.agentTokenId,
+    listingId: listing.id,
+    listingStatus: listing.status,
+    listingUrl: recorded.listingUrl,
+    liveListingVerified: true,
+    a2aStatus: listing.providerAgent.a2aStatus,
+    presence: listing.providerAgent.presence,
+    verified: listing.providerAgent.verified,
+    status: online ? "ONLINE_AND_LISTED" as const : "LISTED_OFFLINE" as const,
     identity,
   };
 }
@@ -731,15 +817,15 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   );
   const state = !allContractsDeployed
     ? "PROTOCOL_DEGRADED"
-    : listedCount === providers.length && onlineCount === providers.length
+    : discoveryDegraded
+      ? "MARKETPLACE_DISCOVERY_DEGRADED"
+      : listedCount === providers.length && onlineCount === providers.length
       ? "PROVIDERS_ONLINE"
       : listedCount === providers.length
         ? "LISTINGS_PUBLISHED_RUNTIME_PENDING"
         : registeredIdentityCount === providers.length
           ? "IDENTITIES_MINTED_LISTINGS_PENDING"
-          : discoveryDegraded
-            ? "MARKETPLACE_DISCOVERY_DEGRADED"
-            : "ONBOARDING_PENDING";
+          : "ONBOARDING_PENDING";
   return {
     schemaVersion: "positioncrew.aacp-production-readiness.v1" as const,
     generatedAt,
@@ -831,8 +917,9 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
       providers,
     },
     boundaries: [
-      "This record validates the documented production AACP config, independent BSC bytecode, and four wallet-owned ERC-8004 identities directly on BNB Chain mainnet.",
-      "It does not claim that a service listing, online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue has occurred.",
+      "This record validates the production AACP config, independent BSC bytecode, four wallet-owned ERC-8004 identities, and four exact public Agent.family listings on BNB Chain mainnet.",
+      "The four listings are published at 5 USDC each; it does not claim an online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue.",
+      "Agent.family's default banner remains on the four listings until the prepared PositionCrew media is uploaded through the supported editor flow.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
@@ -926,6 +1013,8 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
         agentTokenId: null,
         listingId: null,
         listingStatus: null,
+        listingUrl: null,
+        liveListingVerified: false,
         a2aStatus: null,
         presence: null,
         verified: false,

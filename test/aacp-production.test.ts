@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { encodeFunctionResult, parseAbi } from "viem";
 import {
   AACP_MAINNET_IDENTITY_EVIDENCE,
+  AACP_MAINNET_LISTING_EVIDENCE,
   AACP_PROVIDER_BLUEPRINTS,
   fetchAacpProductionConfig,
   getAacpProductionReadiness,
@@ -102,15 +103,62 @@ function json(value: unknown, status = 200) {
 function mockedFetch(options: {
   missingCodeAt?: number;
   chainId?: string;
-  searchStatus?: number;
+  listingStatus?: number;
+  listingA2aStatus?: string;
+  listingPresence?: string;
   wrongIdentityOwner?: boolean;
 } = {}) {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
     if (url.endsWith("/api/v1/config/contracts")) return json(productionConfig());
-    if (url.includes("/api/v1/explorer/agents")) {
-      if (options.searchStatus) return json({ error: "search unavailable" }, options.searchStatus);
-      return json({ items: [], page: 1, pageSize: 100, total: 0, totalPages: 0 });
+    if (url.includes("/api/v1/listings/")) {
+      if (options.listingStatus) {
+        return json({ error: "listing unavailable" }, options.listingStatus);
+      }
+      const listingId = url.split("/").at(-1);
+      const listing = AACP_MAINNET_LISTING_EVIDENCE.listings.find(
+        (candidate) => candidate.listingId === listingId,
+      );
+      if (!listing) return json({ error: "unknown listing" }, 404);
+      const blueprint = AACP_PROVIDER_BLUEPRINTS.find(
+        (candidate) => candidate.service === listing.service,
+      );
+      if (!blueprint) throw new Error(`Unexpected service ${listing.service}`);
+      return json({
+        id: listing.listingId,
+        title: listing.title,
+        category: listing.category,
+        skillTag: listing.skillTag,
+        tags: listing.tags,
+        description: blueprint.listing.description,
+        status: "PUBLISHED",
+        instantBuyable: listing.instantBuyable,
+        coverImageUrl: listing.coverImageUrl,
+        coverImageAlt: null,
+        basePrice: listing.basePrice,
+        currency: listing.currency,
+        deliveryDays: listing.deliveryDays,
+        proofMethod: listing.proofMethod,
+        settlementType: listing.settlementType,
+        challengeWindowHours: listing.challengeWindowHours,
+        bondAmount: listing.bondAmount,
+        publicSearch: listing.publicSearch,
+        createdAt: listing.createdAt,
+        providerAgent: {
+          id: listing.agentId,
+          agentTokenId: listing.agentTokenId,
+          name: listing.handle,
+          a2aStatus: options.listingA2aStatus ?? "UNBOUND",
+          presence: options.listingPresence ?? "recent",
+          verified: false,
+        },
+        packages: ["basic", "standard", "premium"].map((id) => ({
+          id,
+          price: listing.basePrice,
+          scope: listing.packageScope,
+          delivery: String(listing.deliveryDays),
+        })),
+      });
     }
     if (init?.method === "POST") {
       const calls = JSON.parse(String(init.body)) as Array<{
@@ -174,7 +222,7 @@ describe("TermiX production AACP readiness", () => {
         (provider) => provider.handle === `${provider.mintName}.agent`,
       ),
     ).toBe(true);
-    expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.currency === "USDT")).toBe(true);
+    expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.currency === "USDC")).toBe(true);
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.publicSearch)).toBe(true);
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.instantBuyable)).toBe(true);
   });
@@ -188,7 +236,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness).toMatchObject({
       schemaVersion: "positioncrew.aacp-production-readiness.v1",
       generatedAt: "2026-08-13T12:00:00.000Z",
-      state: "IDENTITIES_MINTED_LISTINGS_PENDING",
+      state: "LISTINGS_PUBLISHED_RUNTIME_PENDING",
       network: { chainId: 56, blockNumber: "4660" },
       protocol: { protocolFeeBps: 200 },
       integration: {
@@ -215,14 +263,16 @@ describe("TermiX production AACP readiness", () => {
       marketplace: {
         requiredProviderCount: 4,
         registeredIdentityCount: 4,
-        indexedProviderCount: 0,
-        publishedListingCount: 0,
+        indexedProviderCount: 4,
+        publishedListingCount: 4,
         onlineProviderCount: 0,
       },
     });
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
     expect(readiness.protocol.currencies.map((currency) => currency.symbol)).toEqual(["USDC", "USDT"]);
-    expect(readiness.marketplace.providers.every((provider) => provider.status === "IDENTITY_ONCHAIN")).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.status === "LISTED_OFFLINE")).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.liveListingVerified)).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.a2aStatus === "UNBOUND")).toBe(true);
     expect(readiness.marketplace.providers.map((provider) => provider.agentTokenId)).toEqual([
       "266229",
       "266231",
@@ -285,15 +335,35 @@ describe("TermiX production AACP readiness", () => {
     ).rejects.toThrow("owner mismatch");
   });
 
-  it("keeps protocol verification visible during an Agent.family search outage", async () => {
+  it("fails closed when direct Agent.family listing verification is unavailable", async () => {
     const readiness = await getAacpProductionReadiness({
-      fetchImpl: mockedFetch({ searchStatus: 500 }),
+      fetchImpl: mockedFetch({ listingStatus: 500 }),
     });
 
-    expect(readiness.state).toBe("IDENTITIES_MINTED_LISTINGS_PENDING");
+    expect(readiness.state).toBe("MARKETPLACE_DISCOVERY_DEGRADED");
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
     expect(readiness.marketplace.discoveryDegraded).toBe(true);
-    expect(readiness.marketplace.providers.every((provider) => provider.status === "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED")).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.status === "LISTING_DISCOVERY_UNAVAILABLE")).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.liveListingVerified === false)).toBe(true);
+  });
+
+  it("does not mistake account presence for an online A2A runtime", async () => {
+    const readiness = await getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ listingPresence: "online", listingA2aStatus: "UNBOUND" }),
+    });
+
+    expect(readiness.state).toBe("LISTINGS_PUBLISHED_RUNTIME_PENDING");
+    expect(readiness.marketplace.onlineProviderCount).toBe(0);
+    expect(readiness.marketplace.providers.every((provider) => provider.status === "LISTED_OFFLINE")).toBe(true);
+  });
+
+  it("reports providers online only from the A2A runtime status", async () => {
+    const readiness = await getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ listingA2aStatus: "ONLINE", listingPresence: "offline" }),
+    });
+
+    expect(readiness.state).toBe("PROVIDERS_ONLINE");
+    expect(readiness.marketplace.onlineProviderCount).toBe(4);
   });
 
   it("publishes a fail-closed record when live sources are unavailable", () => {

@@ -25,6 +25,12 @@ const expectedServices = new Set([
   "BOUNDED_GRID",
 ]);
 const expectedAacpAgentTokenIds = new Set(["266229", "266231", "266232", "266234"]);
+const expectedAacpListings = new Map([
+  ["266229", "cmsrfz5ze0t4otn01pm8bdane"],
+  ["266231", "cmsrg0fq00td7tn01awonk3td"],
+  ["266232", "cmsrg1lr20tkytn01gs2ynens"],
+  ["266234", "cmsrg2czh0tohtn01ng23b34c"],
+]);
 const expectedAacpOwner = "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf";
 const referencePancakePositionId = "1456267";
 const checks = [];
@@ -248,7 +254,7 @@ try {
     "Marketplace judge-trial boundary changed unexpectedly",
   );
   assert(
-    marketplace.claims?.aacp === "PRODUCTION_ONBOARDING_PENDING",
+    marketplace.claims?.aacp === "PRODUCTION_RUNTIME_PENDING",
     "Marketplace AACP claim boundary changed unexpectedly",
   );
   assert(
@@ -305,6 +311,27 @@ try {
     "AACP readiness does not verify all four mainnet identities",
   );
   assert(
+    aacpReadiness.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING" &&
+      aacpReadiness.marketplace.indexedProviderCount === 4 &&
+      aacpReadiness.marketplace.publishedListingCount === 4 &&
+      aacpReadiness.marketplace.onlineProviderCount === 0 &&
+      aacpReadiness.marketplace.discoveryDegraded === false,
+    "AACP readiness does not report four published listings and zero bound runtimes",
+  );
+  assert(
+    aacpReadiness.marketplace.providers.every(
+      (provider) =>
+        expectedAacpListings.get(provider.agentTokenId) === provider.listingId &&
+        provider.listingStatus === "PUBLISHED" &&
+        provider.liveListingVerified === true &&
+        provider.a2aStatus === "UNBOUND" &&
+        provider.status === "LISTED_OFFLINE" &&
+        typeof provider.listingUrl === "string" &&
+        new URL(provider.listingUrl).hostname === "www.agent.family",
+    ),
+    "AACP public listing identity, status, or runtime boundary changed",
+  );
+  assert(
     aacpReadiness.integration?.guide?.status === "CURRENT_HUMAN_GUIDE_VERIFIED" &&
       aacpReadiness.integration?.guide?.openApiStatus === "SAMPLE_SPEC_NOT_USED",
     "AACP guide verification boundary changed",
@@ -340,13 +367,6 @@ try {
         provider.handle.startsWith("positioncrew-") && provider.handle.endsWith(".agent"),
       ),
     "AACP provider handles are missing or duplicated",
-  );
-  assert(
-    aacpReadiness.marketplace.publishedListingCount >= 0 &&
-      aacpReadiness.marketplace.publishedListingCount <= 4 &&
-      aacpReadiness.marketplace.onlineProviderCount >= 0 &&
-      aacpReadiness.marketplace.onlineProviderCount <= 4,
-    "AACP provider counts are outside the four-provider boundary",
   );
   assert(
     aacpReadiness.boundaries?.join(" ").includes("does not claim"),
@@ -789,7 +809,7 @@ try {
       `${entry.service} settlement boundary changed unexpectedly`,
     );
     assert(
-      manifest.commerce?.adapter === "AACP_PRODUCTION_ONBOARDING_PENDING" &&
+      manifest.commerce?.adapter === "AACP_PRODUCTION_RUNTIME_PENDING" &&
         new URL(manifest.commerce?.readinessUrl).origin === baseUrl.origin,
       `${entry.service} AACP readiness binding changed unexpectedly`,
     );

@@ -327,7 +327,7 @@ async function api(request: Request, url: URL): Promise<Response> {
         {
           schemaVersion: "positioncrew.provider-catalog-response.v1",
           generatedAt: new Date().toISOString(),
-          commerceAdapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
+          commerceAdapter: "AACP_PRODUCTION_RUNTIME_PENDING",
           providers: PROVIDER_CATALOG,
         },
         200,

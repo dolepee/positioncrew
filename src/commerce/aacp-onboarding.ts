@@ -79,11 +79,11 @@ export const AacpOnboardingManifestSchema = z
   .superRefine((manifest, context) => {
     const mintNames = manifest.entries.map((entry) => entry.agent.name.toLowerCase());
     const services = manifest.entries.map((entry) => entry.service);
-    const skillTags = manifest.entries.map((entry) => entry.listing.skillTag.toLowerCase());
+    const listingTitles = manifest.entries.map((entry) => entry.listing.title.toLowerCase());
     for (const [path, values] of [
       ["agent.name", mintNames],
       ["service", services],
-      ["listing.skillTag", skillTags],
+      ["listing.title", listingTitles],
     ] as const) {
       if (new Set(values).size !== manifest.entries.length) {
         context.addIssue({

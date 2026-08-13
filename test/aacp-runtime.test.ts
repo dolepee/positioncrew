@@ -48,7 +48,7 @@ describe("PositionCrew TermiX A2A runtime", () => {
 
     expect(decision.disposition).toBe("REPLY");
     if (decision.disposition !== "REPLY") throw new Error("Expected a reply");
-    expect(decision.text).toContain("5 USDT");
+    expect(decision.text).toContain("5 USDC");
     expect(decision.text).toContain("target health factor");
     expect(decision.text).toContain("machine-readable JSON");
     expect(decision.text).toContain("/api/providers/lending-rescue/manifest");

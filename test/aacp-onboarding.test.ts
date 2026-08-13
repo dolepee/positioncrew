@@ -97,8 +97,8 @@ function mockedFetch(chainId = "0x38") {
     const quantities = [
       chainId,
       `0x${(223n * 10n ** 14n).toString(16)}`,
-      "0x0",
       `0x${(10n * 10n ** 18n).toString(16)}`,
+      "0x0",
     ];
     return new Response(JSON.stringify(requests.map((request, index) => ({
       jsonrpc: "2.0",
@@ -124,9 +124,9 @@ describe("TermiX onboarding preflight", () => {
       AACP_PROVIDER_BLUEPRINTS.map((provider) => provider.mintName),
     );
     expect(manifest.entries.every((entry) => !entry.agent.name.includes(".agent"))).toBe(true);
-    expect(new Set(manifest.entries.map((entry) => entry.listing.skillTag)).size).toBe(4);
+    expect(new Set(manifest.entries.map((entry) => entry.listing.title)).size).toBe(4);
     expect(manifest.entries.every((entry) => entry.listing.basePrice === "5")).toBe(true);
-    expect(manifest.entries.every((entry) => entry.listing.currency === "USDT")).toBe(true);
+    expect(manifest.entries.every((entry) => entry.listing.currency === "USDC")).toBe(true);
     expect(new Set(manifest.entries.map((entry) => entry.listing.coverImageUrl)).size).toBe(4);
     expect(manifest.entries.every((entry) => entry.listing.coverImageUrl.startsWith("https://positioncrew.dolepee.com/listing-media/"))).toBe(true);
     expect(manifest.entries.every((entry) => entry.listing.coverImageAlt.includes("example deliverable"))).toBe(true);
@@ -176,13 +176,13 @@ describe("TermiX onboarding preflight", () => {
     expect(readiness.chainId).toBe(56);
     expect(readiness.nativeGas).toMatchObject({ display: "0.0223", present: true });
     expect(readiness.currencies.find((currency) => currency.symbol === "USDC")).toMatchObject({
-      display: "0",
-      canFundOneFlagshipOrder: null,
-    });
-    expect(readiness.currencies.find((currency) => currency.symbol === "USDT")).toMatchObject({
       display: "10",
       oneFlagshipOrderAmount: "5",
       canFundOneFlagshipOrder: true,
+    });
+    expect(readiness.currencies.find((currency) => currency.symbol === "USDT")).toMatchObject({
+      display: "0",
+      canFundOneFlagshipOrder: null,
     });
   });
 

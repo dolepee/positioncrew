@@ -158,7 +158,7 @@ export interface ProviderListing {
 export interface ProviderCatalogResponse {
   schemaVersion: "positioncrew.provider-catalog-response.v1";
   generatedAt: string;
-  commerceAdapter: "AACP_PRODUCTION_ONBOARDING_PENDING";
+  commerceAdapter: "AACP_PRODUCTION_RUNTIME_PENDING";
   providers: ProviderListing[];
 }
 
@@ -253,6 +253,8 @@ export interface AacpProductionReadiness {
       agentTokenId: string | null;
       listingId: string | null;
       listingStatus: string | null;
+      listingUrl: string | null;
+      liveListingVerified: boolean;
       a2aStatus: string | null;
       presence: string | null;
       verified: boolean;

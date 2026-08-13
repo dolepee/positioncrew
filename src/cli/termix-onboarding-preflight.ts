@@ -21,7 +21,7 @@ const manifest = buildAacpOnboardingManifest(ownerWallet);
 const allIdentitiesRegistered =
   readiness.marketplace.registeredIdentityCount ===
   readiness.marketplace.requiredProviderCount;
-const flagshipCurrency = wallet.currencies.find((currency) => currency.symbol === "USDT");
+const flagshipCurrency = wallet.currencies.find((currency) => currency.symbol === "USDC");
 
 process.stdout.write(`${JSON.stringify({
   schemaVersion: "positioncrew.aacp-onboarding-preflight.v1",

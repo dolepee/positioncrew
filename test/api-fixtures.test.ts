@@ -177,7 +177,7 @@ describe("public fixture job boundary", () => {
     expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
     expect(manifest).toMatchObject({
       commerce: {
-        adapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
+        adapter: "AACP_PRODUCTION_RUNTIME_PENDING",
         readinessUrl: `${origin}/api/commerce/aacp`,
       },
     });
@@ -188,7 +188,7 @@ describe("public fixture job boundary", () => {
         categoryCoverage: "4_OF_4",
         providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
         judgeTrial: "NO_WALLET_PROVIDER_CALL",
-        aacp: "PRODUCTION_ONBOARDING_PENDING",
+        aacp: "PRODUCTION_RUNTIME_PENDING",
       },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });

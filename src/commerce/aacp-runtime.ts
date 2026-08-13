@@ -135,7 +135,7 @@ function runtimeReply(service: PositionCrewService, origin: string): string {
   const providerUrl = new URL(`/providers/${profile.slug}`, `${origin}/`).toString();
   const manifestUrl = new URL(`/api/providers/${profile.slug}/manifest`, `${origin}/`).toString();
   return [
-    `PositionCrew ${profile.label} is available at a 5 USDT base price with delivery within one day.`,
+    `PositionCrew ${profile.label} is available at a 5 USDC base price with delivery within one day.`,
     `Send ${profile.requiredInputs}.`,
     `The deliverable returns ${profile.result} as machine-readable JSON with source commitments and expiry.`,
     `Try the same provider without a wallet: ${providerUrl}`,
