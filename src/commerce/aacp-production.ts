@@ -234,6 +234,8 @@ export interface AacpProviderBlueprint {
     settlementType: "escrow";
     proofMethod: "optimistic";
     bondAmount: "0";
+    coverImageUrl: string;
+    coverImageAlt: string;
   };
 }
 
@@ -269,6 +271,8 @@ function blueprint(
       settlementType: "escrow",
       proofMethod: "optimistic",
       bondAmount: "0",
+      coverImageUrl: `https://positioncrew.dolepee.com/listing-media/${skillTag}.png`,
+      coverImageAlt: `${displayName} example deliverable with bounded inputs, decision, execution guards, and evidence status.`,
     },
   };
 }

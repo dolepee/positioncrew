@@ -45,6 +45,8 @@ export const AacpListingCreatePayloadSchema = z
     settlementType: z.enum(["escrow", "optimistic"]),
     proofMethod: z.enum(["optimistic", "manual", "evaluator"]),
     bondAmount: z.string().regex(/^\d+(?:\.\d{1,18})?$/),
+    coverImageUrl: z.string().url(),
+    coverImageAlt: z.string().min(20).max(300),
   })
   .strict();
 

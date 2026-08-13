@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   AacpAgentPreparePayloadSchema,
@@ -125,9 +127,26 @@ describe("TermiX onboarding preflight", () => {
     expect(new Set(manifest.entries.map((entry) => entry.listing.skillTag)).size).toBe(4);
     expect(manifest.entries.every((entry) => entry.listing.basePrice === "5")).toBe(true);
     expect(manifest.entries.every((entry) => entry.listing.currency === "USDT")).toBe(true);
+    expect(new Set(manifest.entries.map((entry) => entry.listing.coverImageUrl)).size).toBe(4);
+    expect(manifest.entries.every((entry) => entry.listing.coverImageUrl.startsWith("https://positioncrew.dolepee.com/listing-media/"))).toBe(true);
+    expect(manifest.entries.every((entry) => entry.listing.coverImageAlt.includes("example deliverable"))).toBe(true);
     expect(manifest.entries.every((entry) => !("roles" in entry.agent))).toBe(true);
     expect(manifest.walletSignedAgentMints).toBe(4);
     expect(manifest.offchainListingPublishes).toBe(4);
+  });
+
+  it("ships one correctly sized PNG cover for every listing", () => {
+    const repositoryRoot = fileURLToPath(new URL("..", import.meta.url));
+
+    for (const provider of AACP_PROVIDER_BLUEPRINTS) {
+      const fileName = new URL(provider.listing.coverImageUrl).pathname.split("/").at(-1);
+      expect(fileName).toBeTruthy();
+      const png = readFileSync(`${repositoryRoot}/web/public/listing-media/${fileName}`);
+
+      expect(png.subarray(1, 4).toString("ascii")).toBe("PNG");
+      expect(png.readUInt32BE(16)).toBe(1200);
+      expect(png.readUInt32BE(20)).toBe(675);
+    }
   });
 
   it("rejects canonical handles and malformed names in mint prepare payloads", () => {
