@@ -305,6 +305,19 @@ try {
     "AACP runtime signing or expiry boundary changed",
   );
   assert(
+    aacpReadiness.integration?.orderGuard?.status ===
+      "STRICT_LOCAL_LIFECYCLE_IMPLEMENTED" &&
+      aacpReadiness.integration.orderGuard.chainId === 56 &&
+      aacpReadiness.integration.orderGuard.signerOnGuard === false &&
+      aacpReadiness.integration.orderGuard.broadcastsTransactions === false &&
+      aacpReadiness.integration.orderGuard.abiDecodedIntentBinding === true &&
+      aacpReadiness.integration.orderGuard.minedTransactionBinding === true &&
+      aacpReadiness.integration.orderGuard.indexerReconciliationRequired === true &&
+      aacpReadiness.integration.orderGuard.guardedActions?.join(",") ===
+        "approveEscrow,createOrder,acceptOrder,submitDelivery,releaseEscrow,requestRedo,claimAfterTimeout,openChallenge",
+    "AACP order guard boundary changed",
+  );
+  assert(
     aacpReadiness.integration?.lifecycle?.join(",") ===
       "WALLET_SESSION,AGENT_PREPARE_MINT_INDEX,LISTING_CREATE_PUBLISH,A2A_RUNTIME,CHECKOUT_APPROVE_CREATE,PROVIDER_ACCEPT,ARTIFACT_REGISTER_SUBMIT,BUYER_RELEASE_OR_TIMEOUT,INDEXER_RECONCILE",
     "AACP documented lifecycle changed",

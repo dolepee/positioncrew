@@ -226,6 +226,16 @@ export interface AacpProductionReadiness {
       automaticConversationKinds: string[];
       operatorRequiredConversationKinds: string[];
     };
+    orderGuard: {
+      status: "STRICT_LOCAL_LIFECYCLE_IMPLEMENTED";
+      chainId: 56;
+      signerOnGuard: false;
+      broadcastsTransactions: false;
+      abiDecodedIntentBinding: true;
+      minedTransactionBinding: true;
+      indexerReconciliationRequired: true;
+      guardedActions: string[];
+    };
     lifecycle: string[];
   };
   marketplace: {

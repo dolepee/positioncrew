@@ -13,6 +13,17 @@ export const AACP_DOCS_URL = "https://docs.termix.ai/aacp/overview";
 export const AACP_DOCS_INDEX_URL = "https://docs.termix.ai/llms.txt";
 export const AACP_OPENAPI_URL = "https://docs.termix.ai/api-reference/openapi.json";
 
+export const AACP_ORDER_GUARD_ACTIONS = [
+  "approveEscrow",
+  "createOrder",
+  "acceptOrder",
+  "submitDelivery",
+  "releaseEscrow",
+  "requestRedo",
+  "claimAfterTimeout",
+  "openChallenge",
+] as const;
+
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 const ContractDescriptorSchema = z
@@ -32,7 +43,7 @@ const CurrencyContractsSchema = z
   })
   .strict();
 
-const SettlementCurrencySchema = z
+export const AacpSettlementCurrencySchema = z
   .object({
     symbol: z.enum(["USDC", "USDT"]),
     decimals: z.number().int().min(1).max(18),
@@ -60,7 +71,7 @@ export const AacpProductionConfigSchema = z
         address: AddressSchema,
       })
       .strict(),
-    settlementCurrencies: z.array(SettlementCurrencySchema).min(1),
+    settlementCurrencies: z.array(AacpSettlementCurrencySchema).min(1),
     settlementChains: z
       .array(
         z
@@ -649,6 +660,16 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
           "OPERATOR_CASE",
         ],
       },
+      orderGuard: {
+        status: "STRICT_LOCAL_LIFECYCLE_IMPLEMENTED" as const,
+        chainId: 56 as const,
+        signerOnGuard: false,
+        broadcastsTransactions: false,
+        abiDecodedIntentBinding: true,
+        minedTransactionBinding: true,
+        indexerReconciliationRequired: true,
+        guardedActions: AACP_ORDER_GUARD_ACTIONS,
+      },
       lifecycle: [
         "WALLET_SESSION",
         "AGENT_PREPARE_MINT_INDEX",
@@ -726,6 +747,16 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
           "CHALLENGE",
           "OPERATOR_CASE",
         ],
+      },
+      orderGuard: {
+        status: "STRICT_LOCAL_LIFECYCLE_IMPLEMENTED" as const,
+        chainId: 56 as const,
+        signerOnGuard: false,
+        broadcastsTransactions: false,
+        abiDecodedIntentBinding: true,
+        minedTransactionBinding: true,
+        indexerReconciliationRequired: true,
+        guardedActions: AACP_ORDER_GUARD_ACTIONS,
       },
       lifecycle: [
         "WALLET_SESSION",

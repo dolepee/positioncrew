@@ -45,6 +45,8 @@ This is an onboarding and liveness record, not payment evidence. PositionCrew do
 
 The repository also includes a deterministic TermiX A2A host (`npm run runtime:termix`). It accepts only a pre-issued, agent-scoped runtime token, refuses to start when wallet signing material is present, stops before the token expires, deduplicates overlapping inbox polls, answers service inquiries from fixed provider contracts, and escalates delivery, challenge, and operator-case threads instead of auto-acting. The owner wallet remains off-host. Because TermiX runtime tokens expire after roughly 12 hours and the current guide exposes no delegated renewal flow, token rotation remains an explicit operator action and this implementation is not presented as four online providers.
 
+The signer-free AACP order guard models checkout through settlement without calling TermiX or broadcasting. Before an operator signs, it decodes each documented escrow call and binds the exact token, amount, agent identities, agreement, deadline, challenge window, order, delivery hash, and dispute panel. After broadcast, it requires the mined transaction target, calldata, value, actor, and chain to match the reviewed intent, then waits for a monotonic indexer projection instead of treating a receipt as marketplace state.
+
 Run one provider only after its owner has issued a scoped runtime token through the official TermiX flow:
 
 ```bash
@@ -141,6 +143,7 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
 - The TermiX production adapter reads the supported AACP config and public Agent.family discovery APIs, then independently confirms contract bytecode on BNB Chain. Wallet-signed onboarding and value-bearing orders remain explicit operator actions.
 - The TermiX A2A host is a pre-signing runtime: a scoped token can keep one provider present and answer pre-sale questions, while private keys, order acceptance, delivery submission, settlement, and disputes remain outside the process.
+- The TermiX order guard ABI-decodes eight documented AACP actions, binds reviewed intent to mined transaction evidence, and reconciles indexed order state without holding a signer or broadcasting transactions.
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
 - ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet. It also posts one current-clock scenario and one locked-receipt request to every Provider, rejecting expired scenario output, public evidence leakage, or any locked evaluation-hash drift.

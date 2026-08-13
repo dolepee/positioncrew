@@ -169,6 +169,15 @@ describe("TermiX production AACP readiness", () => {
           autoRenewsToken: false,
           tokenLifetimeHours: 12,
         },
+        orderGuard: {
+          status: "STRICT_LOCAL_LIFECYCLE_IMPLEMENTED",
+          chainId: 56,
+          signerOnGuard: false,
+          broadcastsTransactions: false,
+          abiDecodedIntentBinding: true,
+          minedTransactionBinding: true,
+          indexerReconciliationRequired: true,
+        },
       },
       marketplace: {
         requiredProviderCount: 4,
@@ -247,6 +256,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.network).toMatchObject({ chainId: 56, blockNumber: null });
     expect(readiness.marketplace.requiredProviderCount).toBe(4);
     expect(readiness.integration.runtime.ownerSignerOnHost).toBe(false);
+    expect(readiness.integration.orderGuard.guardedActions).toHaveLength(8);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "UPSTREAM_UNAVAILABLE")).toBe(true);
     expect(readiness.boundaries.join(" ")).toContain("no cached deployment claim");
   });
