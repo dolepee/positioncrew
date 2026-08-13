@@ -1,0 +1,103 @@
+{
+  "schemaVersion": "positioncrew.marketplace-invocation-protocol.v1",
+  "createdAt": "2026-08-13T04:35:00.000Z",
+  "source": {
+    "repository": "https://github.com/dolepee/positioncrew",
+    "productionBaseUrl": "https://positioncrew.dolepee.com",
+    "productionVersion": 29,
+    "productionCommitSha": "257b44a18ce6ba3e33bd97dc6737f6d1ee5e980e",
+    "agentCaptureManifestHash": "sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1"
+  },
+  "execution": {
+    "runsPerTask": 2,
+    "order": [
+      "lending-rescue",
+      "lp-rebalance",
+      "bounded-grid"
+    ],
+    "parallelism": "SEQUENTIAL",
+    "attemptPolicy": "ONE_ATTEMPT_PER_RUN_NO_RETRY",
+    "httpMethod": "POST",
+    "bodyMode": "FROZEN_FIXTURE",
+    "timer": {
+      "start": "Immediately before fetch() is invoked.",
+      "stop": "After the complete response body is read and strict response validation finishes.",
+      "clock": "Node.js performance.now monotonic clock",
+      "unit": "MILLISECONDS"
+    },
+    "retention": "Every planned attempt is retained in order, including HTTP, transport, parsing, or validation failures. A failed attempt is never replaced."
+  },
+  "tasks": [
+    {
+      "benchmarkSlug": "lending-rescue",
+      "service": "LENDING_RESCUE",
+      "providerId": "positioncrew:provider:lending-rescue:v1",
+      "endpoint": "/api/providers/lending-rescue/jobs",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "venus-stressed-position-20260812-001",
+        "fixtureHash": "sha256:068d71bfd268e11bae12e1d26fa3ab4c73c845d42c7d7d150bd05aee1eb81e8d",
+        "rubricHash": "sha256:d13c3608221e0267d1850ffc08ebe01cbc04ed526abe23720ee926f916a71010",
+        "protocolHash": "sha256:43cc33de9a8ae0a5d62a8a47bf10955e8ffeedfe1c51c6d3b4590809f94f7eaa"
+      },
+      "expectedOutputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+      "expectedEvaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870"
+    },
+    {
+      "benchmarkSlug": "lp-rebalance",
+      "service": "LP_REBALANCE",
+      "providerId": "positioncrew:provider:lp-rebalance:v1",
+      "endpoint": "/api/providers/lp-rebalance/jobs",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "v3-out-of-range-20260812-001",
+        "fixtureHash": "sha256:77c30b4b66f92a3bcff1dbf7752fdc75cbde1365f344120f32f298ef4ec83ac5",
+        "rubricHash": "sha256:f79fa49dca56009cc43932751b9d4e6bcc7d346bb977e7f68f047a07a24b0ef6",
+        "protocolHash": "sha256:7c35e4169854d687333eaf35bbf9556864b4d88792dcc648fde5c476793daa4b"
+      },
+      "expectedOutputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+      "expectedEvaluationHash": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7"
+    },
+    {
+      "benchmarkSlug": "bounded-grid",
+      "service": "BOUNDED_GRID",
+      "providerId": "positioncrew:provider:bounded-grid:v1",
+      "endpoint": "/api/providers/bounded-grid/jobs",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "bounded-grid-20260812-001",
+        "fixtureHash": "sha256:f232852a88ff6b1446d3496aec4ac311a210d30ee4d6da0af97ffaa88a89a930",
+        "rubricHash": "sha256:19448c9350f99b7e7b65351b9c91513e59d708e02176c44e4188b4d4c9fca12d",
+        "protocolHash": "sha256:e85596cea18c8dd2a2d42407131aa817ac6f8647c24a1f643bdf52dd5b452988"
+      },
+      "expectedOutputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+      "expectedEvaluationHash": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb"
+    }
+  ],
+  "successCriteria": {
+    "httpStatus": 200,
+    "evidenceMode": "FROZEN_BSC_TEST_FIXTURE",
+    "commerceMode": "IN_MEMORY_CONFORMANCE",
+    "receiptMode": "PUBLIC_REPRODUCIBLE",
+    "jobState": "COMPLETED",
+    "jobHistory": [
+      "CREATED",
+      "FUNDED",
+      "ASSIGNED",
+      "SUBMITTED",
+      "EVALUATED",
+      "COMPLETED"
+    ],
+    "conformanceScore": 100,
+    "criticalFailureCount": 0,
+    "directCostUsd": "0.00",
+    "walletRequired": false
+  },
+  "boundaries": [
+    "This overlay proves that the precommitted frozen tasks and exact deterministic agent outputs are delivered through PositionCrew's public marketplace Provider endpoints.",
+    "The measured duration is end-to-end HTTP delivery latency for a no-wallet judge trial; it does not replace the pre-registered internal agent timer or alter the Agent Advantage decision rule.",
+    "The lifecycle uses PositionCrew's in-memory commerce conformance adapter and TEST_USDC-shaped receipts. It is not paid AACP settlement, mainnet execution, external-provider traction, or live investment performance.",
+    "Frozen BSC fixtures are used so every invocation is reproducible. Recommendations must be revalidated against fresh protocol state before execution."
+  ],
+  "protocolHash": "sha256:4935a4d6a32291112a1f64911765429ca90e65aa9a8a2d966634833cced597e4"
+}
