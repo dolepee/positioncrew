@@ -5,6 +5,10 @@ artifacts/
 playwright-report/
 test-results/
 .env
+.env.*
+!.env.example
+.state/
+.termix-a2a-*.env
 .DS_Store
 DEMO_SCRIPT.md
 demo-script.*

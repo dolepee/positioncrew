@@ -1,10 +1,17 @@
 import { z } from "zod";
 import { AddressSchema, ServiceTypeSchema } from "../contracts/common.js";
+import {
+  TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
+  TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS,
+  TERMIX_RUNTIME_TOKEN_LIFETIME_HOURS,
+} from "./aacp-runtime.js";
 
 export const AACP_BSC_API = "https://platform-backend.prod.termix.live";
 export const AACP_BSC_RPC = "https://bsc-rpc.publicnode.com";
 export const AACP_BSC_RPC_FALLBACK = "https://bsc-dataseed.bnbchain.org";
 export const AACP_DOCS_URL = "https://docs.termix.ai/aacp/overview";
+export const AACP_DOCS_INDEX_URL = "https://docs.termix.ai/llms.txt";
+export const AACP_OPENAPI_URL = "https://docs.termix.ai/api-reference/openapi.json";
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
 
@@ -617,6 +624,43 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
         staking: currency.contracts.staking,
       })),
     },
+    integration: {
+      guide: {
+        status: "CURRENT_HUMAN_GUIDE_VERIFIED" as const,
+        indexUrl: AACP_DOCS_INDEX_URL,
+        openApiUrl: AACP_OPENAPI_URL,
+        openApiStatus: "SAMPLE_SPEC_NOT_USED" as const,
+      },
+      runtime: {
+        status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" as const,
+        ownerSignerOnHost: false,
+        autoRenewsToken: false,
+        tokenLifetimeHours: TERMIX_RUNTIME_TOKEN_LIFETIME_HOURS,
+        expiryBufferSeconds: TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS,
+        pollSeconds: TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
+        automaticConversationKinds: [
+          "DIRECT_MESSAGE",
+          "QUOTE_NEGOTIATION",
+          "PREPAYMENT_ORDER",
+        ],
+        operatorRequiredConversationKinds: [
+          "ORDER_DELIVERY",
+          "CHALLENGE",
+          "OPERATOR_CASE",
+        ],
+      },
+      lifecycle: [
+        "WALLET_SESSION",
+        "AGENT_PREPARE_MINT_INDEX",
+        "LISTING_CREATE_PUBLISH",
+        "A2A_RUNTIME",
+        "CHECKOUT_APPROVE_CREATE",
+        "PROVIDER_ACCEPT",
+        "ARTIFACT_REGISTER_SUBMIT",
+        "BUYER_RELEASE_OR_TIMEOUT",
+        "INDEXER_RECONCILE",
+      ],
+    },
     marketplace: {
       requiredProviderCount: AACP_PROVIDER_BLUEPRINTS.length,
       indexedProviderCount: providers.filter((provider) => provider.agentId !== null).length,
@@ -628,6 +672,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
       "This record validates the documented production AACP config, independent BSC bytecode, and public Agent.family discovery state.",
       "It does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
       "PositionCrew's no-wallet trial and deterministic evaluator remain separate from AACP escrow and dispute adjudication.",
+      "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
   };
 }
@@ -657,6 +702,43 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
       contracts: [],
       currencies: [],
     },
+    integration: {
+      guide: {
+        status: "CURRENT_HUMAN_GUIDE_VERIFIED" as const,
+        indexUrl: AACP_DOCS_INDEX_URL,
+        openApiUrl: AACP_OPENAPI_URL,
+        openApiStatus: "SAMPLE_SPEC_NOT_USED" as const,
+      },
+      runtime: {
+        status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" as const,
+        ownerSignerOnHost: false,
+        autoRenewsToken: false,
+        tokenLifetimeHours: TERMIX_RUNTIME_TOKEN_LIFETIME_HOURS,
+        expiryBufferSeconds: TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS,
+        pollSeconds: TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
+        automaticConversationKinds: [
+          "DIRECT_MESSAGE",
+          "QUOTE_NEGOTIATION",
+          "PREPAYMENT_ORDER",
+        ],
+        operatorRequiredConversationKinds: [
+          "ORDER_DELIVERY",
+          "CHALLENGE",
+          "OPERATOR_CASE",
+        ],
+      },
+      lifecycle: [
+        "WALLET_SESSION",
+        "AGENT_PREPARE_MINT_INDEX",
+        "LISTING_CREATE_PUBLISH",
+        "A2A_RUNTIME",
+        "CHECKOUT_APPROVE_CREATE",
+        "PROVIDER_ACCEPT",
+        "ARTIFACT_REGISTER_SUBMIT",
+        "BUYER_RELEASE_OR_TIMEOUT",
+        "INDEXER_RECONCILE",
+      ],
+    },
     marketplace: {
       requiredProviderCount: AACP_PROVIDER_BLUEPRINTS.length,
       indexedProviderCount: 0,
@@ -679,6 +761,7 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
       "TermiX production config or BSC RPC could not be validated at this time; no cached deployment claim is substituted.",
       "This record does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
       "PositionCrew's no-wallet trial and deterministic evaluator remain separate from AACP escrow and dispute adjudication.",
+      "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
   };
 }

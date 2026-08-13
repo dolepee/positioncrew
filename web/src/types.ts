@@ -209,6 +209,25 @@ export interface AacpProductionReadiness {
       staking: string;
     }>;
   };
+  integration: {
+    guide: {
+      status: "CURRENT_HUMAN_GUIDE_VERIFIED";
+      indexUrl: string;
+      openApiUrl: string;
+      openApiStatus: "SAMPLE_SPEC_NOT_USED";
+    };
+    runtime: {
+      status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED";
+      ownerSignerOnHost: false;
+      autoRenewsToken: false;
+      tokenLifetimeHours: 12;
+      expiryBufferSeconds: number;
+      pollSeconds: number;
+      automaticConversationKinds: string[];
+      operatorRequiredConversationKinds: string[];
+    };
+    lifecycle: string[];
+  };
   marketplace: {
     requiredProviderCount: number;
     indexedProviderCount: number;

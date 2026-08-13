@@ -293,6 +293,23 @@ try {
     "AACP readiness does not cover all four PositionCrew providers",
   );
   assert(
+    aacpReadiness.integration?.guide?.status === "CURRENT_HUMAN_GUIDE_VERIFIED" &&
+      aacpReadiness.integration?.guide?.openApiStatus === "SAMPLE_SPEC_NOT_USED",
+    "AACP guide verification boundary changed",
+  );
+  assert(
+    aacpReadiness.integration?.runtime?.status === "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" &&
+      aacpReadiness.integration.runtime.ownerSignerOnHost === false &&
+      aacpReadiness.integration.runtime.autoRenewsToken === false &&
+      aacpReadiness.integration.runtime.tokenLifetimeHours === 12,
+    "AACP runtime signing or expiry boundary changed",
+  );
+  assert(
+    aacpReadiness.integration?.lifecycle?.join(",") ===
+      "WALLET_SESSION,AGENT_PREPARE_MINT_INDEX,LISTING_CREATE_PUBLISH,A2A_RUNTIME,CHECKOUT_APPROVE_CREATE,PROVIDER_ACCEPT,ARTIFACT_REGISTER_SUBMIT,BUYER_RELEASE_OR_TIMEOUT,INDEXER_RECONCILE",
+    "AACP documented lifecycle changed",
+  );
+  assert(
     new Set(aacpReadiness.marketplace.providers.map((provider) => provider.handle)).size === 4 &&
       aacpReadiness.marketplace.providers.every((provider) =>
         provider.handle.startsWith("positioncrew-") && provider.handle.endsWith(".agent"),

@@ -43,6 +43,19 @@ The registry is [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://testnet.b
 
 This is an onboarding and liveness record, not payment evidence. PositionCrew does not claim a production Agent NFT, published TermiX listing, paid AACP order, settlement, revenue, reputation result, or external buyer until those events exist and can be verified independently.
 
+The repository also includes a deterministic TermiX A2A host (`npm run runtime:termix`). It accepts only a pre-issued, agent-scoped runtime token, refuses to start when wallet signing material is present, stops before the token expires, deduplicates overlapping inbox polls, answers service inquiries from fixed provider contracts, and escalates delivery, challenge, and operator-case threads instead of auto-acting. The owner wallet remains off-host. Because TermiX runtime tokens expire after roughly 12 hours and the current guide exposes no delegated renewal flow, token rotation remains an explicit operator action and this implementation is not presented as four online providers.
+
+Run one provider only after its owner has issued a scoped runtime token through the official TermiX flow:
+
+```bash
+export TERMIX_A2A_AGENT_ID=<owned-agent-database-id>
+export TERMIX_A2A_RUNTIME_TOKEN=<scoped-runtime-token>
+export POSITIONCREW_SERVICE=LENDING_RESCUE
+npm run runtime:termix
+```
+
+Opaque tokens must also set `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT` to an ISO-8601 timestamp. Runtime state is written atomically under `.state/`, excluded from Git, and contains message IDs and operator-attention metadata but no token or message text.
+
 ## BSC commerce receipts
 
 PositionCrew has completed seven ERC-8183/APEX lifecycles on BSC Testnet: one zero-price path probe and six funded jobs releasing `0.6 U` from a dedicated client wallet to a separate provider wallet. The four flagship jobs cover every required category and bind each public deliverable manifest to the onchain job.
@@ -127,6 +140,7 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - Canonical hashes bind request envelopes, deliverables, and evaluations.
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
 - The TermiX production adapter reads the supported AACP config and public Agent.family discovery APIs, then independently confirms contract bytecode on BNB Chain. Wallet-signed onboarding and value-bearing orders remain explicit operator actions.
+- The TermiX A2A host is a pre-signing runtime: a scoped token can keep one provider present and answer pre-sale questions, while private keys, order acceptance, delivery submission, settlement, and disputes remain outside the process.
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
 - ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet. It also posts one current-clock scenario and one locked-receipt request to every Provider, rejecting expired scenario output, public evidence leakage, or any locked evaluation-hash drift.

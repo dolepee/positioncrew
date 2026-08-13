@@ -722,6 +722,11 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .aacp-provider-grid strong { margin-top: 8px; overflow-wrap: anywhere; font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; line-height: 1.45; }
 .aacp-provider-grid small { margin: 6px 0 10px; color: var(--muted); font-size: 9px; }
 .aacp-provider-grid .state-label { align-self: flex-start; margin-top: auto; }
+.aacp-runtime-band { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); background: var(--surface-soft); }
+.aacp-runtime-band > div { display: flex; min-width: 0; min-height: 76px; padding: 13px 15px; border-right: 1px solid var(--line); flex-direction: column; }
+.aacp-runtime-band > div:last-child { border-right: 0; }
+.aacp-runtime-band strong { color: var(--ink); font-size: 11px; }
+.aacp-runtime-band span { margin-top: 5px; color: var(--muted); font-size: 9px; line-height: 1.4; }
 .operations-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
 .operations-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
 .operations-facts > div:last-child { border-right: 0; }
@@ -825,9 +830,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-metrics > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .receipt-view { grid-template-columns: 1fr; }
   .infrastructure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .aacp-facts, .aacp-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .aacp-facts > div:nth-child(2), .aacp-provider-grid > div:nth-child(2) { border-right: 0; }
-  .aacp-facts > div:nth-child(-n + 2), .aacp-provider-grid > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .aacp-facts, .aacp-provider-grid, .aacp-runtime-band { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aacp-facts > div:nth-child(2), .aacp-provider-grid > div:nth-child(2), .aacp-runtime-band > div:nth-child(2) { border-right: 0; }
+  .aacp-facts > div:nth-child(-n + 2), .aacp-provider-grid > div:nth-child(-n + 2), .aacp-runtime-band > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .commerce-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operations-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .delivery-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -893,7 +898,13 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .page-title-row { gap: 15px; margin-bottom: 16px; padding-bottom: 16px; }
   .page-title-row h1 { font-size: 23px; }
   .registry-summary, .evidence-summary { overflow-x: auto; }
-  .registry-summary span, .evidence-summary span { flex: 0 0 112px; padding: 9px; }
+  .registry-summary span { flex: 0 0 112px; padding: 9px; }
+  .evidence-summary span {
+    flex: 0 0 184px;
+    min-width: 184px;
+    padding: 9px 11px;
+    white-space: nowrap;
+  }
   .market-toolbar { align-items: stretch; flex-direction: column; }
   .search-control { width: 100%; }
   .market-layout { border-top: 0; }
@@ -980,9 +991,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .evidence-table td:nth-child(6)::before { content: "Receipt"; }
   .evidence-table td code { min-width: 0; overflow-wrap: anywhere; }
   .commerce-facts { grid-template-columns: 1fr; }
-  .aacp-facts, .aacp-provider-grid { grid-template-columns: 1fr; }
-  .aacp-facts > div, .aacp-provider-grid > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .aacp-facts > div:last-child, .aacp-provider-grid > div:last-child { border-bottom: 0; }
+  .aacp-facts, .aacp-provider-grid, .aacp-runtime-band { grid-template-columns: 1fr; }
+  .aacp-facts > div, .aacp-provider-grid > div, .aacp-runtime-band > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .aacp-facts > div:last-child, .aacp-provider-grid > div:last-child, .aacp-runtime-band > div:last-child { border-bottom: 0; }
   .operations-facts, .operations-runs { grid-template-columns: 1fr; }
   .operations-facts > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
   .operations-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }

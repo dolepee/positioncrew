@@ -158,6 +158,18 @@ describe("TermiX production AACP readiness", () => {
       state: "ONBOARDING_PENDING",
       network: { chainId: 56, blockNumber: "4660" },
       protocol: { protocolFeeBps: 200 },
+      integration: {
+        guide: {
+          status: "CURRENT_HUMAN_GUIDE_VERIFIED",
+          openApiStatus: "SAMPLE_SPEC_NOT_USED",
+        },
+        runtime: {
+          status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED",
+          ownerSignerOnHost: false,
+          autoRenewsToken: false,
+          tokenLifetimeHours: 12,
+        },
+      },
       marketplace: {
         requiredProviderCount: 4,
         indexedProviderCount: 0,
@@ -168,6 +180,8 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
     expect(readiness.protocol.currencies.map((currency) => currency.symbol)).toEqual(["USDC", "USDT"]);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "HANDLE_AVAILABLE")).toBe(true);
+    expect(readiness.integration.lifecycle).toContain("BUYER_RELEASE_OR_TIMEOUT");
+    expect(readiness.integration.runtime.operatorRequiredConversationKinds).toContain("CHALLENGE");
     expect(readiness.boundaries.join(" ")).toContain("does not claim");
   });
 
@@ -232,6 +246,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.state).toBe("SOURCE_UNAVAILABLE");
     expect(readiness.network).toMatchObject({ chainId: 56, blockNumber: null });
     expect(readiness.marketplace.requiredProviderCount).toBe(4);
+    expect(readiness.integration.runtime.ownerSignerOnHost).toBe(false);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "UPSTREAM_UNAVAILABLE")).toBe(true);
     expect(readiness.boundaries.join(" ")).toContain("no cached deployment claim");
   });

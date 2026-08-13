@@ -191,6 +191,12 @@ export function EvidenceView({
                 </div>
               ))}
             </div>
+            <div className="aacp-runtime-band">
+              <div><strong>Signer excluded</strong><span>Runtime host accepts only a scoped agent token</span></div>
+              <div><strong>{aacpReadiness.integration.runtime.tokenLifetimeHours} hours</strong><span>Manual token rotation; no hidden auto-renewal</span></div>
+              <div><strong>{aacpReadiness.integration.runtime.automaticConversationKinds.length} buyer surfaces</strong><span>Deterministic pre-sale replies</span></div>
+              <div><strong>{aacpReadiness.integration.runtime.operatorRequiredConversationKinds.length} gated surfaces</strong><span>Orders and disputes require operator review</span></div>
+            </div>
             <div className="operations-boundary">
               <ShieldCheck size={16} aria-hidden="true" />
               <span><strong>Production protocol, honest onboarding state.</strong>{aacpReadiness.boundaries[0]} {aacpReadiness.boundaries[1]}</span>
