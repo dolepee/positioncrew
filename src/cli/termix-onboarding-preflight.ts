@@ -18,9 +18,9 @@ const [readiness, wallet] = await Promise.all([
   inspectAacpOnboardingWallet(ownerWallet),
 ]);
 const manifest = buildAacpOnboardingManifest(ownerWallet);
-const handlesAvailable = readiness.marketplace.providers.every(
-  (provider) => provider.status === "HANDLE_AVAILABLE",
-);
+const allIdentitiesRegistered =
+  readiness.marketplace.registeredIdentityCount ===
+  readiness.marketplace.requiredProviderCount;
 const flagshipCurrency = wallet.currencies.find((currency) => currency.symbol === "USDT");
 
 process.stdout.write(`${JSON.stringify({
@@ -28,11 +28,11 @@ process.stdout.write(`${JSON.stringify({
   generatedAt: new Date().toISOString(),
   state: !wallet.nativeGas.present
     ? "GAS_REQUIRED"
-    : !handlesAvailable
+    : !allIdentitiesRegistered
       ? "AUTHENTICATED_OWNERSHIP_REVIEW_REQUIRED"
       : flagshipCurrency?.canFundOneFlagshipOrder
-        ? "READY_FOR_ONBOARDING_AND_ONE_ORDER"
-        : "READY_FOR_ONBOARDING_ORDER_FUNDS_REQUIRED",
+        ? "IDENTITIES_MINTED_READY_FOR_LISTINGS_AND_ONE_ORDER"
+        : "IDENTITIES_MINTED_LISTINGS_PENDING_ORDER_FUNDS_REQUIRED",
   manifest,
   protocol: {
     state: readiness.state,
@@ -42,11 +42,14 @@ process.stdout.write(`${JSON.stringify({
   handles: readiness.marketplace.providers.map((provider) => ({
     service: provider.service,
     handle: provider.handle,
+    agentTokenId: provider.agentTokenId,
     status: provider.status,
+    owner: provider.identity?.owner ?? null,
+    registrationTransaction: provider.identity?.registrationTransaction ?? null,
   })),
   wallet,
   boundaries: [
-    "No wallet session, metadata upload, signature, transaction, listing write, or payment was performed.",
-    "If a handle is already indexed, authenticated owner inspection is required before any replacement is prepared.",
+    "This read-only invocation performed no wallet session, metadata upload, signature, transaction, listing write, or payment.",
+    "Four prior mint receipts are checked against the live ERC-8004 registry; listings, runtimes, staking, approvals, and paid orders remain separate actions.",
   ],
 }, null, 2)}\n`);

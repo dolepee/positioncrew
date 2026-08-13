@@ -107,6 +107,8 @@ export function EvidenceView({
     ? { label: "Providers online", tone: "good" }
     : aacpReadiness?.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING"
       ? { label: "Runtime pending", tone: "warn" }
+      : aacpReadiness?.state === "IDENTITIES_MINTED_LISTINGS_PENDING"
+        ? { label: "Listings pending", tone: "good" }
       : aacpReadiness?.state === "ONBOARDING_PENDING"
         ? { label: "Onboarding", tone: "neutral" }
         : aacpReadiness?.state === "MARKETPLACE_DISCOVERY_DEGRADED"
@@ -119,6 +121,8 @@ export function EvidenceView({
   const aacpProviderStatus = (status: AacpProductionReadiness["marketplace"]["providers"][number]["status"]) => ({
     HANDLE_AVAILABLE: "Ready to mint",
     HANDLE_UNRESOLVED: "Name reserved",
+    IDENTITY_ONCHAIN: "Identity minted",
+    IDENTITY_ONCHAIN_DISCOVERY_DEGRADED: "Minted · index delayed",
     AGENT_INDEXED: "Agent indexed",
     LISTED_OFFLINE: "Listing published",
     ONLINE_AND_LISTED: "Online",
@@ -178,6 +182,7 @@ export function EvidenceView({
             <div className="aacp-facts">
               <div><strong>{aacpReadiness.protocol.contractCount ? `${aacpReadiness.protocol.deployedCount}/${aacpReadiness.protocol.contractCount}` : "-"}</strong><span>production contracts</span><small>Bytecode checked independently on chain 56</small></div>
               <div><strong>{aacpReadiness.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness.protocol.protocolFeeBps === null ? "Fee unavailable" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
+              <div><strong>{aacpReadiness.marketplace.registeredIdentityCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>mainnet identities</span><small>Owner and metadata URI read directly from ERC-8004</small></div>
               <div><strong>{aacpReadiness.marketplace.publishedListingCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>public listings</span><small>Four exact production handles reserved</small></div>
               <div><strong>{aacpReadiness.marketplace.onlineProviderCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>online providers</span><small>A2A presence must remain live through judging</small></div>
             </div>
@@ -187,7 +192,8 @@ export function EvidenceView({
                   <span>{providers.find((candidate) => candidate.service === provider.service)?.category ?? provider.service}</span>
                   <strong>{provider.handle}</strong>
                   <small>{provider.agentTokenId ? `ERC-8004 #${provider.agentTokenId}` : provider.status === "HANDLE_AVAILABLE" ? "Handle unclaimed" : "Identity not yet resolved"}</small>
-                  <span className={`state-label ${provider.status === "ONLINE_AND_LISTED" ? "good" : provider.status.includes("UNAVAILABLE") ? "warn" : "neutral"}`}>{aacpProviderStatus(provider.status)}</span>
+                  {provider.identity ? <a className="aacp-identity-link" href={provider.identity.explorerUrl} target="_blank" rel="noreferrer">Mint receipt <ExternalLink size={11} /></a> : null}
+                  <span className={`state-label ${provider.status === "ONLINE_AND_LISTED" || provider.status === "IDENTITY_ONCHAIN" ? "good" : provider.status.includes("UNAVAILABLE") || provider.status.includes("DEGRADED") ? "warn" : "neutral"}`}>{aacpProviderStatus(provider.status)}</span>
                 </div>
               ))}
             </div>

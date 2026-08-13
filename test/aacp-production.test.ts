@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
+import { encodeFunctionResult, parseAbi } from "viem";
 import {
+  AACP_MAINNET_IDENTITY_EVIDENCE,
   AACP_PROVIDER_BLUEPRINTS,
   fetchAacpProductionConfig,
   getAacpProductionReadiness,
   unavailableAacpProductionReadiness,
 } from "../src/commerce/aacp-production.js";
+
+const ERC8004_IDENTITY_ABI = parseAbi([
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+]);
 
 const ADDRESSES = {
   identity: "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
@@ -97,6 +104,7 @@ function mockedFetch(options: {
   chainId?: string;
   handleAvailable?: boolean;
   searchStatus?: number;
+  wrongIdentityOwner?: boolean;
 } = {}) {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -113,6 +121,7 @@ function mockedFetch(options: {
       const calls = JSON.parse(String(init.body)) as Array<{
         id: number;
         method: string;
+        params: unknown[];
       }>;
       let codeIndex = 0;
       return json(
@@ -123,6 +132,29 @@ function mockedFetch(options: {
           if (call.method === "eth_getCode") {
             if (codeIndex === options.missingCodeAt) result = "0x";
             codeIndex += 1;
+          }
+          if (call.method === "eth_call") {
+            const request = call.params[0] as { data: `0x${string}` };
+            const tokenId = BigInt(`0x${request.data.slice(10)}`).toString();
+            const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
+              (provider) => provider.agentTokenId === tokenId,
+            );
+            if (!identity) throw new Error(`Unexpected identity token ${tokenId}`);
+            if (request.data.startsWith("0x6352211e")) {
+              result = encodeFunctionResult({
+                abi: ERC8004_IDENTITY_ABI,
+                functionName: "ownerOf",
+                result: options.wrongIdentityOwner
+                  ? "0x000000000000000000000000000000000000dEaD"
+                  : AACP_MAINNET_IDENTITY_EVIDENCE.owner as `0x${string}`,
+              });
+            } else {
+              result = encodeFunctionResult({
+                abi: ERC8004_IDENTITY_ABI,
+                functionName: "tokenURI",
+                result: identity.metadataUrl,
+              });
+            }
           }
           return { jsonrpc: "2.0", id: call.id, result };
         }),
@@ -152,7 +184,7 @@ describe("TermiX production AACP readiness", () => {
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.instantBuyable)).toBe(true);
   });
 
-  it("validates production config, bytecode, and unclaimed provider handles", async () => {
+  it("validates production config, bytecode, and four mainnet identities", async () => {
     const readiness = await getAacpProductionReadiness({
       fetchImpl: mockedFetch(),
       now: new Date("2026-08-13T12:00:00.000Z"),
@@ -161,7 +193,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness).toMatchObject({
       schemaVersion: "positioncrew.aacp-production-readiness.v1",
       generatedAt: "2026-08-13T12:00:00.000Z",
-      state: "ONBOARDING_PENDING",
+      state: "IDENTITIES_MINTED_LISTINGS_PENDING",
       network: { chainId: 56, blockNumber: "4660" },
       protocol: { protocolFeeBps: 200 },
       integration: {
@@ -187,6 +219,7 @@ describe("TermiX production AACP readiness", () => {
       },
       marketplace: {
         requiredProviderCount: 4,
+        registeredIdentityCount: 4,
         indexedProviderCount: 0,
         publishedListingCount: 0,
         onlineProviderCount: 0,
@@ -194,7 +227,14 @@ describe("TermiX production AACP readiness", () => {
     });
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
     expect(readiness.protocol.currencies.map((currency) => currency.symbol)).toEqual(["USDC", "USDT"]);
-    expect(readiness.marketplace.providers.every((provider) => provider.status === "HANDLE_AVAILABLE")).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.status === "IDENTITY_ONCHAIN")).toBe(true);
+    expect(readiness.marketplace.providers.map((provider) => provider.agentTokenId)).toEqual([
+      "266229",
+      "266231",
+      "266232",
+      "266234",
+    ]);
+    expect(readiness.marketplace.providers.every((provider) => provider.identity.onchainVerified)).toBe(true);
     expect(readiness.integration.lifecycle).toContain("PENDING_OR_EXPIRED_CANCELLATION");
     expect(readiness.integration.lifecycle).toContain("BUYER_RELEASE_REDO_DISPUTE_OR_TIMEOUT");
     expect(readiness.integration.runtime.operatorRequiredConversationKinds).toContain("CHALLENGE");
@@ -244,14 +284,21 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount - 1);
   });
 
+  it("fails closed when an ERC-8004 identity is no longer owned by the recorded wallet", async () => {
+    await expect(
+      getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongIdentityOwner: true }) }),
+    ).rejects.toThrow("owner mismatch");
+  });
+
   it("keeps protocol verification visible during an Agent.family search outage", async () => {
     const readiness = await getAacpProductionReadiness({
       fetchImpl: mockedFetch({ handleAvailable: false, searchStatus: 500 }),
     });
 
-    expect(readiness.state).toBe("MARKETPLACE_DISCOVERY_DEGRADED");
+    expect(readiness.state).toBe("IDENTITIES_MINTED_LISTINGS_PENDING");
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
-    expect(readiness.marketplace.providers.every((provider) => provider.status === "DISCOVERY_UNAVAILABLE")).toBe(true);
+    expect(readiness.marketplace.discoveryDegraded).toBe(true);
+    expect(readiness.marketplace.providers.every((provider) => provider.status === "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED")).toBe(true);
   });
 
   it("publishes a fail-closed record when live sources are unavailable", () => {
@@ -262,6 +309,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.state).toBe("SOURCE_UNAVAILABLE");
     expect(readiness.network).toMatchObject({ chainId: 56, blockNumber: null });
     expect(readiness.marketplace.requiredProviderCount).toBe(4);
+    expect(readiness.marketplace.registeredIdentityCount).toBe(0);
     expect(readiness.integration.runtime.ownerSignerOnHost).toBe(false);
     expect(readiness.integration.orderGuard.guardedActions).toHaveLength(10);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "UPSTREAM_UNAVAILABLE")).toBe(true);

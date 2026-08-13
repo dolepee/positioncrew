@@ -447,19 +447,26 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(aacpSection).toBeVisible();
   await expect(aacpSection.getByText("10/10", { exact: true })).toBeVisible();
   await expect(aacpSection.getByText("USDC + USDT", { exact: true })).toBeVisible();
-  await expect(aacpSection.getByText(/does not claim that a wallet-signed agent mint, paid order/)).toBeVisible();
+  await expect(aacpSection.getByText("4/4", { exact: true })).toBeVisible();
+  await expect(aacpSection.getByText(/does not claim that a service listing, online A2A runtime/)).toBeVisible();
 
   const aacpResponse = await getWithTransportRetry(page.request, "/api/commerce/aacp");
   expect(aacpResponse.status()).toBe(200);
   const aacp = await aacpResponse.json();
   expect(aacp).toMatchObject({
     schemaVersion: "positioncrew.aacp-production-readiness.v1",
-    state: "ONBOARDING_PENDING",
+    state: "IDENTITIES_MINTED_LISTINGS_PENDING",
     network: { chainId: 56 },
     protocol: { deployedCount: 10, contractCount: 10, currencyCount: 2 },
-    marketplace: { requiredProviderCount: 4 },
+    marketplace: {
+      requiredProviderCount: 4,
+      registeredIdentityCount: 4,
+      publishedListingCount: 0,
+      onlineProviderCount: 0,
+    },
   });
   expect(aacp.marketplace.providers).toHaveLength(4);
+  expect(aacp.marketplace.providers.every((provider: { identity: { onchainVerified: boolean } }) => provider.identity.onchainVerified)).toBe(true);
 
   const commerceResponse = await getWithTransportRetry(page.request, "/api/commerce/erc8183");
   expect(commerceResponse.status()).toBe(200);

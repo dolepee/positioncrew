@@ -170,6 +170,7 @@ export interface AacpProductionReadiness {
     | "PROTOCOL_DEGRADED"
     | "MARKETPLACE_DISCOVERY_DEGRADED"
     | "ONBOARDING_PENDING"
+    | "IDENTITIES_MINTED_LISTINGS_PENDING"
     | "LISTINGS_PUBLISHED_RUNTIME_PENDING"
     | "PROVIDERS_ONLINE";
   source: {
@@ -240,9 +241,11 @@ export interface AacpProductionReadiness {
   };
   marketplace: {
     requiredProviderCount: number;
+    registeredIdentityCount: number;
     indexedProviderCount: number;
     publishedListingCount: number;
     onlineProviderCount: number;
+    discoveryDegraded: boolean;
     providers: Array<{
       service: ServiceId;
       handle: string;
@@ -256,12 +259,30 @@ export interface AacpProductionReadiness {
       status:
         | "HANDLE_AVAILABLE"
         | "HANDLE_UNRESOLVED"
+        | "IDENTITY_ONCHAIN"
+        | "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED"
         | "AGENT_INDEXED"
         | "LISTED_OFFLINE"
         | "ONLINE_AND_LISTED"
         | "DISCOVERY_UNAVAILABLE"
         | "LISTING_DISCOVERY_UNAVAILABLE"
         | "UPSTREAM_UNAVAILABLE";
+      identity: {
+        service: ServiceId;
+        handle: string;
+        agentTokenId: string;
+        metadataUrl: string;
+        metadataSha256: string;
+        description: string;
+        tags: string[];
+        registrationTransaction: string;
+        blockNumber: number;
+        blockTimestamp: string;
+        gasCostBnb: string;
+        owner: string;
+        onchainVerified: true;
+        explorerUrl: string;
+      } | null;
     }>;
   };
   boundaries: string[];

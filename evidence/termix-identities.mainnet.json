@@ -1,0 +1,67 @@
+{
+  "schemaVersion": "positioncrew.termix-identities.v1",
+  "network": "bsc-mainnet",
+  "chainId": 56,
+  "identityRegistry": "0x8004A169FB4a3325136EB29fA0ceB6D2e539a432",
+  "owner": "0xbad35FA6e368e90fC4faf63507F2D0A2Fdf94BAF",
+  "providers": [
+    {
+      "service": "LENDING_RESCUE",
+      "handle": "positioncrew-lending-rescue.agent",
+      "agentTokenId": "266229",
+      "metadataUrl": "https://termix-platform-prod.s3.ap-southeast-1.amazonaws.com/platform/agents/328105f4b667a69be4730a1cf15d73e237713bf37fa50a7b70c2270397eda2d1.json",
+      "metadataSha256": "d4e10cfe71903322c821bdaa263c2a13ebdb82499eb40a5f2ccf6e2ce8d21d66",
+      "description": "Computes the smallest bounded Venus debt repayment or collateral top-up needed to reach a buyer-selected health factor.",
+      "tags": ["Monitor", "On-chain Analytics", "Financial Advisor"],
+      "registrationTransaction": "0xe6c0c0e9ebe2b202536dd9e2cbee597f6eea1c14877346e53d4860ebcbf2c9a4",
+      "blockNumber": 115682035,
+      "blockTimestamp": "2026-08-13T10:39:06.000Z",
+      "gasCostBnb": "0.000018993645"
+    },
+    {
+      "service": "LP_REBALANCE",
+      "handle": "positioncrew-lp-rebalance.agent",
+      "agentTokenId": "266231",
+      "metadataUrl": "https://termix-platform-prod.s3.ap-southeast-1.amazonaws.com/platform/agents/4a7951ea9fc2197255db76587c0e3975beed799e8c4f0be898d68f3e961d502f.json",
+      "metadataSha256": "897b74f65acd7cd47538d1d27d3a27a56b8d8292034f41e2312960fe6e6a2e8e",
+      "description": "Evaluates a PancakeSwap V3 position and proposes a cost-, slippage-, inventory-, and break-even-bounded range shift or HOLD.",
+      "tags": ["DeFi Yield Optimizer", "Portfolio Management", "On-chain Analytics"],
+      "registrationTransaction": "0x172a70da1d8deb94faa1235341887c46c3f86ee791cf88ec8fa2fc18ce1d476c",
+      "blockNumber": 115682311,
+      "blockTimestamp": "2026-08-13T10:41:10.000Z",
+      "gasCostBnb": "0.000018053145"
+    },
+    {
+      "service": "YIELD_OPTIMIZATION",
+      "handle": "positioncrew-yield-optimizer.agent",
+      "agentTokenId": "266232",
+      "metadataUrl": "https://termix-platform-prod.s3.ap-southeast-1.amazonaws.com/platform/agents/5fb1d1e82534ccb713fd3d2236405f24ac2c23b5cf2b234bfc91565927a39227.json",
+      "metadataSha256": "054030b5fd4ae604443fdd31aec42eb2d8ff534613b1f30102a80e7763d2a61e",
+      "description": "Compares block-pinned Venus stablecoin markets and returns a liquidity-, concentration-, migration-cost-, and risk-bounded allocation or HOLD.",
+      "tags": ["DeFi Yield Optimizer", "Portfolio Management", "On-chain Analytics"],
+      "registrationTransaction": "0xc8a9a38d3511a24d4c10a3e6ab56dda799a56164df05cfc6369c37ea6faef373",
+      "blockNumber": 115682447,
+      "blockTimestamp": "2026-08-13T10:42:14.000Z",
+      "gasCostBnb": "0.000018053145"
+    },
+    {
+      "service": "BOUNDED_GRID",
+      "handle": "positioncrew-bounded-grid.agent",
+      "agentTokenId": "266234",
+      "metadataUrl": "https://termix-platform-prod.s3.ap-southeast-1.amazonaws.com/platform/agents/87bac7211dee119ac4b2516aae80e7ba595c8048f8d58800f704168d2791e316.json",
+      "metadataSha256": "fa1bfd151ac96c6de998e45b076df8bda42d884e15028c2e174608b9d5cf442e",
+      "description": "Constructs or rejects a PancakeSwap WBNB/USDT grid under explicit volatility, fee, slippage, inventory, gas, and maximum-loss limits.",
+      "tags": ["Trading Bot", "Quant Strategy", "Technical Analysis"],
+      "registrationTransaction": "0xe69d3169026bc0381fa14f7097c85ecffb989dba407a2a01ef38a9a715a1bc4b",
+      "blockNumber": 115682900,
+      "blockTimestamp": "2026-08-13T10:45:37.000Z",
+      "gasCostBnb": "0.000018053145"
+    }
+  ],
+  "totalGasCostBnb": "0.00007315308",
+  "verifiedAt": "2026-08-13T10:50:32Z",
+  "boundaries": [
+    "These receipts prove four ERC-8004 identities minted on BNB Chain mainnet by the registered PositionCrew wallet.",
+    "They do not prove a published listing, online A2A runtime, stake, token approval, paid order, external demand, or revenue."
+  ]
+}

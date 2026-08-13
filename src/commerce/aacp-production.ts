@@ -1,4 +1,11 @@
 import { z } from "zod";
+import {
+  decodeFunctionResult,
+  encodeFunctionData,
+  getAddress,
+  parseAbi,
+} from "viem";
+import termixIdentityEvidence from "../../evidence/termix-identities.mainnet.json" with { type: "json" };
 import { AddressSchema, ServiceTypeSchema } from "../contracts/common.js";
 import {
   TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
@@ -27,6 +34,44 @@ export const AACP_ORDER_GUARD_ACTIONS = [
 ] as const;
 
 const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
+
+const ERC8004_IDENTITY_ABI = parseAbi([
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function tokenURI(uint256 tokenId) view returns (string)",
+]);
+
+const TransactionHashSchema = z.string().regex(/^0x[0-9a-fA-F]{64}$/);
+const Sha256Schema = z.string().regex(/^[0-9a-f]{64}$/);
+
+const AacpMainnetIdentityEvidenceSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.termix-identities.v1"),
+    network: z.literal("bsc-mainnet"),
+    chainId: z.literal(56),
+    identityRegistry: AddressSchema,
+    owner: AddressSchema,
+    providers: z.array(
+      z
+        .object({
+          service: ServiceTypeSchema,
+          handle: z.string().regex(/^positioncrew-[a-z0-9-]+\.agent$/),
+          agentTokenId: z.string().regex(/^\d+$/),
+          metadataUrl: z.string().url(),
+          metadataSha256: Sha256Schema,
+          description: z.string().min(1),
+          tags: z.array(z.string().min(1)).min(1),
+          registrationTransaction: TransactionHashSchema,
+          blockNumber: z.number().int().positive(),
+          blockTimestamp: z.string().datetime(),
+          gasCostBnb: z.string().regex(/^0\.\d+$/),
+        })
+        .strict(),
+    ).length(4),
+    totalGasCostBnb: z.string().regex(/^0\.\d+$/),
+    verifiedAt: z.string().datetime(),
+    boundaries: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
 
 const ContractDescriptorSchema = z
   .object({
@@ -316,6 +361,24 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
   ),
 ] as const;
 
+export const AACP_MAINNET_IDENTITY_EVIDENCE =
+  AacpMainnetIdentityEvidenceSchema.parse(termixIdentityEvidence);
+
+for (const blueprintValue of AACP_PROVIDER_BLUEPRINTS) {
+  const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
+    (candidate) => candidate.service === blueprintValue.service,
+  );
+  if (!identity) {
+    throw new Error(`Missing mainnet identity evidence for ${blueprintValue.service}`);
+  }
+  if (
+    identity.handle !== blueprintValue.handle ||
+    identity.description !== blueprintValue.description
+  ) {
+    throw new Error(`Mainnet identity evidence drifted for ${blueprintValue.service}`);
+  }
+}
+
 const ExplorerAgentSchema = z
   .object({
     agent: z
@@ -443,11 +506,48 @@ async function probeContracts(
   config: AacpProductionConfig,
   fetchImpl: typeof fetch,
 ) {
+  if (
+    AACP_MAINNET_IDENTITY_EVIDENCE.identityRegistry.toLowerCase() !==
+    config.contracts.identityRegistry.address.toLowerCase()
+  ) {
+    throw new Error("Recorded identity registry does not match the live TermiX config");
+  }
   const targets = contractTargets(config);
+  const identityCalls = AACP_MAINNET_IDENTITY_EVIDENCE.providers.flatMap((identity) => [
+    {
+      method: "eth_call",
+      params: [
+        {
+          to: config.contracts.identityRegistry.address,
+          data: encodeFunctionData({
+            abi: ERC8004_IDENTITY_ABI,
+            functionName: "ownerOf",
+            args: [BigInt(identity.agentTokenId)],
+          }),
+        },
+        "latest",
+      ],
+    },
+    {
+      method: "eth_call",
+      params: [
+        {
+          to: config.contracts.identityRegistry.address,
+          data: encodeFunctionData({
+            abi: ERC8004_IDENTITY_ABI,
+            functionName: "tokenURI",
+            args: [BigInt(identity.agentTokenId)],
+          }),
+        },
+        "latest",
+      ],
+    },
+  ]);
   const calls = [
     { method: "eth_chainId", params: [] },
     { method: "eth_blockNumber", params: [] },
     ...targets.map((target) => ({ method: "eth_getCode", params: [target.address, "latest"] })),
+    ...identityCalls,
   ];
   let values: unknown[] | null = null;
   let selectedRpc = AACP_BSC_RPC;
@@ -474,11 +574,61 @@ async function probeContracts(
       explorerUrl: `${config.explorerBaseUrl}/address/${target.address}`,
     };
   });
-  return { rpcUrl: selectedRpc, blockNumber, contracts };
+  const identityOffset = 2 + targets.length;
+  const identities = AACP_MAINNET_IDENTITY_EVIDENCE.providers.map((identity, index) => {
+    const owner = getAddress(
+      decodeFunctionResult({
+        abi: ERC8004_IDENTITY_ABI,
+        functionName: "ownerOf",
+        data: String(values![identityOffset + index * 2]) as `0x${string}`,
+      }),
+    );
+    const metadataUrl = decodeFunctionResult({
+      abi: ERC8004_IDENTITY_ABI,
+      functionName: "tokenURI",
+      data: String(values![identityOffset + index * 2 + 1]) as `0x${string}`,
+    });
+    if (owner.toLowerCase() !== AACP_MAINNET_IDENTITY_EVIDENCE.owner.toLowerCase()) {
+      throw new Error(`ERC-8004 owner mismatch for ${identity.handle}`);
+    }
+    if (metadataUrl !== identity.metadataUrl) {
+      throw new Error(`ERC-8004 metadata URI mismatch for ${identity.handle}`);
+    }
+    return {
+      ...identity,
+      owner,
+      onchainVerified: true as const,
+      explorerUrl: `${config.explorerBaseUrl}/tx/${identity.registrationTransaction}`,
+    };
+  });
+  return { rpcUrl: selectedRpc, blockNumber, contracts, identities };
+}
+
+type VerifiedAacpIdentity = Awaited<ReturnType<typeof probeContracts>>["identities"][number];
+
+function identityBackedProvider(
+  blueprintValue: AacpProviderBlueprint,
+  identity: VerifiedAacpIdentity,
+  status: "IDENTITY_ONCHAIN" | "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED",
+) {
+  return {
+    service: blueprintValue.service,
+    handle: blueprintValue.handle,
+    agentId: null,
+    agentTokenId: identity.agentTokenId,
+    listingId: null,
+    listingStatus: null,
+    a2aStatus: null,
+    presence: null,
+    verified: false,
+    status,
+    identity,
+  };
 }
 
 async function discoverProvider(
   blueprintValue: AacpProviderBlueprint,
+  identity: VerifiedAacpIdentity,
   fetchImpl: typeof fetch,
 ) {
   try {
@@ -492,18 +642,7 @@ async function discoverProvider(
       throw new Error(`TermiX normalized ${blueprintValue.handle} to another handle`);
     }
     if (availability.available) {
-      return {
-        service: blueprintValue.service,
-        handle: blueprintValue.handle,
-        agentId: null,
-        agentTokenId: null,
-        listingId: null,
-        listingStatus: null,
-        a2aStatus: null,
-        presence: null,
-        verified: false,
-        status: "HANDLE_AVAILABLE" as const,
-      };
+      return identityBackedProvider(blueprintValue, identity, "IDENTITY_ONCHAIN");
     }
   } catch {
     // Continue to public discovery. Availability failure must not imply a handle is free.
@@ -518,35 +657,20 @@ async function discoverProvider(
       ),
     );
   } catch {
-    return {
-      service: blueprintValue.service,
-      handle: blueprintValue.handle,
-      agentId: null,
-      agentTokenId: null,
-      listingId: null,
-      listingStatus: null,
-      a2aStatus: null,
-      presence: null,
-      verified: false,
-      status: "DISCOVERY_UNAVAILABLE" as const,
-    };
+    return identityBackedProvider(
+      blueprintValue,
+      identity,
+      "IDENTITY_ONCHAIN_DISCOVERY_DEGRADED",
+    );
   }
   const matched = search.items.find(
     (item) => item.agent.name.toLowerCase() === blueprintValue.handle.toLowerCase(),
   );
   if (!matched) {
-    return {
-      service: blueprintValue.service,
-      handle: blueprintValue.handle,
-      agentId: null,
-      agentTokenId: null,
-      listingId: null,
-      listingStatus: null,
-      a2aStatus: null,
-      presence: null,
-      verified: false,
-      status: "HANDLE_UNRESOLVED" as const,
-    };
+    return identityBackedProvider(blueprintValue, identity, "IDENTITY_ONCHAIN");
+  }
+  if (matched.agent.agentTokenId !== identity.agentTokenId) {
+    throw new Error(`Agent.family token ID mismatch for ${blueprintValue.handle}`);
   }
   let listings: z.infer<typeof ListingResponseSchema>;
   try {
@@ -568,6 +692,7 @@ async function discoverProvider(
       presence: matched.agent.presence,
       verified: matched.agent.verified,
       status: "LISTING_DISCOVERY_UNAVAILABLE" as const,
+      identity,
     };
   }
   const listing = listings.items.find(
@@ -585,6 +710,7 @@ async function discoverProvider(
     presence: matched.agent.presence,
     verified: matched.agent.verified,
     status: listing ? (online ? "ONLINE_AND_LISTED" : "LISTED_OFFLINE") : "AGENT_INDEXED",
+    identity,
   };
 }
 
@@ -592,24 +718,33 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const config = await fetchAacpProductionConfig({ fetchImpl });
-  const [chain, providers] = await Promise.all([
-    probeContracts(config, fetchImpl),
-    Promise.all(AACP_PROVIDER_BLUEPRINTS.map((item) => discoverProvider(item, fetchImpl))),
-  ]);
+  const chain = await probeContracts(config, fetchImpl);
+  const providers = await Promise.all(
+    AACP_PROVIDER_BLUEPRINTS.map((item) => {
+      const identity = chain.identities.find((candidate) => candidate.service === item.service);
+      if (!identity) throw new Error(`Verified mainnet identity missing for ${item.service}`);
+      return discoverProvider(item, identity, fetchImpl);
+    }),
+  );
   const deployedCount = chain.contracts.filter((contract) => contract.deployed).length;
   const listedCount = providers.filter((provider) => provider.listingStatus === "PUBLISHED").length;
   const onlineCount = providers.filter((provider) => provider.status === "ONLINE_AND_LISTED").length;
   const allContractsDeployed = deployedCount === chain.contracts.length;
-  const discoveryDegraded = providers.some((provider) => provider.status.includes("UNAVAILABLE"));
+  const registeredIdentityCount = chain.identities.filter((identity) => identity.onchainVerified).length;
+  const discoveryDegraded = providers.some(
+    (provider) => provider.status.includes("UNAVAILABLE") || provider.status.includes("DEGRADED"),
+  );
   const state = !allContractsDeployed
     ? "PROTOCOL_DEGRADED"
-    : discoveryDegraded
-      ? "MARKETPLACE_DISCOVERY_DEGRADED"
-      : listedCount === providers.length && onlineCount === providers.length
-        ? "PROVIDERS_ONLINE"
-        : listedCount === providers.length
-          ? "LISTINGS_PUBLISHED_RUNTIME_PENDING"
-          : "ONBOARDING_PENDING";
+    : listedCount === providers.length && onlineCount === providers.length
+      ? "PROVIDERS_ONLINE"
+      : listedCount === providers.length
+        ? "LISTINGS_PUBLISHED_RUNTIME_PENDING"
+        : registeredIdentityCount === providers.length
+          ? "IDENTITIES_MINTED_LISTINGS_PENDING"
+          : discoveryDegraded
+            ? "MARKETPLACE_DISCOVERY_DEGRADED"
+            : "ONBOARDING_PENDING";
   return {
     schemaVersion: "positioncrew.aacp-production-readiness.v1" as const,
     generatedAt,
@@ -693,14 +828,16 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
     },
     marketplace: {
       requiredProviderCount: AACP_PROVIDER_BLUEPRINTS.length,
+      registeredIdentityCount,
       indexedProviderCount: providers.filter((provider) => provider.agentId !== null).length,
       publishedListingCount: listedCount,
       onlineProviderCount: onlineCount,
+      discoveryDegraded,
       providers,
     },
     boundaries: [
-      "This record validates the documented production AACP config, independent BSC bytecode, and public Agent.family discovery state.",
-      "It does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
+      "This record validates the documented production AACP config, independent BSC bytecode, and four wallet-owned ERC-8004 identities directly on BNB Chain mainnet.",
+      "It does not claim that a service listing, online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue has occurred.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
@@ -782,9 +919,11 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
     },
     marketplace: {
       requiredProviderCount: AACP_PROVIDER_BLUEPRINTS.length,
+      registeredIdentityCount: 0,
       indexedProviderCount: 0,
       publishedListingCount: 0,
       onlineProviderCount: 0,
+      discoveryDegraded: true,
       providers: AACP_PROVIDER_BLUEPRINTS.map((provider) => ({
         service: provider.service,
         handle: provider.handle,
@@ -796,6 +935,7 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
         presence: null,
         verified: false,
         status: "UPSTREAM_UNAVAILABLE" as const,
+        identity: null,
       })),
     },
     boundaries: [
