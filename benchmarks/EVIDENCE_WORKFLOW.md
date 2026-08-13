@@ -87,7 +87,7 @@ It also requires one consistent manual-operator identity, one consistent blind-e
 npm run benchmark:verify-report -- <output-directory>
 ```
 
-The verifier deterministically regenerates both human-readable presentations from the committed JSON and rejects a changed HTML/Markdown report, attachment, task manifest, participant summary, aggregate summary, or result attachment.
+The verifier deterministically regenerates both human-readable presentations from the committed JSON and rejects a changed HTML/Markdown report, attachment, task manifest, participant summary, aggregate summary, or result attachment. It also binds the six precommitted public marketplace deliveries and an attached copy of the seven-job BSC Testnet commerce ledger into a separate high-stakes track-record section. The section preserves the ledger's same-operator, zero-external-buyer, and zero-revenue boundary.
 
 ## 7. Stage the verified public report
 

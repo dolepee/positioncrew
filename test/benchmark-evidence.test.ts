@@ -308,7 +308,7 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       marketplaceEvidenceHash: "sha256:0588d908352e3bacb799f595909e11d1becdeec7063265c7a7aa5b8e493fba84",
       marketplaceProtocolHash: "sha256:4935a4d6a32291112a1f64911765429ca90e65aa9a8a2d966634833cced597e4",
     });
-    expect(report.schemaVersion).toBe("positioncrew.agent-advantage-report.v3");
+    expect(report.schemaVersion).toBe("positioncrew.agent-advantage-report.v4");
     expect(report.tasks.map((task) => task.benchmarkSlug)).toEqual([
       "lending-rescue",
       "lp-rebalance",
@@ -317,6 +317,21 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     expect(existsSync(join(outputDirectory, "agent-advantage-report.md"))).toBe(true);
     expect(existsSync(join(outputDirectory, "agent-advantage-report.html"))).toBe(true);
     expect(existsSync(join(outputDirectory, "marketplace-invocation-evidence.json"))).toBe(true);
+    expect(existsSync(join(outputDirectory, "erc8183-jobs.testnet.json"))).toBe(true);
+    expect(report.trackRecord).toMatchObject({
+      highStakesServiceCount: 4,
+      marketplace: {
+        attemptedNoRetryDeliveries: 6,
+        successfulNoRetryDeliveries: 6,
+      },
+      onchainTestnet: {
+        completedLifecycles: 7,
+        fundedCompletedJobs: 6,
+        mandatoryCategoriesCovered: 4,
+        externalBuyerJobs: 0,
+        externalRevenue: "0",
+      },
+    });
     expect(report.tasks.every((task) => task.marketplaceDelivery.successCount === 2)).toBe(true);
     expect(existsSync(join(outputDirectory, "tasks", "bounded-grid", "manual-output.json"))).toBe(true);
     expect(readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8")).toContain(
@@ -364,6 +379,9 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
         join(evidenceRoot, "agent-advantage", "marketplace-invocation-evidence.json"),
       ),
     ).toBe(true);
+    expect(
+      existsSync(join(evidenceRoot, "agent-advantage", "erc8183-jobs.testnet.json")),
+    ).toBe(true);
     expect(existsSync(join(evidenceRoot, "agent-advantage", "private-note.txt"))).toBe(false);
     expect(
       JSON.parse(readFileSync(join(evidenceRoot, "agent-advantage-status.json"), "utf8")),
@@ -389,6 +407,14 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       "Marketplace invocation evidence commitment is invalid",
     );
     writeFileSync(marketplaceEvidencePath, originalMarketplaceEvidence);
+
+    const commerceLedgerPath = join(outputDirectory, "erc8183-jobs.testnet.json");
+    const originalCommerceLedger = readFileSync(commerceLedgerPath, "utf8");
+    const changedCommerceLedger = JSON.parse(originalCommerceLedger);
+    changedCommerceLedger.summary.externalBuyerJobs = 1;
+    writeFileSync(commerceLedgerPath, `${JSON.stringify(changedCommerceLedger, null, 2)}\n`);
+    expect(() => verifyAgentAdvantageReport(outputDirectory)).toThrow();
+    writeFileSync(commerceLedgerPath, originalCommerceLedger);
 
     const htmlPath = join(outputDirectory, "agent-advantage-report.html");
     const originalHtml = readFileSync(htmlPath, "utf8");

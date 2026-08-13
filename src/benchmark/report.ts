@@ -79,6 +79,113 @@ const MarketplaceDeliverySchema = z
   })
   .strict();
 
+const Erc8183TestnetLedgerSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.erc8183-testnet-ledger.v1"),
+    network: z
+      .object({
+        name: z.literal("BSC Testnet"),
+        chainId: z.literal(97),
+        explorer: z.string().url(),
+      })
+      .strict(),
+    parties: z
+      .object({
+        client: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+        provider: z.string().regex(/^0x[a-fA-F0-9]{40}$/),
+        relationship: z.literal("SAME_DISCLOSED_OPERATOR_SEPARATE_WALLETS"),
+      })
+      .strict(),
+    summary: z
+      .object({
+        completedLifecycles: z.number().int().positive(),
+        fundedCompletedJobs: z.number().int().positive(),
+        zeroPricePathProbes: z.number().int().nonnegative(),
+        mandatoryCategoriesCovered: z.literal(4),
+        totalEscrowBaseUnits: z.string().regex(/^\d+$/),
+        totalEscrowDisplay: z.string().min(1),
+        externalBuyerJobs: z.literal(0),
+        externalRevenue: z.literal("0"),
+      })
+      .strict(),
+    claimBoundary: z.array(z.string().min(20)).min(3),
+    jobs: z
+      .array(
+        z
+          .object({
+            jobId: z.number().int().positive(),
+            service: z.enum([
+              "LENDING_RESCUE",
+              "LP_REBALANCE",
+              "YIELD_OPTIMIZATION",
+              "BOUNDED_GRID",
+            ]),
+            runType: z.enum([
+              "ZERO_PRICE_PATH_PROBE",
+              "FUNDED_CATEGORY_RECEIPT",
+              "FUNDED_REPEAT_RECEIPT",
+            ]),
+            budgetBaseUnits: z.string().regex(/^\d+$/),
+            status: z.literal("COMPLETED"),
+            manifestUrl: z.string().url(),
+            manifestHash: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+            transactions: z
+              .object({
+                create: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+                setBudget: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+                register: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+                fund: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+                submit: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+                settle: z.string().regex(/^0x[a-fA-F0-9]{64}$/),
+              })
+              .strict(),
+          })
+          .passthrough(),
+      )
+      .min(1),
+  })
+  .passthrough();
+
+const AgentAdvantageTrackRecordSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.agent-advantage-track-record.v1"),
+    highStakesServiceCount: z.literal(4),
+    highStakesServices: z.tuple([
+      z.literal("LENDING_RESCUE"),
+      z.literal("LP_REBALANCE"),
+      z.literal("YIELD_OPTIMIZATION"),
+      z.literal("BOUNDED_GRID"),
+    ]),
+    marketplace: z
+      .object({
+        attemptedNoRetryDeliveries: z.literal(6),
+        successfulNoRetryDeliveries: z.literal(6),
+        evidenceHash: HashSchema,
+        protocolHash: HashSchema,
+      })
+      .strict(),
+    onchainTestnet: z
+      .object({
+        network: z.literal("BSC Testnet"),
+        chainId: z.literal(97),
+        completedLifecycles: z.number().int().positive(),
+        fundedCompletedJobs: z.number().int().positive(),
+        mandatoryCategoriesCovered: z.literal(4),
+        totalEscrowDisplay: z.string().min(1),
+        operatorRelationship: z.literal("SAME_DISCLOSED_OPERATOR_SEPARATE_WALLETS"),
+        externalBuyerJobs: z.literal(0),
+        externalRevenue: z.literal("0"),
+        ledgerPath: z.literal("erc8183-jobs.testnet.json"),
+        ledgerHash: HashSchema,
+      })
+      .strict(),
+    productionMonitorUrl: z.literal(
+      "https://positioncrew.dolepee.com/api/operations/production",
+    ),
+    boundary: z.string().min(20),
+  })
+  .strict();
+
 export const AgentAdvantageReportTaskSchema = z
   .object({
     benchmarkSlug: z.enum(["lending-rescue", "lp-rebalance", "bounded-grid"]),
@@ -102,7 +209,7 @@ export const AgentAdvantageReportTaskSchema = z
 
 export const AgentAdvantageReportSchema = z
   .object({
-    schemaVersion: z.literal("positioncrew.agent-advantage-report.v3"),
+    schemaVersion: z.literal("positioncrew.agent-advantage-report.v4"),
     generatedAt: TimestampSchema,
     project: z
       .object({
@@ -151,6 +258,7 @@ export const AgentAdvantageReportSchema = z
         evidenceManifestHash: HashSchema,
       })
       .strict(),
+    trackRecord: AgentAdvantageTrackRecordSchema,
     tasks: z.array(AgentAdvantageReportTaskSchema).length(3),
     boundaries: z.array(z.string().min(20)).min(4),
     reportHash: HashSchema,
@@ -178,6 +286,64 @@ function usdDifference(manual: string, agent: string): number {
 
 function speedup(manualMilliseconds: number, agentMilliseconds: number): number {
   return Number((manualMilliseconds / agentMilliseconds).toFixed(2));
+}
+
+function loadErc8183TestnetLedger(projectRoot: string) {
+  const ledger = Erc8183TestnetLedgerSchema.parse(
+    JSON.parse(
+      readFileSync(join(projectRoot, "evidence", "erc8183-jobs.testnet.json"), "utf8"),
+    ),
+  );
+  if (ledger.jobs.length !== ledger.summary.completedLifecycles) {
+    throw new Error("ERC-8183 ledger job count does not match its lifecycle summary");
+  }
+  const fundedJobs = ledger.jobs.filter((job) => BigInt(job.budgetBaseUnits) > 0n);
+  if (fundedJobs.length !== ledger.summary.fundedCompletedJobs) {
+    throw new Error("ERC-8183 funded job count does not match its summary");
+  }
+  const categories = new Set(ledger.jobs.map((job) => job.service));
+  if (categories.size !== ledger.summary.mandatoryCategoriesCovered) {
+    throw new Error("ERC-8183 category coverage does not match its summary");
+  }
+  return ledger;
+}
+
+function buildTrackRecord(
+  marketplaceEvidence: MarketplaceInvocationEvidence,
+  ledger: z.infer<typeof Erc8183TestnetLedgerSchema>,
+): z.infer<typeof AgentAdvantageTrackRecordSchema> {
+  return AgentAdvantageTrackRecordSchema.parse({
+    schemaVersion: "positioncrew.agent-advantage-track-record.v1",
+    highStakesServiceCount: 4,
+    highStakesServices: [
+      "LENDING_RESCUE",
+      "LP_REBALANCE",
+      "YIELD_OPTIMIZATION",
+      "BOUNDED_GRID",
+    ],
+    marketplace: {
+      attemptedNoRetryDeliveries: marketplaceEvidence.aggregate.plannedAttemptCount,
+      successfulNoRetryDeliveries: marketplaceEvidence.aggregate.successCount,
+      evidenceHash: marketplaceEvidence.evidenceHash,
+      protocolHash: marketplaceEvidence.protocolHash,
+    },
+    onchainTestnet: {
+      network: ledger.network.name,
+      chainId: ledger.network.chainId,
+      completedLifecycles: ledger.summary.completedLifecycles,
+      fundedCompletedJobs: ledger.summary.fundedCompletedJobs,
+      mandatoryCategoriesCovered: ledger.summary.mandatoryCategoriesCovered,
+      totalEscrowDisplay: ledger.summary.totalEscrowDisplay,
+      operatorRelationship: ledger.parties.relationship,
+      externalBuyerJobs: ledger.summary.externalBuyerJobs,
+      externalRevenue: ledger.summary.externalRevenue,
+      ledgerPath: "erc8183-jobs.testnet.json",
+      ledgerHash: canonicalHash(ledger),
+    },
+    productionMonitorUrl: "https://positioncrew.dolepee.com/api/operations/production",
+    boundary:
+      "Marketplace deliveries are no-wallet conformance trials and the funded onchain jobs are disclosed same-operator BSC Testnet integration runs, not external demand, revenue, or live investment performance.",
+  });
 }
 
 function taskMarkdown(task: AgentAdvantageReportTask): string {
@@ -241,6 +407,16 @@ function reportMarkdown(report: AgentAdvantageReport): string {
     "- A separately precommitted overlay retained two no-retry public marketplace deliveries per task. It reports end-to-end HTTP latency and exact output commitments without changing the locked decision rule.",
     `- The same manual operator completed all three tasks: ${report.participants.manualOperator.displayName} (${report.participants.manualOperator.contactReference}).`,
     `- A different independent evaluator scored all six blinded candidates: ${report.participants.blindEvaluator.displayName} (${report.participants.blindEvaluator.contactReference}).`,
+    "",
+    "## High-stakes operating record",
+    "",
+    `- ${report.trackRecord.highStakesServiceCount}/4 required capital services are implemented with distinct Provider request and deliverable schemas.`,
+    `- ${report.trackRecord.marketplace.successfulNoRetryDeliveries}/${report.trackRecord.marketplace.attemptedNoRetryDeliveries} precommitted public marketplace deliveries completed with no retries.`,
+    `- ${report.trackRecord.onchainTestnet.completedLifecycles} BSC Testnet commerce lifecycles completed, including ${report.trackRecord.onchainTestnet.fundedCompletedJobs} funded jobs spanning ${report.trackRecord.onchainTestnet.mandatoryCategoriesCovered}/4 categories and ${report.trackRecord.onchainTestnet.totalEscrowDisplay} of disclosed testnet escrow.`,
+    `- External buyer jobs: ${report.trackRecord.onchainTestnet.externalBuyerJobs}. External revenue: ${report.trackRecord.onchainTestnet.externalRevenue}.`,
+    `- [Onchain testnet ledger](${report.trackRecord.onchainTestnet.ledgerPath}) · [Production monitor](${report.trackRecord.productionMonitorUrl})`,
+    "",
+    report.trackRecord.boundary,
     "",
     ...report.tasks.map(taskMarkdown),
     "## Claim boundaries",
@@ -333,7 +509,7 @@ function reportHtml(report: AgentAdvantageReport): string {
   <title>PositionCrew Agent Advantage Report</title>
   <style>
     :root{color-scheme:light;--ink:#161d19;--muted:#5d6861;--line:#d8dfda;--paper:#fff;--soft:#f2f5f2;--green:#17644f;--green-soft:#e7f3ee;--yellow:#f4c542;--yellow-soft:#fff8dd;--red:#923b49;--dark:#111713}
-    *{box-sizing:border-box}html{background:#e9eeea}body{margin:0;color:var(--ink);background:#e9eeea;font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}a{color:var(--green);font-weight:750;text-underline-offset:3px}code{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.shell{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{color:#fff;background:var(--dark);border-bottom:5px solid var(--yellow)}.hero .shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.45fr);gap:44px;padding:48px 0 42px}.eyebrow{display:block;color:#758279;font-size:10px;font-weight:850;text-transform:uppercase}.hero .eyebrow{color:#b9c4bd}.hero h1{margin:10px 0 12px;font-size:clamp(32px,5vw,62px);line-height:1.02;letter-spacing:0}.hero p{max-width:720px;margin:0;color:#c9d1cc;font-size:17px}.hero-meta{align-self:end;border-left:1px solid #3a453e;padding-left:24px}.hero-meta span,.hero-meta strong{display:block}.hero-meta span{color:#9eaaa3;font-size:11px;text-transform:uppercase}.hero-meta strong{margin:5px 0 18px;font-size:14px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-top:0;background:var(--paper)}.summary div{min-width:0;padding:20px;border-right:1px solid var(--line)}.summary div:last-child{border-right:0}.summary strong,.summary span{display:block}.summary strong{font-size:27px;line-height:1.1}.summary span{margin-top:7px;color:var(--muted);font-size:11px}.intro{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:38px;padding:38px 0}.intro h2{margin:7px 0 10px;font-size:25px}.intro p{margin:0;color:var(--muted)}.people{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);background:var(--paper)}.people div{min-width:0;padding:16px}.people div+div{border-left:1px solid var(--line)}.people span,.people strong,.people small{display:block}.people span{color:var(--muted);font-size:10px;text-transform:uppercase}.people strong{margin-top:6px}.people small{margin-top:3px;overflow-wrap:anywhere;color:var(--muted)}.task{margin-bottom:22px;border:1px solid var(--line);background:var(--paper)}.task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px;border-bottom:1px solid var(--line)}.task h2{margin:5px 0 0;font-size:22px}.result{flex:0 0 auto;padding:6px 9px;border:1px solid;font-size:10px;font-weight:900}.result.supported{color:var(--green);border-color:#9fc5b5;background:var(--green-soft)}.result.unsupported{color:var(--red);border-color:#d6a8af;background:#fff1f3}.stakes{margin:0;padding:15px 24px;color:#5b4c19;background:var(--yellow-soft);border-bottom:1px solid #eadba0}.deliverables{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}.deliverables article{padding:20px 24px}.deliverables article+article{border-left:1px solid var(--line)}.deliverables span{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.deliverables p{margin:7px 0 0}.comparison{padding:8px 24px}.comparison-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,.75fr) minmax(130px,.75fr);gap:18px;padding:11px 0;border-bottom:1px solid #e8ece9}.comparison-row:last-child{border-bottom:0}.comparison-row.header{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.comparison-row strong{font-size:13px}.task-foot{display:grid;grid-template-columns:minmax(250px,1fr) minmax(310px,auto);gap:14px 24px;align-items:center;padding:17px 24px;background:var(--soft);border-top:1px solid var(--line)}.task-foot p{margin:0}.task-foot nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}.task-foot code{grid-column:1/-1;color:var(--muted)}.boundaries{margin:36px 0 50px;padding:26px 28px;color:#d5ded8;background:var(--dark);border-left:5px solid var(--yellow)}.boundaries h2{margin:0 0 12px;color:#fff;font-size:20px}.boundaries ul{margin:0;padding-left:19px}.boundaries li+li{margin-top:8px}.commitments{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:22px;background:#354039;border:1px solid #354039}.commitments div{min-width:0;padding:14px;background:#1b241f}.commitments span,.commitments code{display:block}.commitments span{color:#9faca4;font-size:10px;text-transform:uppercase}.commitments code{margin-top:5px;color:#fff}.footer{padding:0 0 40px;color:var(--muted);font-size:11px}.footer a{margin-right:14px}@media(max-width:760px){.shell{width:min(100% - 18px,1180px)}.hero .shell,.intro{grid-template-columns:1fr}.hero .shell{gap:26px;padding:32px 0}.hero-meta{border-top:1px solid #3a453e;border-left:0;padding:18px 0 0}.summary{grid-template-columns:1fr 1fr}.summary div:nth-child(2){border-right:0}.summary div:nth-child(-n+2){border-bottom:1px solid var(--line)}.people,.deliverables,.commitments{grid-template-columns:1fr}.people div+div,.deliverables article+article{border-top:1px solid var(--line);border-left:0}.task-head{padding:18px}.stakes,.deliverables article,.comparison,.task-foot{padding-left:18px;padding-right:18px}.comparison-row{grid-template-columns:minmax(100px,.8fr) 1fr 1fr;gap:8px}.task-foot{grid-template-columns:1fr}.task-foot nav{justify-content:flex-start}.task-foot code{grid-column:1}.boundaries{padding:22px 18px}}
+    *{box-sizing:border-box}html{background:#e9eeea}body{margin:0;color:var(--ink);background:#e9eeea;font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}a{color:var(--green);font-weight:750;text-underline-offset:3px}code{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.shell{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{color:#fff;background:var(--dark);border-bottom:5px solid var(--yellow)}.hero .shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.45fr);gap:44px;padding:48px 0 42px}.eyebrow{display:block;color:#758279;font-size:10px;font-weight:850;text-transform:uppercase}.hero .eyebrow{color:#b9c4bd}.hero h1{margin:10px 0 12px;font-size:clamp(32px,5vw,62px);line-height:1.02;letter-spacing:0}.hero p{max-width:720px;margin:0;color:#c9d1cc;font-size:17px}.hero-meta{align-self:end;border-left:1px solid #3a453e;padding-left:24px}.hero-meta span,.hero-meta strong{display:block}.hero-meta span{color:#9eaaa3;font-size:11px;text-transform:uppercase}.hero-meta strong{margin:5px 0 18px;font-size:14px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-top:0;background:var(--paper)}.summary div{min-width:0;padding:20px;border-right:1px solid var(--line)}.summary div:last-child{border-right:0}.summary strong,.summary span{display:block}.summary strong{font-size:27px;line-height:1.1}.summary span{margin-top:7px;color:var(--muted);font-size:11px}.intro{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:38px;padding:38px 0}.intro h2{margin:7px 0 10px;font-size:25px}.intro p{margin:0;color:var(--muted)}.people{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);background:var(--paper)}.people div{min-width:0;padding:16px}.people div+div{border-left:1px solid var(--line)}.people span,.people strong,.people small{display:block}.people span{color:var(--muted);font-size:10px;text-transform:uppercase}.people strong{margin-top:6px}.people small{margin-top:3px;overflow-wrap:anywhere;color:var(--muted)}.track-record{margin:0 0 28px;border:1px solid var(--line);background:var(--paper)}.track-record-head{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;padding:22px 24px;border-bottom:1px solid var(--line)}.track-record h2{margin:5px 0 0;font-size:22px}.track-record-head p{max-width:520px;margin:0;color:var(--muted);text-align:right}.track-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}.track-grid div{min-width:0;padding:20px 24px;border-right:1px solid var(--line)}.track-grid div:last-child{border-right:0}.track-grid strong,.track-grid span{display:block}.track-grid strong{font-size:25px}.track-grid span{margin-top:6px;color:var(--muted);font-size:11px}.track-foot{display:flex;align-items:center;justify-content:space-between;gap:18px;padding:15px 24px;border-top:1px solid var(--line);background:var(--soft)}.track-foot p{margin:0;color:var(--muted);font-size:11px}.track-foot nav{display:flex;flex:0 0 auto;gap:14px}.task{margin-bottom:22px;border:1px solid var(--line);background:var(--paper)}.task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px;border-bottom:1px solid var(--line)}.task h2{margin:5px 0 0;font-size:22px}.result{flex:0 0 auto;padding:6px 9px;border:1px solid;font-size:10px;font-weight:900}.result.supported{color:var(--green);border-color:#9fc5b5;background:var(--green-soft)}.result.unsupported{color:var(--red);border-color:#d6a8af;background:#fff1f3}.stakes{margin:0;padding:15px 24px;color:#5b4c19;background:var(--yellow-soft);border-bottom:1px solid #eadba0}.deliverables{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}.deliverables article{padding:20px 24px}.deliverables article+article{border-left:1px solid var(--line)}.deliverables span{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.deliverables p{margin:7px 0 0}.comparison{padding:8px 24px}.comparison-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,.75fr) minmax(130px,.75fr);gap:18px;padding:11px 0;border-bottom:1px solid #e8ece9}.comparison-row:last-child{border-bottom:0}.comparison-row.header{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.comparison-row strong{font-size:13px}.task-foot{display:grid;grid-template-columns:minmax(250px,1fr) minmax(310px,auto);gap:14px 24px;align-items:center;padding:17px 24px;background:var(--soft);border-top:1px solid var(--line)}.task-foot p{margin:0}.task-foot nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}.task-foot code{grid-column:1/-1;color:var(--muted)}.boundaries{margin:36px 0 50px;padding:26px 28px;color:#d5ded8;background:var(--dark);border-left:5px solid var(--yellow)}.boundaries h2{margin:0 0 12px;color:#fff;font-size:20px}.boundaries ul{margin:0;padding-left:19px}.boundaries li+li{margin-top:8px}.commitments{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:22px;background:#354039;border:1px solid #354039}.commitments div{min-width:0;padding:14px;background:#1b241f}.commitments span,.commitments code{display:block}.commitments span{color:#9faca4;font-size:10px;text-transform:uppercase}.commitments code{margin-top:5px;color:#fff}.footer{padding:0 0 40px;color:var(--muted);font-size:11px}.footer a{margin-right:14px}@media(max-width:760px){.shell{width:min(100% - 18px,1180px)}.hero .shell,.intro{grid-template-columns:1fr}.hero .shell{gap:26px;padding:32px 0}.hero-meta{border-top:1px solid #3a453e;border-left:0;padding:18px 0 0}.summary{grid-template-columns:1fr 1fr}.summary div:nth-child(2){border-right:0}.summary div:nth-child(-n+2){border-bottom:1px solid var(--line)}.people,.deliverables,.commitments,.track-grid{grid-template-columns:1fr}.people div+div,.deliverables article+article{border-top:1px solid var(--line);border-left:0}.track-record-head,.track-foot{align-items:flex-start;flex-direction:column}.track-record-head p{text-align:left}.track-grid div{border-right:0;border-bottom:1px solid var(--line)}.track-grid div:last-child{border-bottom:0}.task-head{padding:18px}.stakes,.deliverables article,.comparison,.task-foot{padding-left:18px;padding-right:18px}.comparison-row{grid-template-columns:minmax(100px,.8fr) 1fr 1fr;gap:8px}.task-foot{grid-template-columns:1fr}.task-foot nav{justify-content:flex-start}.task-foot code{grid-column:1}.boundaries{padding:22px 18px}}
     @media print{html,body{background:#fff}.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}.task{break-inside:avoid}.shell{width:100%}.footer{display:none}}
   </style>
 </head>
@@ -342,10 +518,15 @@ function reportHtml(report: AgentAdvantageReport): string {
   <main class="shell">
     <section class="summary" aria-label="Report summary"><div><strong>${report.summary.supportedAdvantageCount}/3</strong><span>tasks supporting advantage</span></div><div><strong>${report.summary.marketplaceDeliverySuccessCount}/6</strong><span>public marketplace deliveries</span></div><div><strong>${report.summary.totalCriticalFailures}</strong><span>agent critical failures</span></div><div><strong>${agentQualityScore}/300</strong><span>agent blind quality</span></div></section>
     <section class="intro"><div><span class="eyebrow">Pre-registered method</span><h2>Same tasks. Hidden sources. Different people.</h2><p>One manual operator completed each task without PositionCrew or AI. A different evaluator scored six anonymized outputs against rubrics committed before either human saw a candidate. Timing, cost, operator identity, and the source mapping remained hidden during quality scoring.</p></div><div class="people"><div><span>Manual operator</span><strong>${escapeHtml(report.participants.manualOperator.displayName)}</strong><small>${escapeHtml(report.participants.manualOperator.contactReference)}</small></div><div><span>Blind evaluator</span><strong>${escapeHtml(report.participants.blindEvaluator.displayName)}</strong><small>${escapeHtml(report.participants.blindEvaluator.contactReference)}</small></div></div></section>
+    <section class="track-record" aria-labelledby="track-record-title">
+      <div class="track-record-head"><div><span class="eyebrow">High-stakes operating record</span><h2 id="track-record-title">Measured activity, disclosed ownership.</h2></div><p>The report binds public delivery evidence and onchain integration receipts without relabelling controlled test activity as adoption.</p></div>
+      <div class="track-grid"><div><strong>${report.trackRecord.highStakesServiceCount}/4</strong><span>required capital services</span></div><div><strong>${report.trackRecord.marketplace.successfulNoRetryDeliveries}/${report.trackRecord.marketplace.attemptedNoRetryDeliveries}</strong><span>no-retry public deliveries</span></div><div><strong>${report.trackRecord.onchainTestnet.completedLifecycles}</strong><span>completed BSC Testnet lifecycles</span></div><div><strong>${report.trackRecord.onchainTestnet.fundedCompletedJobs}</strong><span>funded testnet jobs · ${escapeHtml(report.trackRecord.onchainTestnet.totalEscrowDisplay)}</span></div></div>
+      <div class="track-foot"><p>${escapeHtml(report.trackRecord.boundary)} External buyers: ${report.trackRecord.onchainTestnet.externalBuyerJobs}. External revenue: ${escapeHtml(report.trackRecord.onchainTestnet.externalRevenue)}.</p><nav aria-label="Track record evidence"><a href="${escapeHtml(report.trackRecord.onchainTestnet.ledgerPath)}">Onchain ledger</a><a href="${escapeHtml(report.trackRecord.productionMonitorUrl)}">Production monitor</a></nav></div>
+    </section>
     ${report.tasks.map((task, index) => reportTaskHtml(task, index + 1)).join("\n")}
     <section class="boundaries"><h2>Claim boundaries</h2><ul>${report.boundaries.map((boundary) => `<li>${escapeHtml(boundary)}</li>`).join("")}</ul><div class="commitments"><div><span>Human + blind evidence</span><code>${escapeHtml(report.summary.evidenceManifestHash)}</code></div><div><span>Marketplace delivery</span><code>${escapeHtml(report.summary.marketplaceEvidenceHash)}</code></div><div><span>Report commitment</span><code>${escapeHtml(report.reportHash)}</code></div></div></section>
   </main>
-  <footer class="shell footer"><a href="agent-advantage-report.json">Machine-readable report</a><a href="agent-advantage-report.md">Markdown report</a><a href="marketplace-invocation-evidence.json">Marketplace delivery evidence</a><a href="https://positioncrew.dolepee.com">Live marketplace</a><a href="https://github.com/dolepee/positioncrew">Public repository</a></footer>
+  <footer class="shell footer"><a href="agent-advantage-report.json">Machine-readable report</a><a href="agent-advantage-report.md">Markdown report</a><a href="marketplace-invocation-evidence.json">Marketplace delivery evidence</a><a href="erc8183-jobs.testnet.json">Onchain testnet ledger</a><a href="https://positioncrew.dolepee.com">Live marketplace</a><a href="https://github.com/dolepee/positioncrew">Public repository</a></footer>
 </body>
 </html>\n`;
 }
@@ -484,6 +665,8 @@ export function buildAgentAdvantageReport(
   }
   const participants = requireConsistentParticipants(evidence);
   const marketplaceEvidence = verifyMarketplaceInvocationEvidence(projectRoot);
+  const erc8183Ledger = loadErc8183TestnetLedger(projectRoot);
+  const trackRecord = buildTrackRecord(marketplaceEvidence, erc8183Ledger);
   const outputDirectory = resolve(outputDirectoryInput);
   mkdirSync(outputDirectory, { recursive: true, mode: 0o700 });
   const tasks = requiredSlugs.map((slug) => {
@@ -524,7 +707,7 @@ export function buildAgentAdvantageReport(
     })),
   );
   const body = {
-    schemaVersion: "positioncrew.agent-advantage-report.v3" as const,
+    schemaVersion: "positioncrew.agent-advantage-report.v4" as const,
     generatedAt: now.toISOString(),
     project: {
       name: "PositionCrew" as const,
@@ -564,6 +747,7 @@ export function buildAgentAdvantageReport(
       marketplaceProtocolHash: marketplaceEvidence.protocolHash,
       evidenceManifestHash,
     },
+    trackRecord,
     tasks,
     boundaries: [
       "Results apply only to the three disclosed frozen fixtures and do not establish live investment performance.",
@@ -584,6 +768,7 @@ export function buildAgentAdvantageReport(
     join(outputDirectory, "marketplace-invocation-evidence.json"),
     marketplaceEvidence,
   );
+  writeJson(join(outputDirectory, trackRecord.onchainTestnet.ledgerPath), erc8183Ledger);
   writeText(join(outputDirectory, "agent-advantage-report.md"), reportMarkdown(report));
   writeText(join(outputDirectory, "agent-advantage-report.html"), reportHtml(report));
   return report;
@@ -619,6 +804,25 @@ export function verifyAgentAdvantageReport(
     attachedMarketplaceEvidence.protocolHash !== report.summary.marketplaceProtocolHash
   ) {
     throw new Error("Attached marketplace delivery evidence differs from the report summary");
+  }
+  const attachedLedger = Erc8183TestnetLedgerSchema.parse(
+    JSON.parse(
+      readFileSync(
+        join(outputDirectory, report.trackRecord.onchainTestnet.ledgerPath),
+        "utf8",
+      ),
+    ),
+  );
+  const sourceLedger = loadErc8183TestnetLedger(projectRoot);
+  if (
+    canonicalHash(attachedLedger) !== report.trackRecord.onchainTestnet.ledgerHash ||
+    canonicalHash(attachedLedger) !== canonicalHash(sourceLedger)
+  ) {
+    throw new Error("Attached ERC-8183 ledger differs from the committed source evidence");
+  }
+  const expectedTrackRecord = buildTrackRecord(attachedMarketplaceEvidence, attachedLedger);
+  if (canonicalHash(expectedTrackRecord) !== canonicalHash(report.trackRecord)) {
+    throw new Error("The high-stakes track record does not match its attached evidence");
   }
   if (
     readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8") !==

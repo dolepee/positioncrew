@@ -433,7 +433,7 @@ try {
       "/evidence/agent-advantage/agent-advantage-report.json",
     );
     assert(
-      advantageReport.schemaVersion === "positioncrew.agent-advantage-report.v3",
+      advantageReport.schemaVersion === "positioncrew.agent-advantage-report.v4",
       "Unexpected Agent Advantage report schema",
     );
     assert(
@@ -474,6 +474,21 @@ try {
           advantageReport.summary?.marketplaceProtocolHash &&
         attachedMarketplaceDelivery.aggregate?.successCount === 6,
       "Published Agent Advantage report has inconsistent marketplace delivery evidence",
+    );
+    const attachedCommerceLedger = await fetchJson(
+      "agent-advantage-commerce-ledger",
+      "/evidence/agent-advantage/erc8183-jobs.testnet.json",
+    );
+    assert(
+      canonicalSha256(attachedCommerceLedger) ===
+        advantageReport.trackRecord?.onchainTestnet?.ledgerHash &&
+        attachedCommerceLedger.summary?.completedLifecycles ===
+          advantageReport.trackRecord?.onchainTestnet?.completedLifecycles &&
+        attachedCommerceLedger.summary?.fundedCompletedJobs ===
+          advantageReport.trackRecord?.onchainTestnet?.fundedCompletedJobs &&
+        attachedCommerceLedger.summary?.externalBuyerJobs === 0 &&
+        attachedCommerceLedger.summary?.externalRevenue === "0",
+      "Published Agent Advantage track record differs from its onchain ledger",
     );
     assert(
       advantageReport.tasks?.every(
