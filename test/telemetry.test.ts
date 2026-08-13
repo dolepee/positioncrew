@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   annualizedRatePct,
+  pancakeActiveLiquidityUsd,
   poolPriceFromSqrtPriceX96,
+  realizedVolatilityBpsFromTickCumulatives,
   venusLiquidityTotalsFixed,
   venusUsdValueFixed,
 } from "../src/telemetry/bsc.js";
@@ -13,10 +15,28 @@ describe("BSC telemetry math", () => {
     expect(poolPriceFromSqrtPriceX96(sqrtPriceX96)).toBeLessThan(630);
   });
 
+  it("values the current V3 active-liquidity virtual reserves", () => {
+    const q96 = 2n ** 96n;
+    expect(pancakeActiveLiquidityUsd(q96, 1_000n * 10n ** 18n, 1)).toBe(2_000);
+    expect(() => pancakeActiveLiquidityUsd(0n, 1n, 1)).toThrow(
+      "Positive pool price, liquidity, and token1 USD price are required",
+    );
+  });
+
   it("annualizes a per-block rate using the measured block interval", () => {
     const annualized = annualizedRatePct(267_884_853n, 0.75);
     expect(annualized).toBeGreaterThan(1);
     expect(annualized).toBeLessThan(1.2);
+  });
+
+  it("derives realized volatility from ordered onchain tick cumulatives", () => {
+    const cumulatives = [0n, -600_000n, -1_206_000n, -1_818_000n];
+    const volatility = realizedVolatilityBpsFromTickCumulatives(cumulatives, 60);
+    expect(volatility).toBeGreaterThanOrEqual(140);
+    expect(volatility).toBeLessThanOrEqual(142);
+    expect(() => realizedVolatilityBpsFromTickCumulatives([0n, 1n], 60)).toThrow(
+      "At least three ordered tick cumulatives",
+    );
   });
 
   it("normalizes Venus oracle values into 18-decimal USD across token decimals", () => {

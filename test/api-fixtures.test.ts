@@ -174,7 +174,14 @@ describe("public fixture job boundary", () => {
       },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
-    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(4);
+    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(7);
+    expect(openApi.paths).toMatchObject({
+      "/api/status": { get: { operationId: "getSystemTelemetry" } },
+      "/api/wallets/{account}/venus": { get: { operationId: "inspectVenusAccount" } },
+      "/api/markets/pancake/wbnb-usdt/grid": {
+        get: { operationId: "inspectPancakeGridMarket" },
+      },
+    });
     expect(
       ((openApi.paths as Record<string, { post: { requestBody: { content: { "application/json": { schema: { properties: { mode: { default: string } } } } } } } }>)[provider.endpoint]
         ?.post.requestBody.content["application/json"].schema.properties.mode.default),

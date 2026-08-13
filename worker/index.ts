@@ -22,7 +22,11 @@ import {
   getProviderBySlug,
   getSchemaDocument,
 } from "../src/marketplace/discovery.js";
-import { getSystemTelemetry, inspectVenusAccount } from "../src/telemetry/bsc.js";
+import {
+  getSystemTelemetry,
+  inspectPancakeGridMarket,
+  inspectVenusAccount,
+} from "../src/telemetry/bsc.js";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -338,6 +342,15 @@ async function api(request: Request, url: URL): Promise<Response> {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(
         await inspectVenusAccount(venusAccountRoute[1]!),
+        200,
+        "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
+      );
+    }
+
+    if (url.pathname === "/api/markets/pancake/wbnb-usdt/grid") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        await inspectPancakeGridMarket(),
         200,
         "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
       );

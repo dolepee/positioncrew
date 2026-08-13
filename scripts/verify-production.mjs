@@ -208,7 +208,12 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 4, "OpenAPI does not expose four job paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 7, "OpenAPI does not expose all job and live-input paths");
+  assert(
+    openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===
+      "inspectPancakeGridMarket",
+    "OpenAPI omits the live Pancake grid probe",
+  );
 
   const zeroVenus = await fetchJson(
     "venus-zero-position",
@@ -229,6 +234,48 @@ try {
     /^https:\/\/bscscan\.com\/block\/\d+$/.test(zeroVenus.source?.explorerUrl ?? ""),
     "Venus account probe is not linked to its pinned BSC block",
   );
+
+  const pancakeGrid = await fetchJson(
+    "pancake-grid-market",
+    "/api/markets/pancake/wbnb-usdt/grid",
+  );
+  assert(
+    pancakeGrid.schemaVersion === "positioncrew.pancake-grid-probe.v1",
+    "Unexpected Pancake grid probe schema",
+  );
+  assert(pancakeGrid.state === "READY", "Pancake grid probe is not ready");
+  assert(Number(pancakeGrid.market?.spotPriceUsd) > 0, "Pancake grid spot price is invalid");
+  assert(
+    Number(pancakeGrid.market?.activeLiquidityUsd) > 0,
+    "Pancake grid active liquidity is invalid",
+  );
+  assert(
+    Number(pancakeGrid.market?.reserveValueUsd) > 0,
+    "Pancake grid reserve value is invalid",
+  );
+  assert(
+    pancakeGrid.market?.volatilitySampleCount >= 3,
+    "Pancake grid volatility has too few samples",
+  );
+  assert(
+    /^https:\/\/bscscan\.com\/block\/\d+$/.test(pancakeGrid.source?.explorerUrl ?? ""),
+    "Pancake grid probe is not linked to its pinned BSC block",
+  );
+  assert(
+    pancakeGrid.gridRequest?.marketState?.sourceId === pancakeGrid.gridRequest?.sources?.[0]?.sourceId,
+    "Pancake grid request source binding is inconsistent",
+  );
+  const pancakeGridJob = await postJson(
+    "pancake-grid-live-job",
+    "/api/providers/bounded-grid/jobs",
+    { request: pancakeGrid.gridRequest },
+  );
+  assert(
+    pancakeGridJob.evidenceMode === "CALLER_SUPPLIED_OBSERVATIONS",
+    "Pancake grid job changed its evidence mode",
+  );
+  assert(pancakeGridJob.result?.job?.state === "COMPLETED", "Pancake grid job did not complete");
+  assert(pancakeGridJob.result?.evaluation?.score === 100, "Pancake grid job score is not 100/100");
 
   for (const entry of marketplace.providers) {
     assert(expectedServices.has(entry.service), `Unexpected provider service: ${entry.service}`);

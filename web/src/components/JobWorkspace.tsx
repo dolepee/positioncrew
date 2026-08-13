@@ -32,6 +32,7 @@ import { TASKS } from "../task-config";
 import type {
   FixtureJobResponse,
   JobRequestMode,
+  PancakeGridProbe,
   ProviderListing,
   ServiceId,
   SessionJob,
@@ -365,6 +366,9 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
   const usesBlockPinnedVenusInput = sources.some((source) =>
     String(objectValue(source).sourceId ?? "").startsWith("venus-mainnet-block-"),
   );
+  const usesBlockPinnedPancakeInput = sources.some((source) =>
+    String(objectValue(source).sourceId ?? "").startsWith("pancake-v3-mainnet-block-"),
+  );
   return (
     <div className="result-summary-view">
       <div className="decision-header">
@@ -383,6 +387,8 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
           ? "Locked historical fixture. This is a reproducible receipt, not a currently executable instruction."
           : usesBlockPinnedVenusInput
             ? "Block-pinned Venus input. The provider output is unsigned and must be revalidated against current protocol state before execution."
+            : usesBlockPinnedPancakeInput
+              ? "Block-pinned PancakeSwap input. The grid is unsigned, assumes future fills, and must be re-quoted before execution."
             : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
       </div>
       <div className="decision-metrics">
@@ -546,6 +552,70 @@ function WalletRiskProbe({
   );
 }
 
+function GridMarketProbe({ onUseRequest }: { onUseRequest: (request: JobRequest) => void }) {
+  const [probe, setProbe] = useState<PancakeGridProbe | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  async function inspect(signal?: AbortSignal) {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/markets/pancake/wbnb-usdt/grid", {
+        headers: { Accept: "application/json" },
+        signal,
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { details?: unknown } | null;
+        throw new Error(Array.isArray(body?.details) ? String(body.details[0]) : `Market probe failed (${response.status})`);
+      }
+      const next = await response.json() as PancakeGridProbe;
+      if (signal?.aborted) return;
+      setProbe(next);
+      onUseRequest(next.gridRequest);
+    } catch (probeError) {
+      if (signal?.aborted) return;
+      setError(probeError instanceof Error ? probeError.message : "Market probe failed");
+    } finally {
+      if (!signal?.aborted) setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void inspect(controller.signal);
+    return () => controller.abort();
+  }, []);
+
+  return (
+    <section className="wallet-risk-probe grid-market-probe" aria-labelledby="grid-probe-title">
+      <div className="wallet-probe-heading">
+        <div><span className="section-kicker">Live BSC read</span><h3 id="grid-probe-title">PancakeSwap market probe</h3></div>
+        <button type="button" onClick={() => void inspect()} disabled={loading} title="Refresh pinned market state">
+          {loading ? <LoaderCircle className="spin" size={14} /> : <RefreshCw size={14} />}
+          {loading ? "Reading" : "Refresh"}
+        </button>
+      </div>
+      {error && <div className="wallet-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {probe && (
+        <div className="wallet-probe-result" aria-live="polite">
+          <div className="wallet-probe-state">
+            <span className="state-label good">{probe.state}</span>
+            <a href={probe.source.explorerUrl} target="_blank" rel="noreferrer">Block {Number(probe.source.blockNumber).toLocaleString("en-US")} <ExternalLink size={12} /></a>
+          </div>
+          <dl>
+            <div><dt>WBNB spot</dt><dd>${Number(probe.market.spotPriceUsd).toLocaleString("en-US", { maximumFractionDigits: 2 })}</dd></div>
+            <div><dt>Active virtual liquidity</dt><dd>${Number(probe.market.activeLiquidityUsd).toLocaleString("en-US", { maximumFractionDigits: 0 })}</dd></div>
+            <div><dt>Realized volatility</dt><dd>{probe.market.realizedVolatilityBps} bps</dd></div>
+            <div><dt>Window</dt><dd>{(probe.market.volatilityWindowSeconds / 3_600).toFixed(1)}h</dd></div>
+          </dl>
+          <p>{probe.boundary}</p>
+        </div>
+      )}
+    </section>
+  );
+}
+
 function MachineJson({ response }: { response: FixtureJobResponse }) {
   const [copied, setCopied] = useState(false);
   const json = JSON.stringify(response.result.deliverable, null, 2);
@@ -607,7 +677,10 @@ export function JobWorkspace({
   const liveSourceId = String(
     objectValue((liveRequest?.sources as unknown[] | undefined)?.[0]).sourceId ?? "",
   );
-  const liveBlockNumber = liveSourceId.replace("venus-mainnet-block-", "");
+  const liveBlockNumber = liveSourceId.replace(/^.*-block-/, "");
+  const liveSourceLabel = liveSourceId.startsWith("pancake-v3-mainnet-block-")
+    ? "PancakeSwap market"
+    : "Venus position";
 
   useEffect(() => {
     setResultView("summary");
@@ -629,7 +702,8 @@ export function JobWorkspace({
     () => inputMode === "interactive" && Boolean(inputRequest && draftRequest && JSON.stringify(inputRequest) !== JSON.stringify(draftRequest)),
     [inputMode, inputRequest, draftRequest],
   );
-  const inputsDisabled = !fixture || loading || inputMode === "locked";
+  const liveGridPending = service === "BOUNDED_GRID" && inputMode === "interactive" && !liveRequest;
+  const inputsDisabled = !fixture || loading || inputMode === "locked" || liveGridPending;
 
   function updateDraft<K extends keyof JobDraft>(key: K, value: JobDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -741,6 +815,7 @@ export function JobWorkspace({
             </>
           ) : (
             <>
+              <GridMarketProbe onUseRequest={useLiveRequest} />
               <div className="request-context"><span>WBNB / USDT</span><strong>PancakeSwap execution policy</strong><small>Both sides required</small></div>
               <div className="form-grid dense">
                 <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
@@ -761,14 +836,16 @@ export function JobWorkspace({
             <span>{inputMode === "locked"
               ? "Historical August 12 fixture. The public receipt is reproducible, but the instruction is no longer executable."
               : liveRequest
-                ? `Block-pinned Venus position from BSC block ${liveBlockNumber || "unknown"}. Limits remain editable; observations are not rebased.`
+                ? `Block-pinned ${liveSourceLabel} from BSC block ${liveBlockNumber || "unknown"}. Limits remain editable; observations are not rebased.`
+              : liveGridPending
+                ? "Waiting for a block-pinned PancakeSwap market read. Interactive grid construction stays disabled if live price, reserve, volatility, or gas evidence is unavailable."
               : customRequest
                 ? "Current-clock scenario with custom bounds. Inputs and timestamps are caller-controlled; this is not benchmark evidence or live wallet execution."
                 : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>
           </div>
           <div className="composer-footer">
             <span><strong>5 TEST_USDC</strong><small>{inputMode === "locked" ? "Public locked receipt" : "Current-clock scenario · in-memory rail"}</small></span>
-            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
+            <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || liveGridPending || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
               {!loading && <ArrowRight size={15} />}

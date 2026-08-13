@@ -261,6 +261,32 @@ export interface VenusAccountProbe {
   boundary: string;
 }
 
+export interface PancakeGridProbe {
+  schemaVersion: "positioncrew.pancake-grid-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  market: {
+    pair: "WBNB/USDT";
+    poolAddress: string;
+    feeTier: 100;
+    spotPriceUsd: string;
+    activeLiquidityUsd: string;
+    reserveValueUsd: string;
+    realizedVolatilityBps: number;
+    volatilityWindowSeconds: number;
+    volatilitySampleCount: number;
+  };
+  gridRequest: FixtureJobResponse["result"]["request"];
+  source: {
+    blockNumber: string;
+    blockTimestamp: string;
+    explorerUrl: string;
+    poolExplorerUrl: string;
+  };
+  boundary: string;
+}
+
 export type TermixBenchmarkService = "LENDING_RESCUE" | "LP_REBALANCE" | "BOUNDED_GRID";
 export type TermixBenchmarkSlug = "lending-rescue" | "lp-rebalance" | "bounded-grid";
 

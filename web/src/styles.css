@@ -526,6 +526,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .wallet-probe-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
 .wallet-probe-heading h3 { margin: 4px 0 0; font-size: 13px; }
 .wallet-probe-heading > span { color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 9px; }
+.wallet-probe-heading > button { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 9px; border: 1px solid var(--line); border-radius: 5px; color: var(--ink); background: white; font-size: 10px; font-weight: 750; cursor: pointer; }
+.wallet-probe-heading > button:disabled { cursor: wait; opacity: 0.6; }
+.grid-market-probe .wallet-probe-result { margin-top: 10px; }
 .wallet-probe-control { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin-top: 10px; }
 .wallet-probe-control label { display: flex; align-items: center; gap: 8px; min-width: 0; min-height: 38px; padding: 0 10px; border: 1px solid var(--line); border-radius: 5px; color: var(--muted); background: var(--surface-soft); }
 .wallet-probe-control label:focus-within { border-color: #d2aa29; background: white; }

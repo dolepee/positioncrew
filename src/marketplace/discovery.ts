@@ -153,7 +153,7 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
       z.toJSONSchema(schema, { target: "draft-2020-12" }),
     ]),
   );
-  const paths = Object.fromEntries(
+  const providerPaths = Object.fromEntries(
     PROVIDER_CATALOG.map((provider) => [
       provider.endpoint,
       {
@@ -200,6 +200,42 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
       },
     ]),
   );
+  const paths = {
+    ...providerPaths,
+    "/api/status": {
+      get: {
+        summary: "Read current BSC, PancakeSwap, Venus, and AACP boundary telemetry",
+        operationId: "getSystemTelemetry",
+        responses: { "200": { description: "Current public system telemetry" } },
+      },
+    },
+    "/api/wallets/{account}/venus": {
+      get: {
+        summary: "Convert a block-pinned Venus Classic account into an unsigned rescue request",
+        operationId: "inspectVenusAccount",
+        parameters: [{
+          name: "account",
+          in: "path",
+          required: true,
+          schema: { type: "string", pattern: "^0x[a-fA-F0-9]{40}$" },
+        }],
+        responses: {
+          "200": { description: "Venus account probe and optional rescue request" },
+          "500": { description: "Pinned reads were unavailable or failed reconciliation" },
+        },
+      },
+    },
+    "/api/markets/pancake/wbnb-usdt/grid": {
+      get: {
+        summary: "Build an unsigned bounded-grid request from one pinned PancakeSwap block",
+        operationId: "inspectPancakeGridMarket",
+        responses: {
+          "200": { description: "Pinned Pancake market probe and unsigned grid request" },
+          "500": { description: "Pinned market reads or minimum observation history were unavailable" },
+        },
+      },
+    },
+  };
   return {
     openapi: "3.1.0",
     info: {

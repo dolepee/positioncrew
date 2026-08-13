@@ -10,6 +10,10 @@ import {
   type Hex,
 } from "viem";
 import {
+  BoundedGridRequestSchema,
+  type BoundedGridRequest,
+} from "../contracts/bounded-grid.js";
+import {
   LendingRescueRequestSchema,
   type LendingRescueRequest,
 } from "../contracts/lending-rescue.js";
@@ -41,8 +45,11 @@ const FACTORY_ABI = parseAbi([
   "function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)",
 ]);
 const POOL_ABI = parseAbi([
+  "function token0() view returns (address)",
+  "function token1() view returns (address)",
   "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint32 feeProtocol, bool unlocked)",
   "function liquidity() view returns (uint128)",
+  "function observe(uint32[] secondsAgos) view returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)",
 ]);
 const VTOKEN_ABI = parseAbi([
   "function supplyRatePerBlock() view returns (uint256)",
@@ -248,6 +255,37 @@ export interface VenusRescueRequestOptions {
   maxSlippageBps?: number;
 }
 
+export interface PancakeGridProbe {
+  schemaVersion: "positioncrew.pancake-grid-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  market: {
+    pair: "WBNB/USDT";
+    poolAddress: Address;
+    feeTier: 100;
+    spotPriceUsd: string;
+    activeLiquidityUsd: string;
+    reserveValueUsd: string;
+    realizedVolatilityBps: number;
+    volatilityWindowSeconds: number;
+    volatilitySampleCount: number;
+  };
+  gridRequest: BoundedGridRequest;
+  source: {
+    blockNumber: string;
+    blockTimestamp: string;
+    explorerUrl: string;
+    poolExplorerUrl: string;
+  };
+  boundary: string;
+}
+
+export interface PancakeGridRequestOptions {
+  account?: string;
+  capitalUsd?: number;
+}
+
 function nowMs(): number {
   return Date.now();
 }
@@ -323,10 +361,85 @@ export function poolPriceFromSqrtPriceX96(sqrtPriceX96: bigint): number {
   return ratio === 0 ? 0 : 1 / ratio;
 }
 
+export function pancakeActiveLiquidityUsd(
+  sqrtPriceX96: bigint,
+  liquidity: bigint,
+  token1PriceUsd: number,
+): number {
+  if (sqrtPriceX96 <= 0n || liquidity <= 0n || !Number.isFinite(token1PriceUsd) || token1PriceUsd <= 0) {
+    throw new Error("Positive pool price, liquidity, and token1 USD price are required");
+  }
+  const q96 = 2n ** 96n;
+  const token0VirtualRaw = (liquidity * q96) / sqrtPriceX96;
+  const token1VirtualRaw = (liquidity * sqrtPriceX96) / q96;
+  return Number(formatUnits(token0VirtualRaw, 18)) +
+    Number(formatUnits(token1VirtualRaw, 18)) * token1PriceUsd;
+}
+
 export function annualizedRatePct(ratePerBlock: bigint, secondsPerBlock: number): number {
   if (secondsPerBlock <= 0) return 0;
   const blocksPerYear = 31_536_000 / secondsPerBlock;
   return Number(formatUnits(ratePerBlock, 18)) * blocksPerYear * 100;
+}
+
+export function realizedVolatilityBpsFromTickCumulatives(
+  tickCumulatives: readonly bigint[],
+  intervalSeconds: number,
+): number {
+  if (tickCumulatives.length < 3 || intervalSeconds <= 0) {
+    throw new Error("At least three ordered tick cumulatives and a positive interval are required");
+  }
+  const averageTicks = Array.from({ length: tickCumulatives.length - 1 }, (_, index) =>
+    Number(tickCumulatives[index]! - tickCumulatives[index + 1]!) / intervalSeconds,
+  );
+  const squaredReturns = averageTicks.slice(0, -1).map((tick, index) => {
+    const nextTick = averageTicks[index + 1]!;
+    const returnBps = (tick - nextTick) * Math.log(1.0001) * 10_000;
+    return returnBps * returnBps;
+  });
+  return Math.max(0, Math.round(Math.sqrt(squaredReturns.reduce((sum, value) => sum + value, 0))));
+}
+
+async function readPancakeVolatility(
+  poolAddress: Address,
+  blockTag: Hex,
+): Promise<{ realizedVolatilityBps: number; windowSeconds: number; sampleCount: number }> {
+  const windows = [21_600, 14_400, 7_200, 3_600] as const;
+  for (const windowSeconds of windows) {
+    const intervalSeconds = Math.floor(windowSeconds / 12);
+    const secondsAgos = Array.from({ length: 13 }, (_, index) => index * intervalSeconds);
+    try {
+      const [observationValue] = await rpcBatch(MAINNET_RPC, [
+        ethCall(
+          poolAddress,
+          encodeFunctionData({
+            abi: POOL_ABI,
+            functionName: "observe",
+            args: [secondsAgos],
+          }),
+          blockTag,
+        ),
+      ]);
+      const observations = decodeFunctionResult({
+        abi: POOL_ABI,
+        functionName: "observe",
+        data: rpcHex(observationValue, "PancakeSwap observations"),
+      });
+      return {
+        realizedVolatilityBps: realizedVolatilityBpsFromTickCumulatives(
+          observations[0],
+          intervalSeconds,
+        ),
+        windowSeconds,
+        sampleCount: observations[0].length,
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (!message.includes("OLD")) throw error;
+      // Sparse observation rings can reject older lookbacks. Shorter windows remain fail-closed.
+    }
+  }
+  throw new Error("PancakeSwap pool has insufficient observations for a one-hour volatility window");
 }
 
 async function chainProbe(
@@ -518,6 +631,224 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
       boundary:
         "AACP contracts are deployed on BSC testnet. Terminal settlement remains disabled until the documented backend config and proof flow are reachable.",
     },
+  };
+}
+
+export async function inspectPancakeGridMarket(
+  options: PancakeGridRequestOptions = {},
+): Promise<PancakeGridProbe> {
+  const accountInput = options.account ?? NATIVE_BNB;
+  if (!isAddress(accountInput)) throw new Error("A valid EVM account address is required");
+  const account = accountInput as Address;
+  const capitalUsd = options.capitalUsd ?? 1_000;
+  if (!Number.isFinite(capitalUsd) || capitalUsd < 1 || capitalUsd > 10_000_000) {
+    throw new Error("capitalUsd must be between 1 and 10000000");
+  }
+
+  const [blockValue, gasPriceValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
+    { method: "eth_gasPrice", params: [] },
+  ]);
+  const block = rpcBlock(blockValue, "BNB Smart Chain latest block");
+  const [poolValue] = await rpcBatch(MAINNET_RPC, [
+    ethCall(
+      PANCAKE_V3_FACTORY,
+      encodeFunctionData({
+        abi: FACTORY_ABI,
+        functionName: "getPool",
+        args: [WBNB, USDT, 100],
+      }),
+      block.number,
+    ),
+  ]);
+  const poolAddress = decodeFunctionResult({
+    abi: FACTORY_ABI,
+    functionName: "getPool",
+    data: rpcHex(poolValue, "PancakeSwap WBNB/USDT pool"),
+  });
+  if (poolAddress === NATIVE_BNB) throw new Error("PancakeSwap WBNB/USDT pool is unavailable");
+
+  const [
+    token0Value,
+    token1Value,
+    slot0Value,
+    liquidityValue,
+    wbnbBalanceValue,
+    usdtBalanceValue,
+  ] = await rpcBatch(MAINNET_RPC, [
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "token0" }),
+      block.number,
+    ),
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "token1" }),
+      block.number,
+    ),
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "slot0" }),
+      block.number,
+    ),
+    ethCall(
+      poolAddress,
+      encodeFunctionData({ abi: POOL_ABI, functionName: "liquidity" }),
+      block.number,
+    ),
+    ethCall(
+      WBNB,
+      encodeFunctionData({ abi: ERC20_ABI, functionName: "balanceOf", args: [poolAddress] }),
+      block.number,
+    ),
+    ethCall(
+      USDT,
+      encodeFunctionData({ abi: ERC20_ABI, functionName: "balanceOf", args: [poolAddress] }),
+      block.number,
+    ),
+  ]);
+  const token0 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "token0",
+    data: rpcHex(token0Value, "PancakeSwap token0"),
+  });
+  const token1 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "token1",
+    data: rpcHex(token1Value, "PancakeSwap token1"),
+  });
+  if (token0.toLowerCase() !== USDT.toLowerCase() || token1.toLowerCase() !== WBNB.toLowerCase()) {
+    throw new Error("PancakeSwap WBNB/USDT token ordering changed unexpectedly");
+  }
+  const slot0 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "slot0",
+    data: rpcHex(slot0Value, "PancakeSwap slot0"),
+  });
+  const activeLiquidity = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "liquidity",
+    data: rpcHex(liquidityValue, "PancakeSwap active liquidity"),
+  });
+  const wbnbBalance = decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    data: rpcHex(wbnbBalanceValue, "PancakeSwap WBNB balance"),
+  });
+  const usdtBalance = decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "balanceOf",
+    data: rpcHex(usdtBalanceValue, "PancakeSwap USDT balance"),
+  });
+  const volatility = await readPancakeVolatility(poolAddress, block.number);
+  const spotPriceUsd = poolPriceFromSqrtPriceX96(slot0[0]);
+  if (!Number.isFinite(spotPriceUsd) || spotPriceUsd <= 0) {
+    throw new Error("PancakeSwap returned an invalid spot price");
+  }
+  const reserveValueUsd =
+    Number(formatUnits(wbnbBalance, 18)) * spotPriceUsd + Number(formatUnits(usdtBalance, 18));
+  const activeLiquidityUsd = pancakeActiveLiquidityUsd(slot0[0], activeLiquidity, spotPriceUsd);
+  if (!Number.isFinite(reserveValueUsd) || reserveValueUsd <= 0) {
+    throw new Error("PancakeSwap returned an invalid reserve value");
+  }
+  if (!Number.isFinite(activeLiquidityUsd) || activeLiquidityUsd <= 0) {
+    throw new Error("PancakeSwap returned an invalid active-liquidity value");
+  }
+
+  const observedAt = new Date(Number(BigInt(block.timestamp)) * 1_000).toISOString();
+  const requestedAtDate = new Date();
+  const requestedAt = requestedAtDate.toISOString();
+  const deadline = new Date(requestedAtDate.getTime() + 120_000).toISOString();
+  const blockNumber = BigInt(block.number).toString();
+  const sourceId = `pancake-v3-mainnet-block-${blockNumber}`;
+  const halfWidthBps = Math.min(
+    1_500,
+    Math.max(200, Math.ceil(volatility.realizedVolatilityBps * 2)),
+  );
+  const lowerPrice = spotPriceUsd * (1 - halfWidthBps / 10_000);
+  const upperPrice = spotPriceUsd * (1 + halfWidthBps / 10_000);
+  const gasPrice = BigInt(rpcHex(gasPriceValue, "BSC gas price"));
+  const estimatedGasUsd = Math.max(
+    0.01,
+    Number(formatEther(gasPrice * 600_000n)) * spotPriceUsd,
+  );
+  const explorerUrl = `https://bscscan.com/block/${blockNumber}`;
+  const gridRequest = BoundedGridRequestSchema.parse({
+    schemaVersion: "positioncrew.bounded-grid.request.v1",
+    service: "BOUNDED_GRID",
+    requestId: `pancake-grid-${blockNumber}`,
+    chainId: 56,
+    account,
+    protocol: "PancakeSwap V3 bounded grid policy",
+    requestedAt,
+    deadline,
+    maxDataAgeSeconds: 120,
+    maxActionUsd: decimal(capitalUsd, 2),
+    maxGasUsd: decimal(Math.max(0.25, estimatedGasUsd * 2), 6),
+    maxSlippageBps: 10,
+    sources: [
+      {
+        sourceId,
+        label: "Block-pinned PancakeSwap V3 WBNB/USDT market state",
+        uri: explorerUrl,
+        observedAt,
+      },
+    ],
+    venue: poolAddress,
+    baseAsset: { symbol: "WBNB", address: WBNB, decimals: 18 },
+    quoteAsset: { symbol: "USDT", address: USDT, decimals: 18 },
+    marketState: {
+      midPrice: decimal(spotPriceUsd, 6),
+      liquidityUsd: decimal(activeLiquidityUsd, 2),
+      realizedVolatilityBps: volatility.realizedVolatilityBps,
+      venueFeeBps: 1,
+      observedAt,
+      sourceId,
+    },
+    constraints: {
+      capitalUsd: decimal(capitalUsd, 2),
+      lowerPrice: decimal(lowerPrice, 6),
+      upperPrice: decimal(upperPrice, 6),
+      levelCount: 5,
+      maximumInventoryUsd: decimal(capitalUsd * 0.6, 2),
+      maximumLossUsd: decimal(capitalUsd * 0.15, 2),
+      minimumExpectedNetProfitUsd: decimal(Math.max(1, capitalUsd * 0.005), 2),
+      minimumLiquidityUsd: "100000",
+      maximumVolatilityBps: Math.min(
+        100_000,
+        Math.max(1_000, Math.ceil(volatility.realizedVolatilityBps * 2.5)),
+      ),
+      expectedCompletedCycles: 10,
+      estimatedGasUsd: decimal(estimatedGasUsd, 6),
+      orderExpirySeconds: 120,
+    },
+  });
+
+  return {
+    schemaVersion: "positioncrew.pancake-grid-probe.v1",
+    generatedAt: requestedAt,
+    chainId: 56,
+    state: "READY",
+    market: {
+      pair: "WBNB/USDT",
+      poolAddress,
+      feeTier: 100,
+      spotPriceUsd: gridRequest.marketState.midPrice,
+      activeLiquidityUsd: gridRequest.marketState.liquidityUsd,
+      reserveValueUsd: decimal(reserveValueUsd, 2),
+      realizedVolatilityBps: volatility.realizedVolatilityBps,
+      volatilityWindowSeconds: volatility.windowSeconds,
+      volatilitySampleCount: volatility.sampleCount,
+    },
+    gridRequest,
+    source: {
+      blockNumber,
+      blockTimestamp: observedAt,
+      explorerUrl,
+      poolExplorerUrl: `https://bscscan.com/address/${poolAddress}`,
+    },
+    boundary:
+      "Token ordering, spot price, current active virtual liquidity, reserve balances, volatility observations, and gas were read for one BSC block. The grid is unsigned, assumes future completed cycles, and must be re-quoted and bound to the executing account before any order is placed.",
   };
 }
 

@@ -144,6 +144,31 @@ test("a block-pinned Venus position can become the provider request", async ({ p
   await expect(page.getByText(/Block-pinned Venus input/)).toBeVisible();
 });
 
+test("a block-pinned Pancake market can become a bounded grid request", async ({ page }) => {
+  await page.goto("/#jobs");
+  await page.getByRole("combobox", { name: "Provider" }).selectOption("BOUNDED_GRID");
+  await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByText("PancakeSwap market probe", { exact: true })).toBeVisible();
+  await expect(page.getByText(/Block-pinned PancakeSwap market from BSC block/)).toBeVisible();
+  await page.getByRole("button", { name: "Run bounded grid" }).click();
+  await expect(page.getByRole("heading", { name: /Build [45] bounded orders/ })).toBeVisible();
+  await expect(page.getByText(/Block-pinned PancakeSwap input/)).toBeVisible();
+
+  const response = await page.request.get("/api/markets/pancake/wbnb-usdt/grid");
+  expect(response.status()).toBe(200);
+  const probe = await response.json();
+  expect(probe).toMatchObject({
+    schemaVersion: "positioncrew.pancake-grid-probe.v1",
+    chainId: 56,
+    state: "READY",
+    market: { pair: "WBNB/USDT", feeTier: 100 },
+    gridRequest: { service: "BOUNDED_GRID", chainId: 56 },
+  });
+  expect(probe.market.realizedVolatilityBps).toBeGreaterThanOrEqual(0);
+  expect(probe.market.volatilitySampleCount).toBeGreaterThanOrEqual(3);
+  expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
+});
+
 test("all four mandatory capital jobs return category-specific results", async ({ page }) => {
   await page.goto("/#jobs");
   const provider = page.getByRole("combobox", { name: "Provider" });
@@ -155,8 +180,13 @@ test("all four mandatory capital jobs return category-specific results", async (
   ];
   for (const candidate of cases) {
     await provider.selectOption(candidate.value);
+    if (candidate.value === "BOUNDED_GRID") {
+      await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
+    }
     await page.getByRole("button", { name: candidate.button }).click();
-    await expect(page.getByRole("heading", { name: candidate.output })).toBeVisible();
+    await expect(page.getByRole("heading", {
+      name: candidate.value === "BOUNDED_GRID" ? /Build [45] bounded orders/ : candidate.output,
+    })).toBeVisible();
   }
   await expect(page.getByText("3 jobs", { exact: true })).toBeVisible();
 });
@@ -201,12 +231,23 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
 
   for (const candidate of cases) {
     await provider.selectOption(candidate.service);
+    if (candidate.service === "BOUNDED_GRID") {
+      await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
+    }
     await page.getByLabel(candidate.field).fill(candidate.value);
-    await expect(page.getByText(/Current-clock scenario with custom bounds/)).toBeVisible();
+    await expect(page.getByText(
+      candidate.service === "BOUNDED_GRID"
+        ? /Block-pinned PancakeSwap market/
+        : /Current-clock scenario with custom bounds/,
+    )).toBeVisible();
     await page.getByRole("button", { name: candidate.button }).click();
     await expect(page.getByRole("heading", { name: candidate.decision })).toBeVisible();
     await page.getByTitle("Reset interactive bounds").click();
-    await expect(page.getByText(/Current-clock simulation seeded from the August 12 fixture/)).toBeVisible();
+    await expect(page.getByText(
+      candidate.service === "BOUNDED_GRID"
+        ? /Block-pinned PancakeSwap market/
+        : /Current-clock simulation seeded from the August 12 fixture/,
+    )).toBeVisible();
   }
 });
 
