@@ -102,7 +102,6 @@ function json(value: unknown, status = 200) {
 function mockedFetch(options: {
   missingCodeAt?: number;
   chainId?: string;
-  handleAvailable?: boolean;
   searchStatus?: number;
   wrongIdentityOwner?: boolean;
 } = {}) {
@@ -112,10 +111,6 @@ function mockedFetch(options: {
     if (url.includes("/api/v1/explorer/agents")) {
       if (options.searchStatus) return json({ error: "search unavailable" }, options.searchStatus);
       return json({ items: [], page: 1, pageSize: 100, total: 0, totalPages: 0 });
-    }
-    if (url.includes("/api/v1/agents/name-availability")) {
-      const name = new URL(url).searchParams.get("name") ?? "unknown.agent";
-      return json({ available: options.handleAvailable ?? true, normalized: name });
     }
     if (init?.method === "POST") {
       const calls = JSON.parse(String(init.body)) as Array<{
@@ -292,7 +287,7 @@ describe("TermiX production AACP readiness", () => {
 
   it("keeps protocol verification visible during an Agent.family search outage", async () => {
     const readiness = await getAacpProductionReadiness({
-      fetchImpl: mockedFetch({ handleAvailable: false, searchStatus: 500 }),
+      fetchImpl: mockedFetch({ searchStatus: 500 }),
     });
 
     expect(readiness.state).toBe("IDENTITIES_MINTED_LISTINGS_PENDING");

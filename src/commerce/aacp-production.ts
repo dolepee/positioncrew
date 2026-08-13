@@ -420,10 +420,6 @@ const ListingResponseSchema = z
   })
   .passthrough();
 
-const NameAvailabilitySchema = z
-  .object({ available: z.boolean(), normalized: z.string().min(1) })
-  .strict();
-
 interface FetchOptions {
   fetchImpl?: typeof fetch;
   now?: Date;
@@ -643,23 +639,6 @@ async function discoverProvider(
   identity: VerifiedAacpIdentity,
   fetchImpl: typeof fetch,
 ) {
-  try {
-    const availability = NameAvailabilitySchema.parse(
-      await fetchJson(
-        `${AACP_BSC_API}/api/v1/agents/name-availability?name=${encodeURIComponent(blueprintValue.handle)}`,
-        fetchImpl,
-      ),
-    );
-    if (availability.normalized.toLowerCase() !== blueprintValue.handle.toLowerCase()) {
-      throw new Error(`TermiX normalized ${blueprintValue.handle} to another handle`);
-    }
-    if (availability.available) {
-      return identityBackedProvider(blueprintValue, identity, "IDENTITY_ONCHAIN");
-    }
-  } catch {
-    // Continue to public discovery. Availability failure must not imply a handle is free.
-  }
-
   let search: z.infer<typeof ExplorerResponseSchema>;
   try {
     search = ExplorerResponseSchema.parse(
