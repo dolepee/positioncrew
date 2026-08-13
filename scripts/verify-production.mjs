@@ -85,6 +85,49 @@ async function fetchJson(name, input) {
   return body;
 }
 
+async function postJson(name, input, payload) {
+  const url = localUrl(input);
+  const startedAt = performance.now();
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json",
+      "User-Agent": "PositionCrew-Production-Monitor/1.0",
+    },
+    body: JSON.stringify(payload),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
+  const body = await response.json().catch(() => null);
+  checks.push({ name, url: url.toString(), status: response.status, latencyMs });
+  assert(response.ok, `${name} returned HTTP ${response.status}`);
+  assert(body && typeof body === "object", `${name} did not return a JSON object`);
+  return body;
+}
+
+function rebaseObservationTimes(value, observedAt) {
+  if (Array.isArray(value)) {
+    return value.map((item) => rebaseObservationTimes(item, observedAt));
+  }
+  if (value === null || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      key === "observedAt" ? observedAt : rebaseObservationTimes(child, observedAt),
+    ]),
+  );
+}
+
+function buildMonitorRequest(request, now) {
+  const observedAt = now.toISOString();
+  const next = rebaseObservationTimes(structuredClone(request), observedAt);
+  next.requestId = `production-monitor-${String(request.service).toLowerCase()}-${now.getTime()}`;
+  next.requestedAt = observedAt;
+  next.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+  return next;
+}
+
 function decodeAgentUri(agentUri) {
   const separator = agentUri.indexOf(",");
   assert(separator > 0, "ERC-8004 agent URI is not a data URI");
@@ -198,6 +241,45 @@ try {
     assert(job.result?.request?.service === entry.service, `${entry.service} job routed incorrectly`);
     assert(job.result?.job?.state === "COMPLETED", `${entry.service} job did not complete`);
     assert(job.result?.evaluation?.score === 100, `${entry.service} job score is not 100/100`);
+    assert(job.evidenceMode === "FROZEN_BSC_TEST_FIXTURE", `${entry.service} GET job is not locked`);
+    assert(job.receipt?.mode === "PUBLIC_REPRODUCIBLE", `${entry.service} GET receipt is not public`);
+
+    const monitorStartedAt = new Date();
+    const interactiveRequest = buildMonitorRequest(job.result.request, monitorStartedAt);
+    const interactiveJob = await postJson(
+      `${entry.service}:interactive-job`,
+      manifest.transport?.job?.url,
+      { request: interactiveRequest },
+    );
+    assert(
+      interactiveJob.evidenceMode === "CALLER_SUPPLIED_OBSERVATIONS",
+      `${entry.service} default POST did not use caller-supplied observations`,
+    );
+    assert(interactiveJob.result?.job?.state === "COMPLETED", `${entry.service} interactive job did not complete`);
+    assert(interactiveJob.result?.evaluation?.score === 100, `${entry.service} interactive score is not 100/100`);
+    assert(interactiveJob.benchmarkLock === null, `${entry.service} interactive job exposed a benchmark lock`);
+    assert(interactiveJob.receipt?.mode === "SESSION_EMBEDDED", `${entry.service} interactive receipt is not session-only`);
+    assert(interactiveJob.receipt?.path === null, `${entry.service} interactive job exposed a public receipt path`);
+    assert(
+      Date.parse(interactiveJob.result?.deliverable?.expiresAt) > monitorStartedAt.getTime(),
+      `${entry.service} interactive result is already expired`,
+    );
+    assert(
+      Date.parse(interactiveJob.result?.deliverable?.expiresAt) <= Date.parse(interactiveRequest.deadline),
+      `${entry.service} interactive expiry exceeds the buyer deadline`,
+    );
+
+    const lockedJob = await postJson(
+      `${entry.service}:locked-job`,
+      manifest.transport?.job?.url,
+      { mode: "FROZEN_FIXTURE", request: job.result.request },
+    );
+    assert(lockedJob.evidenceMode === "FROZEN_BSC_TEST_FIXTURE", `${entry.service} locked POST changed mode`);
+    assert(
+      lockedJob.result?.evaluation?.evaluationHash === job.result.evaluation.evaluationHash,
+      `${entry.service} locked POST changed the evaluation hash`,
+    );
+    assert(lockedJob.receipt?.path === job.receipt.path, `${entry.service} locked POST changed the receipt path`);
 
     report.providers.push({
       providerId: manifest.provider.providerId,

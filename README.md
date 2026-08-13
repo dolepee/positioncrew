@@ -109,7 +109,7 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
-- ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet.
+- ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet. It also posts one current-clock scenario and one locked-receipt request to every Provider, rejecting expired scenario output, public evidence leakage, or any locked evaluation-hash drift.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary
