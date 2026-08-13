@@ -57,6 +57,12 @@ describe("ERC-8183 public evidence", () => {
 
   it("builds immutable category-bound manifests for every funded job", async () => {
     const hashes = new Set<string>();
+    const ledger = JSON.parse(await readFile(LEDGER_PATH, "utf8")) as {
+      jobs: Array<{ jobId: number; manifestHash: string }>;
+    };
+    const expectedHashes = new Map(
+      ledger.jobs.map((job) => [job.jobId, job.manifestHash]),
+    );
 
     for (const job of ERC8183_TESTNET_JOBS) {
       const manifest = await buildErc8183TestnetDeliverable(job.jobId);
@@ -77,7 +83,9 @@ describe("ERC-8183 public evidence", () => {
       );
       expect(delivery.advantageStatus).toBe("PENDING_INDEPENDENT_BLIND_EVALUATION");
       expect(delivery.claimBoundary.at(-1)).toContain("not external demand");
-      hashes.add(keccak256(stringToHex(canonicalJson(manifest))));
+      const manifestHash = keccak256(stringToHex(canonicalJson(manifest)));
+      expect(manifestHash).toBe(expectedHashes.get(job.jobId));
+      hashes.add(manifestHash);
     }
 
     expect(hashes.size).toBe(ERC8183_TESTNET_JOBS.length);

@@ -242,7 +242,7 @@ export function createLpRebalanceDeliverable(
     ],
     limitations: [
       "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
-      volumeBoundary,
+      ...(request.marketState.volumeMeasurementWindowSeconds ? [volumeBoundary] : []),
       "Exact V3 inventory composition must be recomputed immediately before execution.",
     ],
   });

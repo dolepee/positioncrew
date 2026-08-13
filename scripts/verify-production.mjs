@@ -25,6 +25,7 @@ const expectedServices = new Set([
 ]);
 const referencePancakePositionId = "1456267";
 const checks = [];
+const monitorRunId = String(Date.now());
 const bscTestnetRpc =
   process.env.BSC_TESTNET_RPC_URL ?? "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const bscTestnet = defineChain({
@@ -73,9 +74,15 @@ function canonicalJson(value) {
 
 async function fetchJson(name, input) {
   const url = localUrl(input);
+  url.searchParams.set("positioncrew_monitor", monitorRunId);
   const startedAt = performance.now();
   const response = await fetch(url, {
-    headers: { Accept: "application/json", "User-Agent": "PositionCrew-Production-Monitor/1.0" },
+    headers: {
+      Accept: "application/json",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+      "User-Agent": "PositionCrew-Production-Monitor/1.0",
+    },
     signal: AbortSignal.timeout(15_000),
   });
   const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
@@ -498,6 +505,11 @@ try {
   report.commerce = [];
   for (const ledgerJob of commerceLedger.jobs) {
     const startedAt = performance.now();
+    const manifestUrl = new URL(ledgerJob.manifestUrl);
+    assert(
+      manifestUrl.origin === "https://positioncrew.dolepee.com",
+      `ERC-8183 job ${ledgerJob.jobId} manifest is not on the canonical domain`,
+    );
     const [onchainJob, registerReceipt, settleReceipt, manifest] = await Promise.all([
       identityClient.readContract({
         address: commerceAddress,
@@ -507,7 +519,10 @@ try {
       }),
       identityClient.getTransactionReceipt({ hash: ledgerJob.transactions.register }),
       identityClient.getTransactionReceipt({ hash: ledgerJob.transactions.settle }),
-      fetchJson(`erc8183-job-${ledgerJob.jobId}-manifest`, ledgerJob.manifestUrl),
+      fetchJson(
+        `erc8183-job-${ledgerJob.jobId}-manifest`,
+        `${manifestUrl.pathname}${manifestUrl.search}`,
+      ),
     ]);
     // APEX clears jobPolicy after settlement, so policy provenance lives in JobRegistered.
     const registrationEvents = parseEventLogs({
