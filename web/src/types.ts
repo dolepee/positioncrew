@@ -158,8 +158,84 @@ export interface ProviderListing {
 export interface ProviderCatalogResponse {
   schemaVersion: "positioncrew.provider-catalog-response.v1";
   generatedAt: string;
-  commerceAdapter: "PENDING_SUPPORTED_AACP_GUIDE";
+  commerceAdapter: "AACP_PRODUCTION_ONBOARDING_PENDING";
   providers: ProviderListing[];
+}
+
+export interface AacpProductionReadiness {
+  schemaVersion: "positioncrew.aacp-production-readiness.v1";
+  generatedAt: string;
+  state:
+    | "SOURCE_UNAVAILABLE"
+    | "PROTOCOL_DEGRADED"
+    | "MARKETPLACE_DISCOVERY_DEGRADED"
+    | "ONBOARDING_PENDING"
+    | "LISTINGS_PUBLISHED_RUNTIME_PENDING"
+    | "PROVIDERS_ONLINE";
+  source: {
+    apiBase: string;
+    configUrl: string;
+    rpcUrl: string;
+    docsUrl: string;
+  };
+  network: {
+    chainId: 56;
+    name: string;
+    blockNumber: string | null;
+    explorerUrl: string;
+  };
+  protocol: {
+    protocolFeeBps: number | null;
+    currencyCount: number | null;
+    deployedCount: number;
+    contractCount: number;
+    contracts: Array<{
+      name: string;
+      kind: string;
+      currency: string | null;
+      address: string;
+      deployed: boolean;
+      codeBytes: number;
+      explorerUrl: string;
+    }>;
+    currencies: Array<{
+      symbol: "USDC" | "USDT";
+      decimals: number;
+      address: string;
+      default: boolean;
+      protocolFeeBps: number;
+      providerLockBps: number | null;
+      escrow: string;
+      staking: string;
+    }>;
+  };
+  marketplace: {
+    requiredProviderCount: number;
+    indexedProviderCount: number;
+    publishedListingCount: number;
+    onlineProviderCount: number;
+    providers: Array<{
+      service: ServiceId;
+      handle: string;
+      agentId: string | null;
+      agentTokenId: string | null;
+      listingId: string | null;
+      listingStatus: string | null;
+      a2aStatus: string | null;
+      presence: string | null;
+      verified: boolean;
+      status:
+        | "HANDLE_AVAILABLE"
+        | "HANDLE_UNRESOLVED"
+        | "AGENT_INDEXED"
+        | "LISTED_OFFLINE"
+        | "ONLINE_AND_LISTED"
+        | "DISCOVERY_UNAVAILABLE"
+        | "LISTING_DISCOVERY_UNAVAILABLE"
+        | "UPSTREAM_UNAVAILABLE";
+    }>;
+  };
+  boundaries: string[];
 }
 
 export interface SessionJob {
@@ -205,20 +281,6 @@ export interface SystemTelemetry {
     totalBorrowsUsd: string;
     observedAt: string;
     explorerUrl: string;
-  };
-  aacp: {
-    chainId: 97;
-    state: "CONTRACTS_VERIFIED_BACKEND_GATED";
-    deployedCount: number;
-    contractCount: number;
-    contracts: Array<{
-      name: string;
-      address: string;
-      deployed: boolean;
-      explorerUrl: string;
-    }>;
-    docsUrl: string;
-    boundary: string;
   };
 }
 

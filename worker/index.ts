@@ -14,6 +14,11 @@ import {
   runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import type { TermixBenchmarkService } from "../src/benchmark/lock.js";
+import {
+  getAacpProductionReadiness,
+  unavailableAacpProductionReadiness,
+  type AacpProductionReadiness,
+} from "../src/commerce/aacp-production.js";
 import { buildErc8183TestnetDeliverable } from "../src/commerce/erc8183-evidence.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
@@ -64,6 +69,8 @@ const BENCHMARK_SLUGS = new Map<string, TermixBenchmarkService>([
 const MONITOR_EPOCH = productionMonitorEpoch as ProductionMonitorEpoch;
 let productionRecordCache: { expiresAt: number; record: ProductionTrackRecord } | null = null;
 let productionRecordRequest: Promise<ProductionTrackRecord> | null = null;
+let aacpReadinessCache: { expiresAt: number; record: AacpProductionReadiness } | null = null;
+let aacpReadinessRequest: Promise<AacpProductionReadiness> | null = null;
 
 const API_HEADERS = {
   "Access-Control-Allow-Headers": "Accept, Content-Type",
@@ -234,6 +241,39 @@ async function productionTrackRecord(): Promise<Response> {
   return json(record, 200, "public, max-age=0, s-maxage=60, stale-while-revalidate=300");
 }
 
+async function loadAacpReadiness(): Promise<AacpProductionReadiness> {
+  if (aacpReadinessCache && aacpReadinessCache.expiresAt > Date.now()) {
+    return aacpReadinessCache.record;
+  }
+  if (aacpReadinessRequest) return aacpReadinessRequest;
+  aacpReadinessRequest = (async () => {
+    let record: AacpProductionReadiness;
+    let ttlMs: number;
+    try {
+      record = await getAacpProductionReadiness();
+      ttlMs = record.state.includes("DEGRADED") ? 60_000 : 5 * 60_000;
+    } catch {
+      record = unavailableAacpProductionReadiness();
+      ttlMs = 60_000;
+    }
+    aacpReadinessCache = { expiresAt: Date.now() + ttlMs, record };
+    return record;
+  })();
+  try {
+    return await aacpReadinessRequest;
+  } finally {
+    aacpReadinessRequest = null;
+  }
+}
+
+async function aacpReadiness(): Promise<Response> {
+  const record = await loadAacpReadiness();
+  const cacheControl = record.state === "SOURCE_UNAVAILABLE" || record.state.includes("DEGRADED")
+    ? "public, max-age=0, s-maxage=60, stale-while-revalidate=300"
+    : "public, max-age=0, s-maxage=300, stale-while-revalidate=900";
+  return json(record, 200, cacheControl);
+}
+
 async function rescue(request: Request): Promise<Response> {
   if (request.method === "GET") return json(await runFrozenFixture("LENDING_RESCUE"));
 
@@ -287,7 +327,7 @@ async function api(request: Request, url: URL): Promise<Response> {
         {
           schemaVersion: "positioncrew.provider-catalog-response.v1",
           generatedAt: new Date().toISOString(),
-          commerceAdapter: "PENDING_SUPPORTED_AACP_GUIDE",
+          commerceAdapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
           providers: PROVIDER_CATALOG,
         },
         200,
@@ -344,6 +384,11 @@ async function api(request: Request, url: URL): Promise<Response> {
         200,
         "public, max-age=3600, s-maxage=86400, immutable",
       );
+    }
+
+    if (url.pathname === "/api/commerce/aacp") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return aacpReadiness();
     }
 
     const erc8183DeliverableRoute = url.pathname.match(

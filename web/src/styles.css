@@ -709,6 +709,19 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .infrastructure-grid > a > small { margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.4; }
 .infrastructure-grid > a > svg { position: absolute; top: 15px; right: 15px; color: #7d8883; }
 .infrastructure-loading { padding: 24px 15px; color: var(--muted); font-size: 11px; }
+.aacp-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.aacp-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
+.aacp-facts > div:last-child { border-right: 0; }
+.aacp-facts strong { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.aacp-facts span { margin-top: 4px; color: var(--ink); font-size: 10px; font-weight: 750; }
+.aacp-facts small { margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.aacp-provider-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.aacp-provider-grid > div { display: flex; min-width: 0; min-height: 116px; padding: 14px 15px; border-right: 1px solid var(--line); flex-direction: column; }
+.aacp-provider-grid > div:last-child { border-right: 0; }
+.aacp-provider-grid > div > span:first-child { color: var(--muted); font-size: 9px; font-weight: 800; text-transform: uppercase; }
+.aacp-provider-grid strong { margin-top: 8px; overflow-wrap: anywhere; font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; line-height: 1.45; }
+.aacp-provider-grid small { margin: 6px 0 10px; color: var(--muted); font-size: 9px; }
+.aacp-provider-grid .state-label { align-self: flex-start; margin-top: auto; }
 .operations-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
 .operations-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
 .operations-facts > div:last-child { border-right: 0; }
@@ -812,6 +825,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-metrics > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .receipt-view { grid-template-columns: 1fr; }
   .infrastructure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aacp-facts, .aacp-provider-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .aacp-facts > div:nth-child(2), .aacp-provider-grid > div:nth-child(2) { border-right: 0; }
+  .aacp-facts > div:nth-child(-n + 2), .aacp-provider-grid > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .commerce-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operations-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .delivery-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -964,6 +980,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .evidence-table td:nth-child(6)::before { content: "Receipt"; }
   .evidence-table td code { min-width: 0; overflow-wrap: anywhere; }
   .commerce-facts { grid-template-columns: 1fr; }
+  .aacp-facts, .aacp-provider-grid { grid-template-columns: 1fr; }
+  .aacp-facts > div, .aacp-provider-grid > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .aacp-facts > div:last-child, .aacp-provider-grid > div:last-child { border-bottom: 0; }
   .operations-facts, .operations-runs { grid-template-columns: 1fr; }
   .operations-facts > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
   .operations-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }

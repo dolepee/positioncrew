@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { shortHash } from "../presentation";
 import type {
+  AacpProductionReadiness,
   AgentCaptureManifestResponse,
   AgentAdvantagePublicationStatus,
   BenchmarkRepeatabilityResponse,
@@ -33,6 +34,7 @@ export function EvidenceView({
   captureManifest,
   marketplaceProvenance,
   commerceLedger,
+  aacpReadiness,
   advantagePublication,
   productionTrackRecord,
 }: {
@@ -43,6 +45,7 @@ export function EvidenceView({
   captureManifest: AgentCaptureManifestResponse | null;
   marketplaceProvenance: MarketplaceInvocationEvidence | null;
   commerceLedger: Erc8183TestnetLedger | null;
+  aacpReadiness: AacpProductionReadiness | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
   productionTrackRecord: ProductionTrackRecord | null;
 }) {
@@ -100,6 +103,29 @@ export function EvidenceView({
     : productionTrackRecord?.status === "DEGRADED" || productionTrackRecord?.status === "SOURCE_UNAVAILABLE"
       ? "warn"
       : "neutral";
+  const aacpStatus = aacpReadiness?.state === "PROVIDERS_ONLINE"
+    ? { label: "Providers online", tone: "good" }
+    : aacpReadiness?.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING"
+      ? { label: "Runtime pending", tone: "warn" }
+      : aacpReadiness?.state === "ONBOARDING_PENDING"
+        ? { label: "Onboarding", tone: "neutral" }
+        : aacpReadiness?.state === "MARKETPLACE_DISCOVERY_DEGRADED"
+          ? { label: "Discovery degraded", tone: "warn" }
+        : aacpReadiness?.state === "PROTOCOL_DEGRADED"
+          ? { label: "Protocol degraded", tone: "warn" }
+          : aacpReadiness?.state === "SOURCE_UNAVAILABLE"
+            ? { label: "Source unavailable", tone: "warn" }
+            : { label: "Loading", tone: "neutral" };
+  const aacpProviderStatus = (status: AacpProductionReadiness["marketplace"]["providers"][number]["status"]) => ({
+    HANDLE_AVAILABLE: "Ready to mint",
+    HANDLE_UNRESOLVED: "Name reserved",
+    AGENT_INDEXED: "Agent indexed",
+    LISTED_OFFLINE: "Listing published",
+    ONLINE_AND_LISTED: "Online",
+    DISCOVERY_UNAVAILABLE: "Discovery unavailable",
+    LISTING_DISCOVERY_UNAVAILABLE: "Listing check unavailable",
+    UPSTREAM_UNAVAILABLE: "Unavailable",
+  })[status];
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -113,6 +139,7 @@ export function EvidenceView({
           <span><BadgeCheck size={16} /><strong>{providers.length}/4</strong> BSC identities</span>
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
           <span><Coins size={16} /><strong>{commerceLedger?.summary.fundedCompletedJobs ?? "-"}</strong> funded test jobs</span>
+          <span><Radio size={16} /><strong>{aacpReadiness?.marketplace.publishedListingCount ?? "-"}/4</strong> AACP listings</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
           <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> marketplace deliveries</span>
         </div>
@@ -139,6 +166,38 @@ export function EvidenceView({
             </a>
           </div>
         ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
+      </section>
+
+      <section className="evidence-section aacp-section" aria-labelledby="aacp-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">TermiX production rail</span><h2 id="aacp-title">AACP deployment and provider onboarding</h2></div>
+          <span className={`state-label ${aacpStatus.tone}`}><Radio size={13} /> {aacpStatus.label}</span>
+        </div>
+        {aacpReadiness ? (
+          <>
+            <div className="aacp-facts">
+              <div><strong>{aacpReadiness.protocol.contractCount ? `${aacpReadiness.protocol.deployedCount}/${aacpReadiness.protocol.contractCount}` : "-"}</strong><span>production contracts</span><small>Bytecode checked independently on chain 56</small></div>
+              <div><strong>{aacpReadiness.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness.protocol.protocolFeeBps === null ? "Fee unavailable" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
+              <div><strong>{aacpReadiness.marketplace.publishedListingCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>public listings</span><small>Four exact production handles reserved</small></div>
+              <div><strong>{aacpReadiness.marketplace.onlineProviderCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>online providers</span><small>A2A presence must remain live through judging</small></div>
+            </div>
+            <div className="aacp-provider-grid" aria-label="TermiX production provider onboarding state">
+              {aacpReadiness.marketplace.providers.map((provider) => (
+                <div key={provider.service}>
+                  <span>{providers.find((candidate) => candidate.service === provider.service)?.category ?? provider.service}</span>
+                  <strong>{provider.handle}</strong>
+                  <small>{provider.agentTokenId ? `ERC-8004 #${provider.agentTokenId}` : provider.status === "HANDLE_AVAILABLE" ? "Handle unclaimed" : "Identity not yet resolved"}</small>
+                  <span className={`state-label ${provider.status === "ONLINE_AND_LISTED" ? "good" : provider.status.includes("UNAVAILABLE") ? "warn" : "neutral"}`}>{aacpProviderStatus(provider.status)}</span>
+                </div>
+              ))}
+            </div>
+            <div className="operations-boundary">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span><strong>Production protocol, honest onboarding state.</strong>{aacpReadiness.boundaries[0]} {aacpReadiness.boundaries[1]}</span>
+              <span className="delivery-links"><a href="/api/commerce/aacp" target="_blank" rel="noreferrer">Readiness record <ExternalLink size={12} /></a><a href={aacpReadiness.source.docsUrl} target="_blank" rel="noreferrer">TermiX guide <ExternalLink size={12} /></a></span>
+            </div>
+          </>
+        ) : <div className="infrastructure-loading">The TermiX production readiness record is loading.</div>}
       </section>
 
       <section className="evidence-section delivery-evidence-section" aria-labelledby="delivery-title">
@@ -354,7 +413,7 @@ export function EvidenceView({
       <section className="claim-register" aria-label="Claim boundaries">
         <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
         <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four receipts reproduce, and six precommitted no-retry jobs delivered the flagship outputs through the public marketplace.</span></div>
-        <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed; TermiX AACP remains pending its corrected guide.</span></div>
+        <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed. TermiX production contracts are independently verified; provider onboarding is visible and no paid AACP order is claimed.</span></div>
         <div>{publishedAdvantage ? <BadgeCheck size={17} /> : <Clock3 size={17} />}<span><strong>Track record</strong>{publishedAdvantage ? `${publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the independently scored advantage rule; scope remains limited to the published report.` : "Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published."}</span></div>
       </section>
     </main>

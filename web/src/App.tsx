@@ -5,6 +5,7 @@ import { JobWorkspace } from "./components/JobWorkspace";
 import { MarketplaceView } from "./components/MarketplaceView";
 import { ShellHeader, type AppView } from "./components/ShellHeader";
 import type {
+  AacpProductionReadiness,
   AgentCaptureManifestResponse,
   AgentAdvantagePublicationStatus,
   BenchmarkRepeatabilityMatrixResponse,
@@ -63,6 +64,7 @@ export default function App() {
   const [marketplaceProvenance, setMarketplaceProvenance] = useState<MarketplaceInvocationEvidence | null>(null);
   const [advantagePublication, setAdvantagePublication] = useState<AgentAdvantagePublicationStatus | null>(null);
   const [commerceLedger, setCommerceLedger] = useState<Erc8183TestnetLedger | null>(null);
+  const [aacpReadiness, setAacpReadiness] = useState<AacpProductionReadiness | null>(null);
   const [productionTrackRecord, setProductionTrackRecord] = useState<ProductionTrackRecord | null>(null);
   const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
@@ -74,7 +76,7 @@ export default function App() {
   async function loadRegistry() {
     setError(null);
     try {
-      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, provenancePayload, commercePayload, advantagePayload, productionRecordPayload] = await Promise.all([
+      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, provenancePayload, commercePayload, aacpPayload, advantagePayload, productionRecordPayload] = await Promise.all([
         fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
         fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
         fetch("/api/status", { headers: { Accept: "application/json" } })
@@ -91,6 +93,9 @@ export default function App() {
           .catch(() => null),
         fetch("/api/commerce/erc8183", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<Erc8183TestnetLedger>(response))
+          .catch(() => null),
+        fetch("/api/commerce/aacp", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<AacpProductionReadiness>(response))
           .catch(() => null),
         fetch("/evidence/agent-advantage-status.json", {
           cache: "no-store",
@@ -109,6 +114,7 @@ export default function App() {
       setCaptureManifest(capturePayload);
       setMarketplaceProvenance(provenancePayload);
       setCommerceLedger(commercePayload);
+      setAacpReadiness(aacpPayload);
       setAdvantagePublication(advantagePayload);
       setProductionTrackRecord(productionRecordPayload);
     } catch (loadError) {
@@ -194,7 +200,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} marketplaceProvenance={marketplaceProvenance} commerceLedger={commerceLedger} advantagePublication={advantagePublication} productionTrackRecord={productionTrackRecord} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} marketplaceProvenance={marketplaceProvenance} commerceLedger={commerceLedger} aacpReadiness={aacpReadiness} advantagePublication={advantagePublication} productionTrackRecord={productionTrackRecord} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -205,7 +211,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, marketplaceProvenance, commerceLedger, advantagePublication, productionTrackRecord]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, marketplaceProvenance, commerceLedger, aacpReadiness, advantagePublication, productionTrackRecord]);
 
   return (
     <div className="app-shell">

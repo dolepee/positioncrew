@@ -113,9 +113,10 @@ export function buildProviderManifest(
     },
     commerce: {
       settlement: provider.settlement,
-      adapter: "PENDING_SUPPORTED_AACP_GUIDE",
+      adapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
+      readinessUrl: absolute(origin, "/api/commerce/aacp"),
       boundary:
-        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately; paid AACP and mainnet settlement are not claimed.",
+        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately. Production AACP contracts and onboarding state are independently reported, but no paid AACP order or revenue is claimed.",
     },
   };
 }
@@ -140,6 +141,7 @@ export function buildMarketplaceManifest(
     openApiUrl: absolute(origin, "/openapi.json"),
     operatingRecordUrl: absolute(origin, "/api/operations/production"),
     marketplaceDeliveryEvidenceUrl: absolute(origin, "/api/benchmarks/marketplace-provenance"),
+    aacpReadinessUrl: absolute(origin, "/api/commerce/aacp"),
     providers: PROVIDER_CATALOG.map((provider) => ({
       providerId: provider.providerId,
       service: provider.service,
@@ -151,6 +153,7 @@ export function buildMarketplaceManifest(
       categoryCoverage: "4_OF_4",
       providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
       settlement: "IN_MEMORY_CONFORMANCE",
+      aacp: "PRODUCTION_ONBOARDING_PENDING",
       judgeTrial: "NO_WALLET_PROVIDER_CALL",
       agentAdvantage: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     },
@@ -244,6 +247,18 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
         },
       },
     },
+    "/api/commerce/aacp": {
+      get: {
+        summary: "Read verified TermiX production AACP deployment and PositionCrew onboarding state",
+        operationId: "getAacpProductionReadiness",
+        responses: {
+          "200": {
+            description:
+              "Fail-closed BNB Chain contract probes and public Agent.family provider/listing discovery",
+          },
+        },
+      },
+    },
     "/api/wallets/{account}/venus": {
       get: {
         summary: "Convert a block-pinned Venus Classic account into an unsigned rescue request",
@@ -303,7 +318,7 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
       title: "PositionCrew Provider API",
       version: "1.0.0",
       description:
-        "Machine-readable contracts for four bounded BSC capital providers. Current settlement is an in-memory conformance rail, not paid AACP settlement.",
+        "Machine-readable contracts for four bounded BSC capital providers. The no-wallet trial remains an in-memory conformance rail; production AACP readiness is reported separately and paid settlement is not yet claimed.",
     },
     servers: [{ url: origin }],
     paths,

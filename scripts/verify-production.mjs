@@ -243,6 +243,10 @@ try {
     "Marketplace judge-trial boundary changed unexpectedly",
   );
   assert(
+    marketplace.claims?.aacp === "PRODUCTION_ONBOARDING_PENDING",
+    "Marketplace AACP claim boundary changed unexpectedly",
+  );
+  assert(
     new URL(marketplace.operatingRecordUrl).origin === baseUrl.origin,
     "Marketplace operating record is not canonical",
   );
@@ -250,6 +254,60 @@ try {
     new URL(marketplace.marketplaceDeliveryEvidenceUrl).origin === baseUrl.origin,
     "Marketplace delivery evidence is not canonical",
   );
+  assert(
+    new URL(marketplace.aacpReadinessUrl).origin === baseUrl.origin,
+    "Marketplace AACP readiness record is not canonical",
+  );
+
+  const aacpReadiness = await fetchJson(
+    "aacp-production-readiness",
+    marketplace.aacpReadinessUrl,
+  );
+  assert(
+    aacpReadiness.schemaVersion === "positioncrew.aacp-production-readiness.v1",
+    "Unexpected AACP readiness schema",
+  );
+  assert(aacpReadiness.network?.chainId === 56, "AACP readiness is not on BNB Chain");
+  assert(
+    aacpReadiness.state !== "SOURCE_UNAVAILABLE" &&
+      aacpReadiness.state !== "PROTOCOL_DEGRADED" &&
+      aacpReadiness.state !== "MARKETPLACE_DISCOVERY_DEGRADED",
+    `AACP production rail is ${aacpReadiness.state}`,
+  );
+  assert(
+    aacpReadiness.protocol?.contractCount > 0 &&
+      aacpReadiness.protocol.deployedCount === aacpReadiness.protocol.contractCount,
+    "AACP production contract bytecode is incomplete",
+  );
+  assert(
+    aacpReadiness.protocol?.currencies?.map((currency) => currency.symbol).join(",") ===
+      "USDC,USDT",
+    "AACP production settlement currencies changed",
+  );
+  assert(
+    aacpReadiness.marketplace?.requiredProviderCount === 4 &&
+      aacpReadiness.marketplace.providers?.length === 4,
+    "AACP readiness does not cover all four PositionCrew providers",
+  );
+  assert(
+    new Set(aacpReadiness.marketplace.providers.map((provider) => provider.handle)).size === 4 &&
+      aacpReadiness.marketplace.providers.every((provider) =>
+        provider.handle.startsWith("positioncrew-") && provider.handle.endsWith(".agent"),
+      ),
+    "AACP provider handles are missing or duplicated",
+  );
+  assert(
+    aacpReadiness.marketplace.publishedListingCount >= 0 &&
+      aacpReadiness.marketplace.publishedListingCount <= 4 &&
+      aacpReadiness.marketplace.onlineProviderCount >= 0 &&
+      aacpReadiness.marketplace.onlineProviderCount <= 4,
+    "AACP provider counts are outside the four-provider boundary",
+  );
+  assert(
+    aacpReadiness.boundaries?.join(" ").includes("does not claim"),
+    "AACP readiness overstates paid production activity",
+  );
+  report.aacpReadiness = aacpReadiness;
 
   const marketplaceDelivery = await fetchJson(
     "marketplace-delivery-evidence",
@@ -409,7 +467,7 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 11, "OpenAPI does not expose all job and evidence paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 12, "OpenAPI does not expose all job and evidence paths");
   assert(
     openApi.paths?.["/api/operations/production"]?.get?.operationId ===
       "getProductionTrackRecord",
@@ -419,6 +477,11 @@ try {
     openApi.paths?.["/api/benchmarks/marketplace-provenance"]?.get?.operationId ===
       "getMarketplaceInvocationEvidence",
     "OpenAPI omits marketplace delivery evidence",
+  );
+  assert(
+    openApi.paths?.["/api/commerce/aacp"]?.get?.operationId ===
+      "getAacpProductionReadiness",
+    "OpenAPI omits TermiX production readiness",
   );
   assert(
     openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===
@@ -664,6 +727,11 @@ try {
     assert(
       manifest.commerce?.settlement === "IN_MEMORY_CONFORMANCE",
       `${entry.service} settlement boundary changed unexpectedly`,
+    );
+    assert(
+      manifest.commerce?.adapter === "AACP_PRODUCTION_ONBOARDING_PENDING" &&
+        new URL(manifest.commerce?.readinessUrl).origin === baseUrl.origin,
+      `${entry.service} AACP readiness binding changed unexpectedly`,
     );
     assert(
       manifest.pricing?.judgeTrial?.amount === "0" &&

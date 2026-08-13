@@ -408,7 +408,23 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText("0.6 U", { exact: true })).toBeVisible();
   await expect(page.getByText("Verified integration, disclosed operator.", { exact: true })).toBeVisible();
   await expect(page.getByText(/not external purchases, revenue, or the pending blind Agent Advantage result/)).toBeVisible();
-  await expect(page.getByText(/TermiX AACP remains pending its corrected guide/)).toBeVisible();
+  const aacpSection = page.getByRole("region", { name: "AACP deployment and provider onboarding" });
+  await expect(aacpSection).toBeVisible();
+  await expect(aacpSection.getByText("10/10", { exact: true })).toBeVisible();
+  await expect(aacpSection.getByText("USDC + USDT", { exact: true })).toBeVisible();
+  await expect(aacpSection.getByText(/does not claim that a wallet-signed agent mint, paid order/)).toBeVisible();
+
+  const aacpResponse = await page.request.get("/api/commerce/aacp");
+  expect(aacpResponse.status()).toBe(200);
+  const aacp = await aacpResponse.json();
+  expect(aacp).toMatchObject({
+    schemaVersion: "positioncrew.aacp-production-readiness.v1",
+    state: "ONBOARDING_PENDING",
+    network: { chainId: 56 },
+    protocol: { deployedCount: 10, contractCount: 10, currencyCount: 2 },
+    marketplace: { requiredProviderCount: 4 },
+  });
+  expect(aacp.marketplace.providers).toHaveLength(4);
 
   const commerceResponse = await page.request.get("/api/commerce/erc8183");
   expect(commerceResponse.status()).toBe(200);

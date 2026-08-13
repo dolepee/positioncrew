@@ -175,16 +175,24 @@ describe("public fixture job boundary", () => {
       },
     });
     expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
+    expect(manifest).toMatchObject({
+      commerce: {
+        adapter: "AACP_PRODUCTION_ONBOARDING_PENDING",
+        readinessUrl: `${origin}/api/commerce/aacp`,
+      },
+    });
     expect(marketplace).toMatchObject({
       schemaVersion: "positioncrew.marketplace-manifest.v1",
+      aacpReadinessUrl: `${origin}/api/commerce/aacp`,
       claims: {
         categoryCoverage: "4_OF_4",
         providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
         judgeTrial: "NO_WALLET_PROVIDER_CALL",
+        aacp: "PRODUCTION_ONBOARDING_PENDING",
       },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
-    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(11);
+    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(12);
     expect(openApi.paths).toMatchObject({
       "/api/status": { get: { operationId: "getSystemTelemetry" } },
       "/api/operations/production": {
@@ -192,6 +200,9 @@ describe("public fixture job boundary", () => {
       },
       "/api/benchmarks/marketplace-provenance": {
         get: { operationId: "getMarketplaceInvocationEvidence" },
+      },
+      "/api/commerce/aacp": {
+        get: { operationId: "getAacpProductionReadiness" },
       },
       "/api/wallets/{account}/venus": { get: { operationId: "inspectVenusAccount" } },
       "/api/markets/pancake/wbnb-usdt/grid": {

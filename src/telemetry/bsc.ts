@@ -65,17 +65,6 @@ const VENUS_STABLE_MARKETS = [
   },
 ] as const;
 
-const AACP_CONTRACTS = [
-  ["ACPCore", "0x4e07f9C438ba784653b39eB9aE39b1eFF470b6c9"],
-  ["TermiXDispute", "0x5f57167F7180C6608bdDeE0df7a47b6Ec46b419B"],
-  ["TermiXStaking", "0xBd64B6BbcFcF4Ac78a9e1bdb55a3a128D2e5156e"],
-  ["TermiXReputation", "0x28093b19B2bC80225EB4FD0b4665475E41523f98"],
-  ["TermiXTreasury", "0x5683d92A8dF9203B007a44Aad3AB1d870870bc13"],
-  ["TermiXHook", "0xcF7f3282Da845dBF5493Ca32d94e6720dd3F1D9d"],
-  ["MockUSDC", "0x2d01552B05c9b1874373b784AD68398dd7E4B0a8"],
-  ["MockAgentNFT", "0x23932e45071ba6Ef687331F429b79C09C34D5eb0"],
-] as const satisfies readonly (readonly [string, Address])[];
-
 const FACTORY_ABI = parseAbi([
   "function getPool(address tokenA, address tokenB, uint24 fee) view returns (address pool)",
 ]);
@@ -340,20 +329,6 @@ export interface SystemTelemetry {
     totalBorrowsUsd: string;
     observedAt: string;
     explorerUrl: string;
-  };
-  aacp: {
-    chainId: 97;
-    state: "CONTRACTS_VERIFIED_BACKEND_GATED";
-    deployedCount: number;
-    contractCount: number;
-    contracts: Array<{
-      name: string;
-      address: Address;
-      deployed: boolean;
-      explorerUrl: string;
-    }>;
-    docsUrl: string;
-    boundary: string;
   };
 }
 
@@ -844,10 +819,8 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
     chainProbe(97, "BSC Testnet", TESTNET_RPC, "https://testnet.bscscan.com"),
   ]);
   const mainnetBlockTag = toHex(BigInt(mainnet.probe.blockNumber));
-  const testnetBlockTag = toHex(BigInt(testnet.probe.blockNumber));
 
-  const [mainnetValues, aacpCodes] = await Promise.all([
-    rpcBatch(MAINNET_RPC, [
+  const mainnetValues = await rpcBatch(MAINNET_RPC, [
       ethCall(
         PANCAKE_V3_FACTORY,
         encodeFunctionData({
@@ -877,15 +850,7 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
         encodeFunctionData({ abi: VTOKEN_ABI, functionName: "totalBorrows" }),
         mainnetBlockTag,
       ),
-    ]),
-    rpcBatch(
-      TESTNET_RPC,
-      AACP_CONTRACTS.map(([, address]) => ({
-        method: "eth_getCode",
-        params: [address, testnetBlockTag],
-      })),
-    ),
-  ]);
+    ]);
 
   const poolAddress = decodeFunctionResult({
     abi: FACTORY_ABI,
@@ -940,15 +905,6 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
   });
 
   const generatedAt = new Date().toISOString();
-  const contracts = AACP_CONTRACTS.map(([name, address], index) => {
-    const bytecode = rpcHex(aacpCodes[index], `${name} bytecode`);
-    return {
-      name,
-      address,
-      deployed: bytecode !== "0x",
-      explorerUrl: `https://testnet.bscscan.com/address/${address}`,
-    };
-  });
 
   return {
     schemaVersion: "positioncrew.system-telemetry.v1",
@@ -975,16 +931,6 @@ export async function getSystemTelemetry(): Promise<SystemTelemetry> {
       totalBorrowsUsd: decimal(Number(formatUnits(totalBorrows, 18)), 0),
       observedAt: generatedAt,
       explorerUrl: `https://bscscan.com/address/${VENUS_VUSDT}`,
-    },
-    aacp: {
-      chainId: 97,
-      state: "CONTRACTS_VERIFIED_BACKEND_GATED",
-      deployedCount: contracts.filter((contract) => contract.deployed).length,
-      contractCount: contracts.length,
-      contracts,
-      docsUrl: "https://docs.termix.ai/aacp/overview",
-      boundary:
-        "AACP contracts are deployed on BSC testnet. Terminal settlement remains disabled until the documented backend config and proof flow are reachable.",
     },
   };
 }
