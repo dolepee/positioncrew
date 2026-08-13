@@ -13,6 +13,7 @@ import {
 import { shortHash } from "../presentation";
 import type {
   AgentCaptureManifestResponse,
+  AgentAdvantagePublicationStatus,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
   Erc8183TestnetLedger,
@@ -29,6 +30,7 @@ export function EvidenceView({
   benchmarks,
   captureManifest,
   commerceLedger,
+  advantagePublication,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
@@ -36,7 +38,11 @@ export function EvidenceView({
   benchmarks: BenchmarkRepeatabilityResponse[];
   captureManifest: AgentCaptureManifestResponse | null;
   commerceLedger: Erc8183TestnetLedger | null;
+  advantagePublication: AgentAdvantagePublicationStatus | null;
 }) {
+  const publishedAdvantage = advantagePublication?.status === "PUBLISHED"
+    ? advantagePublication
+    : null;
   const definitions: Array<{ service: TermixBenchmarkService; task: string; category: string }> = [
     { service: "LENDING_RESCUE", task: "Lending position rescue", category: "Security / DeFi" },
     { service: "LP_REBALANCE", task: "LP range rebalancing", category: "Liquidity" },
@@ -185,7 +191,7 @@ export function EvidenceView({
         <section className="evidence-section benchmark-section" aria-labelledby="advantage-title">
           <div className="section-bar">
             <div><span className="section-kicker">TermiX evidence</span><h2 id="advantage-title">Agent Advantage programme</h2></div>
-            <span className="state-label warn"><Clock3 size={13} /> In progress</span>
+            <span className={`state-label ${publishedAdvantage ? "good" : "warn"}`}>{publishedAdvantage ? <Check size={13} /> : <Clock3 size={13} />} {publishedAdvantage ? "Published" : "In progress"}</span>
           </div>
           <div className="benchmark-table">
             {benchmarkRows.map((row) => (
@@ -199,9 +205,10 @@ export function EvidenceView({
           <div className="method-grid">
             <div><strong>{committedCandidateCount || repeatCount}</strong><span>source-committed agent runs</span><small>{captureManifest ? `3 matching pairs · source ${captureManifest.source.commitSha.slice(0, 7)}` : "capture manifest loading"}</small></div>
             <div><strong>{lockedCount}</strong><span>frozen task rubrics</span><small>300 total quality points · safety-critical gates</small></div>
-            <div><strong>0</strong><span>blind scorecards</span><small>manual baseline and evaluator pending</small></div>
+            <div><strong>{publishedAdvantage ? 3 : 0}</strong><span>blind scorecards</span><small>{publishedAdvantage ? `${publishedAdvantage.agentBlindQualityScore}/300 agent quality · independently scored` : "manual baseline and evaluator pending"}</small></div>
           </div>
           <a className="benchmark-data-link" href="/api/benchmarks/captures" target="_blank" rel="noreferrer">Open source-bound capture manifest <ExternalLink size={13} /></a>
+          {publishedAdvantage && <a className="benchmark-data-link" href={publishedAdvantage.reportUrl} target="_blank" rel="noreferrer">Open independently scored report <ExternalLink size={13} /></a>}
         </section>
 
         <section className="evidence-section lock-section" aria-labelledby="lock-title">
@@ -221,10 +228,17 @@ export function EvidenceView({
               <dd>{captureManifest ? `${shortHash(captureManifest.manifestHash, 18)} · source ${captureManifest.source.commitSha.slice(0, 7)}` : "Loading"}</dd>
             </div>
           </dl>
-          <div className="claim-warning">
-            <AlertTriangle size={16} aria-hidden="true" />
-            <span><strong>No advantage result is claimed.</strong>The locks and repeats prove pre-registration and deterministic conformance; manual runs and independent scoring remain pending.</span>
-          </div>
+          {publishedAdvantage ? (
+            <div className="claim-warning published">
+              <BadgeCheck size={16} aria-hidden="true" />
+              <span><strong>Independent result published.</strong>{publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the pre-registered advantage rule. <a href={publishedAdvantage.reportUrl} target="_blank" rel="noreferrer">Inspect report and evidence.</a></span>
+            </div>
+          ) : (
+            <div className="claim-warning">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span><strong>No advantage result is claimed.</strong>The locks and repeats prove pre-registration and deterministic conformance; manual runs and independent scoring remain pending.</span>
+            </div>
+          )}
         </section>
       </div>
 
@@ -232,7 +246,7 @@ export function EvidenceView({
         <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
         <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
         <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed; TermiX AACP remains pending its corrected guide.</span></div>
-        <div><Clock3 size={17} /><span><strong>Track record</strong>Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published.</span></div>
+        <div>{publishedAdvantage ? <BadgeCheck size={17} /> : <Clock3 size={17} />}<span><strong>Track record</strong>{publishedAdvantage ? `${publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the independently scored advantage rule; scope remains limited to the published report.` : "Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published."}</span></div>
       </section>
     </main>
   );

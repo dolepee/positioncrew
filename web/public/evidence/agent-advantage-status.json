@@ -1,0 +1,12 @@
+{
+  "schemaVersion": "positioncrew.agent-advantage-publication.v1",
+  "status": "PENDING_INDEPENDENT_BLIND_EVALUATION",
+  "reportUrl": null,
+  "reportHash": null,
+  "evidenceManifestHash": null,
+  "publishedAt": null,
+  "taskCount": 3,
+  "supportedAdvantageCount": null,
+  "agentBlindQualityScore": null,
+  "boundary": "Independent manual baselines and blind scorecards have not yet been completed or published."
+}

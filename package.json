@@ -19,6 +19,7 @@
     "benchmark:verify-locks": "tsx src/cli/verify-benchmark-lock.ts",
     "benchmark:verify-captures": "tsx src/cli/verify-agent-capture-manifest.ts",
     "benchmark:verify-report": "tsx src/cli/verify-agent-advantage-report.ts",
+    "benchmark:publish-report": "tsx src/cli/publish-agent-advantage-report.ts",
     "benchmark:session": "tsx src/cli/benchmark-session.ts",
     "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
     "verify:all": "tsx src/cli/verify-all-providers.ts",

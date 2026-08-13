@@ -104,6 +104,8 @@ Deterministic `100/100` results establish provider conformance against frozen fi
 
 The executable [Agent Advantage evidence workflow](benchmarks/EVIDENCE_WORKFLOW.md) captures immutable agent and manual candidates, withholds answer-bearing rubric text from the manual operator, keeps duplicate agent repeats out of the blind packet, enforces one manual operator and a different blind evaluator across all three tasks, recomputes every completed result from source evidence, and reveals the committed source mapping only after scoring. The final verifier binds every JSON attachment into task and report commitments and regenerates the standalone judge-facing HTML and Markdown presentations to reject edits.
 
+The public Evidence page is driven by a committed pending-status record. It can switch to a completed report only through `benchmark:publish-report`, which re-verifies the full bundle, requires an explicit independent-human acknowledgement, and stages only allowlisted evidence files.
+
 Offline role-specific handoff tools reduce procedural errors without weakening the blind: the manual tool auto-times and hashes one answer-free task bundle, while the evaluator tool exposes only anonymized candidates and the frozen rubric. Both are generated from the committed session and make no network requests.
 
 ## Architecture

@@ -88,3 +88,13 @@ npm run benchmark:verify-report -- <output-directory>
 ```
 
 The verifier deterministically regenerates both human-readable presentations from the committed JSON and rejects a changed HTML/Markdown report, attachment, task manifest, participant summary, aggregate summary, or result attachment.
+
+## 7. Stage the verified public report
+
+Only after a real manual operator and a different independent evaluator have completed the workflow, stage the allowlisted report files for the public Evidence page:
+
+```bash
+npm run benchmark:publish-report -- <output-directory> --confirm-independent-humans
+```
+
+The command re-verifies the complete source and staged copies, refuses an absent acknowledgement or an already-published destination, copies only committed report files, and changes the public status from pending to the exact report hash. The acknowledgement is a deliberate operator guard, not cryptographic proof of human independence; never use it for synthetic fixtures or partial evidence.

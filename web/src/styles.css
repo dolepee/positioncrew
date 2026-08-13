@@ -754,6 +754,8 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .claim-warning svg { flex: 0 0 16px; }
 .claim-warning span { font-size: 11px; line-height: 1.45; }
 .claim-warning strong { display: block; margin-bottom: 3px; }
+.claim-warning.published { border-left-color: var(--green); color: #194e3f; background: #edf8f3; }
+.claim-warning.published a { color: var(--green); font-weight: 750; }
 .claim-register { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
 .claim-register > div { display: flex; align-items: flex-start; gap: 10px; min-height: 82px; padding: 15px; border-right: 1px solid var(--line); }
 .claim-register > div:last-child { border-right: 0; }

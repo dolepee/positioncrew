@@ -223,7 +223,7 @@ export const BlindScorecardSchema = z
 
 export const AgentAdvantageResultSchema = z
   .object({
-    schemaVersion: z.literal("positioncrew.agent-advantage-result.v1"),
+    schemaVersion: z.literal("positioncrew.agent-advantage-result.v2"),
     sessionId: z.string().min(12),
     benchmarkSlug: BenchmarkSlugSchema,
     taskId: z.string().min(8),
@@ -880,7 +880,7 @@ function deriveBenchmarkResult(
     agentScore.criticalFailureCount === 0 &&
     median(agents.map((record) => record.elapsedMilliseconds)) < manual.elapsedMilliseconds;
   return AgentAdvantageResultSchema.parse({
-    schemaVersion: "positioncrew.agent-advantage-result.v1",
+    schemaVersion: "positioncrew.agent-advantage-result.v2",
     sessionId: session.sessionId,
     benchmarkSlug: session.benchmarkSlug,
     taskId: session.taskId,

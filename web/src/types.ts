@@ -357,6 +357,32 @@ export interface VenusYieldProbe {
 export type TermixBenchmarkService = "LENDING_RESCUE" | "LP_REBALANCE" | "BOUNDED_GRID";
 export type TermixBenchmarkSlug = "lending-rescue" | "lp-rebalance" | "bounded-grid";
 
+export type AgentAdvantagePublicationStatus =
+  | {
+      schemaVersion: "positioncrew.agent-advantage-publication.v1";
+      status: "PENDING_INDEPENDENT_BLIND_EVALUATION";
+      reportUrl: null;
+      reportHash: null;
+      evidenceManifestHash: null;
+      publishedAt: null;
+      taskCount: 3;
+      supportedAdvantageCount: null;
+      agentBlindQualityScore: null;
+      boundary: string;
+    }
+  | {
+      schemaVersion: "positioncrew.agent-advantage-publication.v1";
+      status: "PUBLISHED";
+      reportUrl: "/evidence/agent-advantage/";
+      reportHash: string;
+      evidenceManifestHash: string;
+      publishedAt: string;
+      taskCount: 3;
+      supportedAdvantageCount: number;
+      agentBlindQualityScore: number;
+      boundary: string;
+    };
+
 export interface BenchmarkRepeatabilityResponse {
   schemaVersion: "positioncrew.benchmark-repeatability.v1";
   generatedAt: string;

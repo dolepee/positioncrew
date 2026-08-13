@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -23,6 +23,10 @@ import {
   buildAgentAdvantageReport,
   verifyAgentAdvantageReport,
 } from "../src/benchmark/report.js";
+import {
+  PENDING_AGENT_ADVANTAGE_PUBLICATION,
+  stageAgentAdvantageReport,
+} from "../src/benchmark/publication.js";
 import { canonicalHash } from "../src/core/canonical.js";
 
 const temporaryDirectories: string[] = [];
@@ -313,6 +317,48 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       "PositionCrew Agent Advantage Report",
     );
     expect(verifyAgentAdvantageReport(outputDirectory).reportHash).toBe(report.reportHash);
+    expect(
+      JSON.parse(
+        readFileSync(
+          join(process.cwd(), "web", "public", "evidence", "agent-advantage-status.json"),
+          "utf8",
+        ),
+      ),
+    ).toEqual(PENDING_AGENT_ADVANTAGE_PUBLICATION);
+
+    const publicRoot = join(tempArtifacts(), "public");
+    const evidenceRoot = join(publicRoot, "evidence");
+    mkdirSync(evidenceRoot, { recursive: true });
+    writeFileSync(
+      join(evidenceRoot, "agent-advantage-status.json"),
+      `${JSON.stringify(PENDING_AGENT_ADVANTAGE_PUBLICATION, null, 2)}\n`,
+    );
+    writeFileSync(join(outputDirectory, "private-note.txt"), "must not be published\n");
+    expect(() =>
+      stageAgentAdvantageReport(outputDirectory, publicRoot, {
+        confirmedIndependentHumans: false,
+      }),
+    ).toThrow("explicit confirmation");
+    const publication = stageAgentAdvantageReport(outputDirectory, publicRoot, {
+      confirmedIndependentHumans: true,
+      publishedAt: new Date("2026-08-13T02:05:00.000Z"),
+    });
+    expect(publication).toMatchObject({
+      status: "PUBLISHED",
+      reportHash: report.reportHash,
+      supportedAdvantageCount: 3,
+      agentBlindQualityScore: 300,
+    });
+    expect(existsSync(join(evidenceRoot, "agent-advantage", "index.html"))).toBe(true);
+    expect(existsSync(join(evidenceRoot, "agent-advantage", "private-note.txt"))).toBe(false);
+    expect(
+      JSON.parse(readFileSync(join(evidenceRoot, "agent-advantage-status.json"), "utf8")),
+    ).toEqual(publication);
+    expect(() =>
+      stageAgentAdvantageReport(outputDirectory, publicRoot, {
+        confirmedIndependentHumans: true,
+      }),
+    ).toThrow("already been staged");
 
     const htmlPath = join(outputDirectory, "agent-advantage-report.html");
     const originalHtml = readFileSync(htmlPath, "utf8");

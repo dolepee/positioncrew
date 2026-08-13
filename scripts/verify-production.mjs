@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
 import {
@@ -70,6 +71,30 @@ function canonicalJson(value) {
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
     .join(",")}}`;
+}
+
+function canonicalSha256(value) {
+  return `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
+}
+
+async function fetchText(name, input) {
+  const url = localUrl(input);
+  url.searchParams.set("positioncrew_monitor", monitorRunId);
+  const startedAt = performance.now();
+  const response = await fetch(url, {
+    headers: {
+      Accept: "text/html",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+      "User-Agent": "PositionCrew-Production-Monitor/1.0",
+    },
+    signal: AbortSignal.timeout(15_000),
+  });
+  const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
+  const body = await response.text();
+  checks.push({ name, url: url.toString(), status: response.status, latencyMs });
+  assert(response.ok, `${name} returned HTTP ${response.status}`);
+  return body;
 }
 
 async function fetchJson(name, input) {
@@ -213,6 +238,88 @@ try {
     marketplace.claims?.providerIdentity === "ERC8004_BSC_TESTNET_VERIFIED",
     "Marketplace identity claim changed unexpectedly",
   );
+
+  const advantagePublication = await fetchJson(
+    "agent-advantage-publication",
+    "/evidence/agent-advantage-status.json",
+  );
+  assert(
+    advantagePublication.schemaVersion === "positioncrew.agent-advantage-publication.v1",
+    "Unexpected Agent Advantage publication schema",
+  );
+  assert(advantagePublication.taskCount === 3, "Agent Advantage task count changed");
+  if (advantagePublication.status === "PENDING_INDEPENDENT_BLIND_EVALUATION") {
+    assert(advantagePublication.reportUrl === null, "Pending Agent Advantage status exposes a report URL");
+    assert(advantagePublication.reportHash === null, "Pending Agent Advantage status exposes a report hash");
+    assert(
+      advantagePublication.supportedAdvantageCount === null,
+      "Pending Agent Advantage status exposes a result",
+    );
+  } else {
+    assert(advantagePublication.status === "PUBLISHED", "Unknown Agent Advantage publication state");
+    assert(
+      advantagePublication.reportUrl === "/evidence/agent-advantage/",
+      "Published Agent Advantage report URL changed",
+    );
+    assert(
+      Number.isInteger(advantagePublication.supportedAdvantageCount) &&
+        advantagePublication.supportedAdvantageCount >= 0 &&
+        advantagePublication.supportedAdvantageCount <= 3,
+      "Published Agent Advantage result count is invalid",
+    );
+    assert(
+      Number.isInteger(advantagePublication.agentBlindQualityScore) &&
+        advantagePublication.agentBlindQualityScore >= 0 &&
+        advantagePublication.agentBlindQualityScore <= 300,
+      "Published Agent Advantage quality score is invalid",
+    );
+    const advantageReport = await fetchJson(
+      "agent-advantage-report",
+      "/evidence/agent-advantage/agent-advantage-report.json",
+    );
+    assert(
+      advantageReport.schemaVersion === "positioncrew.agent-advantage-report.v2",
+      "Unexpected Agent Advantage report schema",
+    );
+    assert(
+      advantageReport.reportHash === advantagePublication.reportHash,
+      "Published Agent Advantage report hash differs from its status record",
+    );
+    const { reportHash: _reportHash, ...reportBody } = advantageReport;
+    assert(
+      canonicalSha256(reportBody) === advantageReport.reportHash,
+      "Published Agent Advantage report commitment is invalid",
+    );
+    assert(
+      advantageReport.summary?.evidenceManifestHash === advantagePublication.evidenceManifestHash,
+      "Published Agent Advantage evidence manifest differs from its status record",
+    );
+    assert(
+      canonicalSha256(
+        advantageReport.tasks.map((task) => ({
+          benchmarkSlug: task.benchmarkSlug,
+          evidenceManifestHash: task.evidenceManifestHash,
+        })),
+      ) === advantageReport.summary?.evidenceManifestHash,
+      "Published Agent Advantage task manifests are not bound to the report summary",
+    );
+    assert(
+      advantageReport.summary?.supportedAdvantageCount ===
+        advantagePublication.supportedAdvantageCount,
+      "Published Agent Advantage summary differs from its status record",
+    );
+    const advantageHtml = await fetchText(
+      "agent-advantage-report-html",
+      advantagePublication.reportUrl,
+    );
+    assert(
+      advantageHtml.includes("PositionCrew Agent Advantage Report") &&
+        advantageHtml.includes(advantageReport.reportHash) &&
+        !advantageHtml.includes("Synthetic Layout"),
+      "Published Agent Advantage presentation is missing its title or commitment",
+    );
+  }
+  report.agentAdvantagePublication = advantagePublication;
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");

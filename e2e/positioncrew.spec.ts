@@ -383,7 +383,15 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
   }
 });
 
-test("the evidence page separates conformance from advantage claims", async ({ page }) => {
+test("the evidence page separates conformance from advantage claims", async ({ page, request }) => {
+  const publicationResponse = await request.get("/evidence/agent-advantage-status.json");
+  expect(publicationResponse.ok()).toBe(true);
+  expect(await publicationResponse.json()).toMatchObject({
+    schemaVersion: "positioncrew.agent-advantage-publication.v1",
+    status: "PENDING_INDEPENDENT_BLIND_EVALUATION",
+    taskCount: 3,
+    supportedAdvantageCount: null,
+  });
   await page.goto("/#evidence");
   await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).first()).toBeVisible();
@@ -425,6 +433,36 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   const captures = await captureResponse.json();
   expect(captures.manifestHash).toBe("sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1");
   expect(captures.benchmarks.flatMap((item: { candidates: unknown[] }) => item.candidates)).toHaveLength(6);
+});
+
+test("a published Agent Advantage status exposes the committed report without changing its scope", async ({ page }) => {
+  await page.route("**/evidence/agent-advantage-status.json", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.agent-advantage-publication.v1",
+        status: "PUBLISHED",
+        reportUrl: "/evidence/agent-advantage/",
+        reportHash: `sha256:${"1".repeat(64)}`,
+        evidenceManifestHash: `sha256:${"2".repeat(64)}`,
+        publishedAt: "2026-08-13T03:30:00.000Z",
+        taskCount: 3,
+        supportedAdvantageCount: 2,
+        agentBlindQualityScore: 287,
+        boundary:
+          "This fixture verifies the published user interface only and is not a real Agent Advantage result.",
+      }),
+    });
+  });
+  await page.goto("/#evidence");
+  await expect(page.getByText("Published", { exact: true })).toBeVisible();
+  await expect(page.getByText("Independent result published.")).toBeVisible();
+  await expect(page.getByText(/2\/3 frozen tasks support the pre-registered advantage rule/)).toBeVisible();
+  await expect(page.getByRole("link", { name: "Open independently scored report" })).toHaveAttribute(
+    "href",
+    "/evidence/agent-advantage/",
+  );
+  await expect(page.getByText(/scope remains limited to the published report/)).toBeVisible();
 });
 
 test("the app has no page-level horizontal overflow", async ({ page }) => {
