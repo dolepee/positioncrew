@@ -33,6 +33,7 @@ import type {
   FixtureJobResponse,
   JobRequestMode,
   PancakeGridProbe,
+  PancakePositionProbe,
   ProviderListing,
   ServiceId,
   SessionJob,
@@ -105,6 +106,8 @@ const EMPTY_DRAFT: JobDraft = {
   gridMaximumVolatility: "1000",
   gridExpectedCycles: "10",
 };
+
+const REFERENCE_PANCAKE_POSITION_ID = "1456267";
 
 type JobRequest = FixtureJobResponse["result"]["request"];
 
@@ -380,8 +383,11 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
   const usesBlockPinnedVenusInput = sources.some((source) =>
     String(objectValue(source).sourceId ?? "").startsWith("venus-mainnet-block-"),
   );
-  const usesBlockPinnedPancakeInput = sources.some((source) =>
+  const usesBlockPinnedPancakeGridInput = sources.some((source) =>
     String(objectValue(source).sourceId ?? "").startsWith("pancake-v3-mainnet-block-"),
+  );
+  const usesBlockPinnedPancakePositionInput = sources.some((source) =>
+    String(objectValue(source).sourceId ?? "").startsWith("pancake-position-mainnet-block-"),
   );
   const usesBlockPinnedVenusYieldInput = sources.some((source) =>
     String(objectValue(source).sourceId ?? "").startsWith("venus-yield-mainnet-block-"),
@@ -406,7 +412,9 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
             ? "Block-pinned Venus input. The provider output is unsigned and must be revalidated against current protocol state before execution."
             : usesBlockPinnedVenusYieldInput
               ? "Block-pinned Venus yield input. Base rates exclude incentives; the unsigned allocation must be revalidated before execution."
-            : usesBlockPinnedPancakeInput
+            : usesBlockPinnedPancakePositionInput
+              ? "Block-pinned PancakeSwap position. NFT state and collectible fees were read-only simulations; swap activity is an extrapolated 24-hour run rate. Revalidate before execution."
+            : usesBlockPinnedPancakeGridInput
               ? "Block-pinned PancakeSwap input. The grid is unsigned, assumes future fills, and must be re-quoted before execution."
             : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
       </div>
@@ -565,6 +573,91 @@ function WalletRiskProbe({
               Use live position <ArrowRight size={14} aria-hidden="true" />
             </button>
           )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function LpPositionProbe({ onUseRequest }: { onUseRequest: (request: JobRequest) => void }) {
+  const [tokenId, setTokenId] = useState(REFERENCE_PANCAKE_POSITION_ID);
+  const [probe, setProbe] = useState<PancakePositionProbe | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const validTokenId = /^[1-9][0-9]{0,77}$/.test(tokenId.trim());
+
+  async function inspect() {
+    if (!validTokenId) return;
+    setLoading(true);
+    setError(null);
+    setProbe(null);
+    try {
+      const response = await fetch(`/api/positions/pancake/${tokenId.trim()}`, {
+        headers: { Accept: "application/json" },
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { details?: unknown } | null;
+        throw new Error(Array.isArray(body?.details) ? String(body.details[0]) : `Position probe failed (${response.status})`);
+      }
+      setProbe(await response.json() as PancakePositionProbe);
+    } catch (probeError) {
+      setError(probeError instanceof Error ? probeError.message : "Position probe failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="wallet-risk-probe lp-position-probe" aria-labelledby="lp-position-probe-title">
+      <div className="wallet-probe-heading">
+        <div>
+          <span className="section-kicker">Public read-only reference</span>
+          <h3 id="lp-position-probe-title">PancakeSwap LP position</h3>
+        </div>
+        <span>V3 NFT</span>
+      </div>
+      <div className="wallet-probe-control">
+        <label>
+          <span className="sr-only">PancakeSwap position NFT ID</span>
+          <ReceiptText size={16} aria-hidden="true" />
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            spellCheck={false}
+            autoComplete="off"
+            value={tokenId}
+            aria-invalid={Boolean(error) || !validTokenId}
+            aria-describedby={error ? "lp-position-probe-error" : undefined}
+            onChange={(event) => setTokenId(event.target.value)}
+          />
+        </label>
+        <button type="button" onClick={() => void inspect()} disabled={loading || !validTokenId}>
+          {loading ? <LoaderCircle className="spin" size={15} /> : <RefreshCw size={15} />}
+          {loading ? "Reading" : "Inspect"}
+        </button>
+      </div>
+      {error && <div className="wallet-probe-error" id="lp-position-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {probe && (
+        <div className="wallet-probe-result" aria-live="polite">
+          <div className="wallet-probe-state">
+            <span className={`state-label ${probe.position.inRange ? "good" : "warn"}`}>
+              {probe.position.inRange ? "IN RANGE" : "OUT OF RANGE"}
+            </span>
+            <a href={probe.source.positionExplorerUrl} target="_blank" rel="noreferrer">
+              NFT {probe.position.tokenId} <ExternalLink size={12} />
+            </a>
+          </div>
+          <dl>
+            <div><dt>Position value</dt><dd>${Number(probe.position.positionValueUsd).toLocaleString("en-US", { maximumFractionDigits: 2 })}</dd></div>
+            <div><dt>Collectible fees</dt><dd>${Number(probe.position.uncollectedFeesUsd).toLocaleString("en-US", { maximumFractionDigits: 2 })}</dd></div>
+            <div><dt>Current tick</dt><dd>{probe.position.currentTick.toLocaleString("en-US")}</dd></div>
+            <div><dt>Swap window</dt><dd>{probe.market.swapCount.toLocaleString("en-US")} / {probe.market.measurementWindowSeconds}s</dd></div>
+          </dl>
+          <p>{probe.boundary}</p>
+          <button className="wallet-probe-use" type="button" onClick={() => onUseRequest(probe.lpRequest)}>
+            Use live position <ArrowRight size={14} aria-hidden="true" />
+          </button>
         </div>
       )}
     </section>
@@ -766,12 +859,18 @@ export function JobWorkspace({
   const liveSourceId = String(
     objectValue((liveRequest?.sources as unknown[] | undefined)?.[0]).sourceId ?? "",
   );
-  const liveBlockNumber = liveSourceId.replace(/^.*-block-/, "");
-  const liveSourceLabel = liveSourceId.startsWith("pancake-v3-mainnet-block-")
+  const liveBlockNumber = liveSourceId.match(/-block-(\d+)/)?.[1] ?? "";
+  const liveSourceLabel = liveSourceId.startsWith("pancake-position-mainnet-block-")
+    ? "PancakeSwap position"
+    : liveSourceId.startsWith("pancake-v3-mainnet-block-")
     ? "PancakeSwap market"
     : liveSourceId.startsWith("venus-yield-mainnet-block-")
       ? "Venus yield market"
       : "Venus position";
+  const lpPositionContext = inputRequest?.service === "LP_REBALANCE"
+    ? objectValue(inputRequest.position)
+    : {};
+  const lpPositionValue = Number(lpPositionContext.positionValueUsd ?? 0);
 
   useEffect(() => {
     setResultView("summary");
@@ -883,7 +982,14 @@ export function JobWorkspace({
             </>
           ) : service === "LP_REBALANCE" ? (
             <>
-              <div className="request-context"><span>PancakeSwap V3</span><strong>Current range -120 to 120</strong><small>$10,000 position</small></div>
+              <LpPositionProbe onUseRequest={useLiveRequest} />
+              <div className="request-context">
+                <span>PancakeSwap V3</span>
+                <strong>Range {String(lpPositionContext.lowerTick ?? "-")} to {String(lpPositionContext.upperTick ?? "-")}</strong>
+                <small>{Number.isFinite(lpPositionValue) && lpPositionValue > 0
+                  ? `$${lpPositionValue.toLocaleString("en-US", { maximumFractionDigits: 2 })} position`
+                  : "Position value unavailable"}</small>
+              </div>
               <div className="form-grid">
                 <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={inputsDisabled || Boolean(liveRequest)} min="-887272" max="887272" step="1" />
                 <NumberField label="Minimum net benefit (USD)" value={draft.lpMinimumBenefit} onChange={(value) => updateDraft("lpMinimumBenefit", value)} disabled={inputsDisabled} min="0" max="100000" step="0.01" />

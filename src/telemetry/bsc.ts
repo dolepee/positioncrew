@@ -18,15 +18,24 @@ import {
   type LendingRescueRequest,
 } from "../contracts/lending-rescue.js";
 import {
+  LpRebalanceRequestSchema,
+  type LpRebalanceRequest,
+} from "../contracts/lp-rebalance.js";
+import {
   YieldOptimizationRequestSchema,
   type YieldOptimizationRequest,
 } from "../contracts/yield-optimization.js";
 import { FIXED_SCALE, formatFixed } from "../core/fixed.js";
 
 const MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
+const LOG_RPC = "https://bsc-rpc.publicnode.com";
 const TESTNET_RPC = "https://bsc-testnet-dataseed.bnbchain.org";
 
 const PANCAKE_V3_FACTORY = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865" as Address;
+const PANCAKE_V3_POSITION_MANAGER = "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364" as Address;
+const PANCAKE_MASTER_CHEF_V3 = "0x556B9306565093C855AEA9AE92A594704c2Cd59e" as Address;
+const PANCAKE_V3_SWAP_TOPIC =
+  "0x19b47279256b2a23a1665c810c8d55a1758940ee09377d4f8d26497a3577dc83" as Hex;
 const NATIVE_BNB = "0x0000000000000000000000000000000000000000" as Address;
 const WBNB = "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c" as Address;
 const USDT = "0x55d398326f99059fF775485246999027B3197955" as Address;
@@ -75,7 +84,13 @@ const POOL_ABI = parseAbi([
   "function token1() view returns (address)",
   "function slot0() view returns (uint160 sqrtPriceX96, int24 tick, uint16 observationIndex, uint16 observationCardinality, uint16 observationCardinalityNext, uint32 feeProtocol, bool unlocked)",
   "function liquidity() view returns (uint128)",
+  "function tickSpacing() view returns (int24)",
   "function observe(uint32[] secondsAgos) view returns (int56[] tickCumulatives, uint160[] secondsPerLiquidityCumulativeX128s)",
+]);
+const POSITION_MANAGER_ABI = parseAbi([
+  "function ownerOf(uint256 tokenId) view returns (address)",
+  "function positions(uint256 tokenId) view returns (uint96 nonce, address operator, address token0, address token1, uint24 fee, int24 tickLower, int24 tickUpper, uint128 liquidity, uint256 feeGrowthInside0LastX128, uint256 feeGrowthInside1LastX128, uint128 tokensOwed0, uint128 tokensOwed1)",
+  "function collect((uint256 tokenId, address recipient, uint128 amount0Max, uint128 amount1Max) params) payable returns (uint256 amount0, uint256 amount1)",
 ]);
 const VTOKEN_ABI = parseAbi([
   "function supplyRatePerBlock() view returns (uint256)",
@@ -122,10 +137,16 @@ interface RpcBlock {
   timestamp: Hex;
 }
 
+interface RpcLog {
+  data: Hex;
+  topics: Hex[];
+}
+
 async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
   const response = await fetch(rpcUrl, {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
     body: JSON.stringify(
       calls.map((call, index) => ({
         jsonrpc: "2.0",
@@ -146,6 +167,20 @@ async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unkn
     if (entry.result === undefined) throw new Error(`BSC RPC response ${index + 1} has no result`);
     return entry.result;
   });
+}
+
+async function rpcRequest(rpcUrl: string, call: RpcCall): Promise<unknown> {
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { Accept: "application/json", "Content-Type": "application/json" },
+    signal: AbortSignal.timeout(15_000),
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: call.method, params: call.params }),
+  });
+  if (!response.ok) throw new Error(`BSC RPC returned HTTP ${response.status}`);
+  const entry = await response.json() as RpcResult;
+  if (entry.error) throw new Error(`BSC RPC ${entry.error.code}: ${entry.error.message}`);
+  if (entry.result === undefined) throw new Error("BSC RPC response has no result");
+  return entry.result;
 }
 
 async function rpcBatchChunked(
@@ -178,6 +213,10 @@ function rpcBlock(value: unknown, label: string): RpcBlock {
 
 function ethCall(to: Address, data: Hex, blockTag: Hex): RpcCall {
   return { method: "eth_call", params: [{ to, data }, blockTag] };
+}
+
+function ethCallFrom(from: Address, to: Address, data: Hex, blockTag: Hex): RpcCall {
+  return { method: "eth_call", params: [{ from, to, data }, blockTag] };
 }
 
 export interface ChainProbe {
@@ -342,6 +381,48 @@ export interface VenusYieldRequestOptions {
   capitalUsd?: number;
 }
 
+export interface PancakePositionProbe {
+  schemaVersion: "positioncrew.pancake-position-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  position: {
+    tokenId: string;
+    owner: Address;
+    custody: "DIRECT_OR_OTHER" | "MASTER_CHEF_V3";
+    positionManager: Address;
+    pool: Address;
+    pair: "USDT/WBNB";
+    feeTier: number;
+    lowerTick: number;
+    upperTick: number;
+    currentTick: number;
+    inRange: boolean;
+    liquidity: string;
+    token0Amount: string;
+    token1Amount: string;
+    positionValueUsd: string;
+    uncollectedFeesUsd: string;
+  };
+  market: {
+    activeLiquidityUsd: string;
+    realizedVolatilityBps: number;
+    volumeRunRate24hUsd: string;
+    feesRunRate24hUsd: string;
+    measurementWindowSeconds: number;
+    swapCount: number;
+  };
+  lpRequest: LpRebalanceRequest;
+  source: {
+    blockNumber: string;
+    blockTimestamp: string;
+    explorerUrl: string;
+    positionExplorerUrl: string;
+    poolExplorerUrl: string;
+  };
+  boundary: string;
+}
+
 function nowMs(): number {
   return Date.now();
 }
@@ -421,15 +502,72 @@ export function pancakeActiveLiquidityUsd(
   sqrtPriceX96: bigint,
   liquidity: bigint,
   token1PriceUsd: number,
+  token0PriceUsd = 1,
 ): number {
-  if (sqrtPriceX96 <= 0n || liquidity <= 0n || !Number.isFinite(token1PriceUsd) || token1PriceUsd <= 0) {
-    throw new Error("Positive pool price, liquidity, and token1 USD price are required");
+  if (
+    sqrtPriceX96 <= 0n ||
+    liquidity <= 0n ||
+    !Number.isFinite(token0PriceUsd) ||
+    token0PriceUsd <= 0 ||
+    !Number.isFinite(token1PriceUsd) ||
+    token1PriceUsd <= 0
+  ) {
+    throw new Error("Positive pool price, liquidity, and token USD prices are required");
   }
   const q96 = 2n ** 96n;
   const token0VirtualRaw = (liquidity * q96) / sqrtPriceX96;
   const token1VirtualRaw = (liquidity * sqrtPriceX96) / q96;
-  return Number(formatUnits(token0VirtualRaw, 18)) +
+  return Number(formatUnits(token0VirtualRaw, 18)) * token0PriceUsd +
     Number(formatUnits(token1VirtualRaw, 18)) * token1PriceUsd;
+}
+
+export function v3PositionTokenAmounts(
+  liquidity: bigint,
+  sqrtPriceX96: bigint,
+  lowerTick: number,
+  upperTick: number,
+  token0Decimals = 18,
+  token1Decimals = 18,
+): { token0Amount: number; token1Amount: number } {
+  if (
+    liquidity <= 0n ||
+    sqrtPriceX96 <= 0n ||
+    !Number.isInteger(lowerTick) ||
+    !Number.isInteger(upperTick) ||
+    lowerTick >= upperTick ||
+    token0Decimals < 0 ||
+    token1Decimals < 0
+  ) {
+    throw new Error("A positive V3 position, ordered ticks, and valid token decimals are required");
+  }
+  const sqrtCurrent = Number(sqrtPriceX96) / 2 ** 96;
+  const sqrtLower = Math.pow(1.0001, lowerTick / 2);
+  const sqrtUpper = Math.pow(1.0001, upperTick / 2);
+  const liquidityNumber = Number(liquidity);
+  let token0Raw = 0;
+  let token1Raw = 0;
+  if (sqrtCurrent <= sqrtLower) {
+    token0Raw = liquidityNumber * (sqrtUpper - sqrtLower) / (sqrtLower * sqrtUpper);
+  } else if (sqrtCurrent < sqrtUpper) {
+    token0Raw = liquidityNumber * (sqrtUpper - sqrtCurrent) / (sqrtCurrent * sqrtUpper);
+    token1Raw = liquidityNumber * (sqrtCurrent - sqrtLower);
+  } else {
+    token1Raw = liquidityNumber * (sqrtUpper - sqrtLower);
+  }
+  const token0Amount = token0Raw / 10 ** token0Decimals;
+  const token1Amount = token1Raw / 10 ** token1Decimals;
+  if (!Number.isFinite(token0Amount) || !Number.isFinite(token1Amount)) {
+    throw new Error("V3 position amounts exceed the supported numeric range");
+  }
+  return { token0Amount, token1Amount };
+}
+
+function signedWord(data: Hex, index: number): bigint {
+  const start = 2 + index * 64;
+  const word = data.slice(start, start + 64);
+  if (word.length !== 64) throw new Error("PancakeSwap log data is truncated");
+  const unsigned = BigInt(`0x${word}`);
+  return unsigned >= 2n ** 255n ? unsigned - 2n ** 256n : unsigned;
 }
 
 export function annualizedRatePct(ratePerBlock: bigint, secondsPerBlock: number): number {
@@ -507,6 +645,72 @@ async function readPancakeVolatility(
     }
   }
   throw new Error("PancakeSwap pool has insufficient observations for a one-hour volatility window");
+}
+
+async function readPancakeSwapRunRate(
+  poolAddress: Address,
+  blockNumber: bigint,
+  blockTimestamp: bigint,
+  secondsPerBlock: number,
+  token0Decimals: number,
+  token0PriceUsd: number,
+  feeTier: number,
+): Promise<{
+  volumeRunRate24hUsd: number;
+  feesRunRate24hUsd: number;
+  measurementWindowSeconds: number;
+  normalizationFactor: number;
+  swapCount: number;
+}> {
+  const desiredBlocks = Math.ceil(3_600 / Math.max(0.1, secondsPerBlock));
+  const measuredBlocks = BigInt(Math.min(8_000, Math.max(120, desiredBlocks)));
+  const startBlockNumber = blockNumber > measuredBlocks ? blockNumber - measuredBlocks : 0n;
+  const [startBlockValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: [toHex(startBlockNumber), false] },
+  ]);
+  const startBlock = rpcBlock(startBlockValue, "PancakeSwap volume-window start block");
+  const measurementWindowSeconds = Math.max(
+    1,
+    Number(blockTimestamp - BigInt(startBlock.timestamp)),
+  );
+  const logValue = await rpcRequest(LOG_RPC, {
+    method: "eth_getLogs",
+    params: [{
+      address: poolAddress,
+      fromBlock: toHex(startBlockNumber),
+      toBlock: toHex(blockNumber),
+      topics: [PANCAKE_V3_SWAP_TOPIC],
+    }],
+  });
+  if (!Array.isArray(logValue)) throw new Error("PancakeSwap swap logs are unavailable");
+  const logs = logValue as RpcLog[];
+  let token0VolumeRaw = 0n;
+  for (const log of logs) {
+    if (typeof log.data !== "string" || !Array.isArray(log.topics)) {
+      throw new Error("PancakeSwap returned a malformed swap log");
+    }
+    const amount0 = signedWord(log.data, 0);
+    token0VolumeRaw += amount0 < 0n ? -amount0 : amount0;
+  }
+  const measuredVolumeUsd = Number(formatUnits(token0VolumeRaw, token0Decimals)) * token0PriceUsd;
+  const normalizationFactor = 86_400 / measurementWindowSeconds;
+  const volumeRunRate24hUsd = measuredVolumeUsd * normalizationFactor;
+  const feesRunRate24hUsd = volumeRunRate24hUsd * feeTier / 1_000_000;
+  if (
+    !Number.isFinite(volumeRunRate24hUsd) ||
+    volumeRunRate24hUsd < 0 ||
+    !Number.isFinite(feesRunRate24hUsd) ||
+    feesRunRate24hUsd < 0
+  ) {
+    throw new Error("PancakeSwap swap volume cannot be normalized safely");
+  }
+  return {
+    volumeRunRate24hUsd,
+    feesRunRate24hUsd,
+    measurementWindowSeconds,
+    normalizationFactor,
+    swapCount: logs.length,
+  };
 }
 
 async function chainProbe(
@@ -916,6 +1120,383 @@ export async function inspectPancakeGridMarket(
     },
     boundary:
       "Token ordering, spot price, current active virtual liquidity, reserve balances, volatility observations, and gas were read for one BSC block. The grid is unsigned, assumes future completed cycles, and must be re-quoted and bound to the executing account before any order is placed.",
+  };
+}
+
+export async function inspectPancakePosition(
+  tokenIdInput: string | bigint,
+): Promise<PancakePositionProbe> {
+  const tokenIdText = String(tokenIdInput);
+  if (!/^\d{1,78}$/.test(tokenIdText)) {
+    throw new Error("A positive PancakeSwap position NFT ID is required");
+  }
+  const tokenId = BigInt(tokenIdText);
+  if (tokenId <= 0n || tokenId >= 2n ** 256n) {
+    throw new Error("A positive PancakeSwap position NFT ID is required");
+  }
+
+  const [blockValue, gasPriceValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: ["latest", false] },
+    { method: "eth_gasPrice", params: [] },
+  ]);
+  const block = rpcBlock(blockValue, "BNB Smart Chain latest block");
+  const blockNumber = BigInt(block.number);
+  const priorBlockNumber = blockNumber > 120n ? blockNumber - 120n : 0n;
+  const [priorBlockValue, ownerValue, positionValue, oracleValue] = await rpcBatch(MAINNET_RPC, [
+    { method: "eth_getBlockByNumber", params: [toHex(priorBlockNumber), false] },
+    ethCall(
+      PANCAKE_V3_POSITION_MANAGER,
+      encodeFunctionData({ abi: POSITION_MANAGER_ABI, functionName: "ownerOf", args: [tokenId] }),
+      block.number,
+    ),
+    ethCall(
+      PANCAKE_V3_POSITION_MANAGER,
+      encodeFunctionData({ abi: POSITION_MANAGER_ABI, functionName: "positions", args: [tokenId] }),
+      block.number,
+    ),
+    ethCall(
+      VENUS_COMPTROLLER,
+      encodeFunctionData({ abi: COMPTROLLER_ABI, functionName: "oracle" }),
+      block.number,
+    ),
+  ]);
+  const priorBlock = rpcBlock(priorBlockValue, "BNB Smart Chain prior block");
+  const owner = decodeFunctionResult({
+    abi: POSITION_MANAGER_ABI,
+    functionName: "ownerOf",
+    data: rpcHex(ownerValue, "PancakeSwap position owner"),
+  });
+  const position = decodeFunctionResult({
+    abi: POSITION_MANAGER_ABI,
+    functionName: "positions",
+    data: rpcHex(positionValue, "PancakeSwap position"),
+  });
+  const oracle = decodeFunctionResult({
+    abi: COMPTROLLER_ABI,
+    functionName: "oracle",
+    data: rpcHex(oracleValue, "Venus oracle"),
+  });
+  const token0 = position[2];
+  const token1 = position[3];
+  const feeTier = Number(position[4]);
+  const lowerTick = Number(position[5]);
+  const upperTick = Number(position[6]);
+  const positionLiquidity = position[7];
+  if (
+    token0.toLowerCase() !== USDT.toLowerCase() ||
+    token1.toLowerCase() !== WBNB.toLowerCase()
+  ) {
+    throw new Error("This live builder currently supports PancakeSwap V3 USDT/WBNB positions only");
+  }
+  if (positionLiquidity <= 0n) throw new Error("The PancakeSwap position has no active liquidity");
+  if (![100, 500, 2_500, 10_000].includes(feeTier)) {
+    throw new Error("The PancakeSwap position uses an unsupported fee tier");
+  }
+
+  const secondsPerBlock = Math.max(
+    0.1,
+    Number(BigInt(block.timestamp) - BigInt(priorBlock.timestamp)) / 120,
+  );
+  const [poolValue, usdtPriceValue, bnbPriceValue] = await rpcBatch(MAINNET_RPC, [
+    ethCall(
+      PANCAKE_V3_FACTORY,
+      encodeFunctionData({
+        abi: FACTORY_ABI,
+        functionName: "getPool",
+        args: [token0, token1, feeTier],
+      }),
+      block.number,
+    ),
+    ethCall(
+      oracle,
+      encodeFunctionData({ abi: ORACLE_ABI, functionName: "getUnderlyingPrice", args: [VENUS_VUSDT] }),
+      block.number,
+    ),
+    ethCall(
+      oracle,
+      encodeFunctionData({ abi: ORACLE_ABI, functionName: "getUnderlyingPrice", args: [VENUS_VBNB] }),
+      block.number,
+    ),
+  ]);
+  const poolAddress = decodeFunctionResult({
+    abi: FACTORY_ABI,
+    functionName: "getPool",
+    data: rpcHex(poolValue, "PancakeSwap position pool"),
+  });
+  if (poolAddress === NATIVE_BNB) throw new Error("The PancakeSwap position pool is unavailable");
+  const usdtPriceRaw = decodeFunctionResult({
+    abi: ORACLE_ABI,
+    functionName: "getUnderlyingPrice",
+    data: rpcHex(usdtPriceValue, "Venus USDT oracle price"),
+  });
+  const bnbPriceRaw = decodeFunctionResult({
+    abi: ORACLE_ABI,
+    functionName: "getUnderlyingPrice",
+    data: rpcHex(bnbPriceValue, "Venus BNB oracle price"),
+  });
+  if (usdtPriceRaw <= 0n || bnbPriceRaw <= 0n) {
+    throw new Error("Venus oracle prices are unavailable for the position pair");
+  }
+  const usdtPriceUsd = Number(formatFixed(oraclePriceFixed(usdtPriceRaw, 18), 8));
+  const bnbPriceUsd = Number(formatFixed(oraclePriceFixed(bnbPriceRaw, 18), 8));
+
+  const maxUint128 = 2n ** 128n - 1n;
+  const poolCalls: RpcCall[] = [
+    ethCall(poolAddress, encodeFunctionData({ abi: POOL_ABI, functionName: "token0" }), block.number),
+    ethCall(poolAddress, encodeFunctionData({ abi: POOL_ABI, functionName: "token1" }), block.number),
+    ethCall(poolAddress, encodeFunctionData({ abi: POOL_ABI, functionName: "slot0" }), block.number),
+    ethCall(poolAddress, encodeFunctionData({ abi: POOL_ABI, functionName: "liquidity" }), block.number),
+    ethCall(poolAddress, encodeFunctionData({ abi: POOL_ABI, functionName: "tickSpacing" }), block.number),
+    ethCall(token0, encodeFunctionData({ abi: ERC20_ABI, functionName: "symbol" }), block.number),
+    ethCall(token0, encodeFunctionData({ abi: ERC20_ABI, functionName: "decimals" }), block.number),
+    ethCall(token1, encodeFunctionData({ abi: ERC20_ABI, functionName: "symbol" }), block.number),
+    ethCall(token1, encodeFunctionData({ abi: ERC20_ABI, functionName: "decimals" }), block.number),
+    ethCallFrom(
+      owner,
+      PANCAKE_V3_POSITION_MANAGER,
+      encodeFunctionData({
+        abi: POSITION_MANAGER_ABI,
+        functionName: "collect",
+        args: [{ tokenId, recipient: owner, amount0Max: maxUint128, amount1Max: maxUint128 }],
+      }),
+      block.number,
+    ),
+  ];
+  const poolValues = await rpcBatchChunked(MAINNET_RPC, poolCalls);
+  let cursor = 0;
+  const poolToken0 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "token0",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap pool token0"),
+  });
+  const poolToken1 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "token1",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap pool token1"),
+  });
+  if (poolToken0.toLowerCase() !== token0.toLowerCase() || poolToken1.toLowerCase() !== token1.toLowerCase()) {
+    throw new Error("PancakeSwap position and pool token ordering do not match");
+  }
+  const slot0 = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "slot0",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap position slot0"),
+  });
+  const activeLiquidity = decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "liquidity",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap active liquidity"),
+  });
+  const tickSpacing = Number(decodeFunctionResult({
+    abi: POOL_ABI,
+    functionName: "tickSpacing",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap tick spacing"),
+  }));
+  const token0Symbol = decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "symbol",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap token0 symbol"),
+  });
+  const token0Decimals = Number(decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "decimals",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap token0 decimals"),
+  }));
+  const token1Symbol = decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "symbol",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap token1 symbol"),
+  });
+  const token1Decimals = Number(decodeFunctionResult({
+    abi: ERC20_ABI,
+    functionName: "decimals",
+    data: rpcHex(poolValues[cursor++], "PancakeSwap token1 decimals"),
+  }));
+  const collectResult = decodeFunctionResult({
+    abi: POSITION_MANAGER_ABI,
+    functionName: "collect",
+    data: rpcHex(poolValues[cursor], "PancakeSwap simulated fee collection"),
+  });
+  if (token0Symbol !== "USDT" || token1Symbol !== "WBNB" || token0Decimals !== 18 || token1Decimals !== 18) {
+    throw new Error("PancakeSwap position token metadata changed unexpectedly");
+  }
+  if (tickSpacing <= 0 || lowerTick % tickSpacing !== 0 || upperTick % tickSpacing !== 0) {
+    throw new Error("PancakeSwap position ticks do not align with the pool spacing");
+  }
+
+  const sqrtPriceX96 = slot0[0];
+  const currentTick = Number(slot0[1]);
+  const amounts = v3PositionTokenAmounts(
+    positionLiquidity,
+    sqrtPriceX96,
+    lowerTick,
+    upperTick,
+    token0Decimals,
+    token1Decimals,
+  );
+  const token0ValueUsd = amounts.token0Amount * usdtPriceUsd;
+  const token1ValueUsd = amounts.token1Amount * bnbPriceUsd;
+  const principalValueUsd = token0ValueUsd + token1ValueUsd;
+  const uncollectedFeesUsd =
+    Number(formatUnits(collectResult[0], token0Decimals)) * usdtPriceUsd +
+    Number(formatUnits(collectResult[1], token1Decimals)) * bnbPriceUsd;
+  const activeLiquidityUsd = pancakeActiveLiquidityUsd(
+    sqrtPriceX96,
+    activeLiquidity,
+    bnbPriceUsd,
+    usdtPriceUsd,
+  );
+  if (!Number.isFinite(principalValueUsd) || principalValueUsd <= 0 || activeLiquidityUsd <= 0) {
+    throw new Error("PancakeSwap position valuation is unavailable");
+  }
+  const token0ShareBps = Math.min(
+    10_000,
+    Math.max(0, Math.round(token0ValueUsd / principalValueUsd * 10_000)),
+  );
+  const token1ShareBps = 10_000 - token0ShareBps;
+  const [volatility, runRate] = await Promise.all([
+    readPancakeVolatility(poolAddress, block.number),
+    readPancakeSwapRunRate(
+      poolAddress,
+      blockNumber,
+      BigInt(block.timestamp),
+      secondsPerBlock,
+      token0Decimals,
+      usdtPriceUsd,
+      feeTier,
+    ),
+  ]);
+
+  const gasPrice = BigInt(rpcHex(gasPriceValue, "BSC gas price"));
+  const estimatedGasUsd = Math.max(
+    0.01,
+    Number(formatEther(gasPrice * 750_000n)) * bnbPriceUsd,
+  );
+  const rebalanceNotionalUsd = Math.abs(token0ValueUsd - token1ValueUsd) / 2;
+  const maxSlippageBps = 30;
+  const estimatedSwapCostUsd = rebalanceNotionalUsd *
+    (feeTier / 1_000_000 + maxSlippageBps / 10_000);
+  const positionWidth = upperTick - lowerTick;
+  const minimumWidthTicks = Math.max(
+    tickSpacing * 2,
+    Math.floor(positionWidth / (2 * tickSpacing)) * tickSpacing,
+  );
+  const maximumWidthTicks = Math.max(
+    minimumWidthTicks,
+    Math.min(887_200, Math.ceil(positionWidth * 3 / tickSpacing) * tickSpacing),
+  );
+  const observedAt = new Date(Number(BigInt(block.timestamp)) * 1_000).toISOString();
+  const requestedAtDate = new Date();
+  const requestedAt = requestedAtDate.toISOString();
+  const deadline = new Date(requestedAtDate.getTime() + 120_000).toISOString();
+  const sourceId = `pancake-position-mainnet-block-${blockNumber}`;
+  const explorerUrl = `https://bscscan.com/block/${blockNumber}`;
+  const lpRequest = LpRebalanceRequestSchema.parse({
+    schemaVersion: "positioncrew.lp-rebalance.request.v1",
+    service: "LP_REBALANCE",
+    requestId: `pancake-position-${tokenId}-${blockNumber}`,
+    chainId: 56,
+    account: owner,
+    protocol: "PancakeSwap V3 position analysis",
+    requestedAt,
+    deadline,
+    maxDataAgeSeconds: 120,
+    maxActionUsd: decimal(Math.max(1, (estimatedGasUsd + estimatedSwapCostUsd) * 2), 6),
+    maxGasUsd: decimal(Math.max(0.25, estimatedGasUsd * 2), 6),
+    maxSlippageBps,
+    sources: [{
+      sourceId,
+      label: `Block-pinned PancakeSwap V3 position ${tokenId}, pool, oracle, volatility, and swap-window state`,
+      uri: explorerUrl,
+      observedAt,
+    }],
+    pool: poolAddress,
+    token0: { symbol: "USDT", address: token0, decimals: token0Decimals },
+    token1: { symbol: "WBNB", address: token1, decimals: token1Decimals },
+    position: {
+      lowerTick,
+      upperTick,
+      liquidity: positionLiquidity.toString(),
+      positionValueUsd: decimal(principalValueUsd, 6),
+      feesEarnedUsd: decimal(uncollectedFeesUsd, 6),
+      token0ShareBps,
+      token1ShareBps,
+    },
+    marketState: {
+      currentTick,
+      token0PriceUsd: decimal(usdtPriceUsd, 8),
+      token1PriceUsd: decimal(bnbPriceUsd, 8),
+      volume24hUsd: decimal(runRate.volumeRunRate24hUsd, 2),
+      fees24hUsd: decimal(runRate.feesRunRate24hUsd, 2),
+      poolLiquidityUsd: decimal(activeLiquidityUsd, 2),
+      realizedVolatilityBps: volatility.realizedVolatilityBps,
+      volumeMeasurementWindowSeconds: runRate.measurementWindowSeconds,
+      volumeNormalizationFactor: decimal(runRate.normalizationFactor, 6),
+      swapCount: runRate.swapCount,
+      observedAt,
+      sourceId,
+    },
+    constraints: {
+      minimumWidthTicks,
+      maximumWidthTicks,
+      tickSpacing,
+      edgeBufferBps: 1_000,
+      highVolatilityBps: Math.min(
+        100_000,
+        Math.max(1_000, volatility.realizedVolatilityBps * 2),
+      ),
+      maximumToken0ShareBps: 7_500,
+      maximumToken1ShareBps: 7_500,
+      minimumNetBenefitUsd: decimal(Math.max(0.1, principalValueUsd * 0.001), 6),
+      estimatedGasUsd: decimal(estimatedGasUsd, 6),
+      estimatedSwapCostUsd: decimal(estimatedSwapCostUsd, 6),
+      evaluationHorizonHours: 24,
+    },
+  });
+
+  return {
+    schemaVersion: "positioncrew.pancake-position-probe.v1",
+    generatedAt: requestedAt,
+    chainId: 56,
+    state: "READY",
+    position: {
+      tokenId: tokenId.toString(),
+      owner,
+      custody: owner.toLowerCase() === PANCAKE_MASTER_CHEF_V3.toLowerCase()
+        ? "MASTER_CHEF_V3"
+        : "DIRECT_OR_OTHER",
+      positionManager: PANCAKE_V3_POSITION_MANAGER,
+      pool: poolAddress,
+      pair: "USDT/WBNB",
+      feeTier,
+      lowerTick,
+      upperTick,
+      currentTick,
+      inRange: currentTick >= lowerTick && currentTick < upperTick,
+      liquidity: positionLiquidity.toString(),
+      token0Amount: decimal(amounts.token0Amount, 8),
+      token1Amount: decimal(amounts.token1Amount, 8),
+      positionValueUsd: lpRequest.position.positionValueUsd,
+      uncollectedFeesUsd: lpRequest.position.feesEarnedUsd,
+    },
+    market: {
+      activeLiquidityUsd: lpRequest.marketState.poolLiquidityUsd,
+      realizedVolatilityBps: volatility.realizedVolatilityBps,
+      volumeRunRate24hUsd: lpRequest.marketState.volume24hUsd,
+      feesRunRate24hUsd: lpRequest.marketState.fees24hUsd,
+      measurementWindowSeconds: runRate.measurementWindowSeconds,
+      swapCount: runRate.swapCount,
+    },
+    lpRequest,
+    source: {
+      blockNumber: blockNumber.toString(),
+      blockTimestamp: observedAt,
+      explorerUrl,
+      positionExplorerUrl: `https://bscscan.com/nft/${PANCAKE_V3_POSITION_MANAGER}/${tokenId}`,
+      poolExplorerUrl: `https://bscscan.com/address/${poolAddress}`,
+    },
+    boundary:
+      `NFT ownership, position liquidity, range, simulated collectible fees, pool identity, token metadata, Venus oracle prices, active liquidity, volatility, gas, and a ${runRate.measurementWindowSeconds}-second onchain swap window were reconciled to a pinned BSC block. The 24-hour volume and fee fields are extrapolated run rates, not guaranteed future activity. The request is unsigned and must be revalidated before execution.`,
   };
 }
 

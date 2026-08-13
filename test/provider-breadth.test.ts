@@ -42,6 +42,17 @@ describe("main-track provider breadth", () => {
     expect(result.decision).toBe("HOLD");
   });
 
+  it("treats the V3 upper tick as outside the half-open liquidity range", () => {
+    const request = LpRebalanceRequestSchema.parse(
+      fixture("lp-rebalance/out-of-range-v3-position.v1.json"),
+    );
+    request.marketState.currentTick = request.position.upperTick;
+    const result = createLpRebalanceDeliverable(request, FIXTURE_NOW);
+
+    expect(result.status).toBe("ACTIONABLE");
+    expect(result.decision).toBe("SHIFT");
+  });
+
   it("selects a bounded yield migration after costs and risk filters", () => {
     const request = YieldOptimizationRequestSchema.parse(
       fixture("yield-optimization/venus-to-beefy.v1.json"),

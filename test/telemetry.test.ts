@@ -5,6 +5,7 @@ import {
   pancakeActiveLiquidityUsd,
   poolPriceFromSqrtPriceX96,
   realizedVolatilityBpsFromTickCumulatives,
+  v3PositionTokenAmounts,
   venusLiquidityTotalsFixed,
   venusUsdValueFixed,
 } from "../src/telemetry/bsc.js";
@@ -20,7 +21,25 @@ describe("BSC telemetry math", () => {
     const q96 = 2n ** 96n;
     expect(pancakeActiveLiquidityUsd(q96, 1_000n * 10n ** 18n, 1)).toBe(2_000);
     expect(() => pancakeActiveLiquidityUsd(0n, 1n, 1)).toThrow(
-      "Positive pool price, liquidity, and token1 USD price are required",
+      "Positive pool price, liquidity, and token USD prices are required",
+    );
+  });
+
+  it("reconstructs V3 position inventory below, inside, and above its range", () => {
+    const q96 = 2n ** 96n;
+    const inRange = v3PositionTokenAmounts(1_000n * 10n ** 18n, q96, -120, 120);
+    expect(inRange.token0Amount).toBeGreaterThan(0);
+    expect(inRange.token1Amount).toBeGreaterThan(0);
+
+    const below = v3PositionTokenAmounts(1_000n * 10n ** 18n, q96, 120, 240);
+    expect(below.token0Amount).toBeGreaterThan(0);
+    expect(below.token1Amount).toBe(0);
+
+    const above = v3PositionTokenAmounts(1_000n * 10n ** 18n, q96, -240, -120);
+    expect(above.token0Amount).toBe(0);
+    expect(above.token1Amount).toBeGreaterThan(0);
+    expect(() => v3PositionTokenAmounts(1n, q96, 120, 120)).toThrow(
+      "ordered ticks",
     );
   });
 

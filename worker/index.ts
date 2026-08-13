@@ -25,6 +25,7 @@ import {
 import {
   getSystemTelemetry,
   inspectPancakeGridMarket,
+  inspectPancakePosition,
   inspectVenusAccount,
   inspectVenusStableYields,
 } from "../src/telemetry/bsc.js";
@@ -343,6 +344,16 @@ async function api(request: Request, url: URL): Promise<Response> {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(
         await inspectVenusAccount(venusAccountRoute[1]!),
+        200,
+        "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
+      );
+    }
+
+    const pancakePositionRoute = url.pathname.match(/^\/api\/positions\/pancake\/(\d+)$/);
+    if (pancakePositionRoute) {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        await inspectPancakePosition(pancakePositionRoute[1]!),
         200,
         "public, max-age=0, s-maxage=10, stale-while-revalidate=20",
       );

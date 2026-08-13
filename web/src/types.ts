@@ -287,6 +287,48 @@ export interface PancakeGridProbe {
   boundary: string;
 }
 
+export interface PancakePositionProbe {
+  schemaVersion: "positioncrew.pancake-position-probe.v1";
+  generatedAt: string;
+  chainId: 56;
+  state: "READY";
+  position: {
+    tokenId: string;
+    owner: string;
+    custody: "DIRECT_OR_OTHER" | "MASTER_CHEF_V3";
+    positionManager: string;
+    pool: string;
+    pair: "USDT/WBNB";
+    feeTier: number;
+    lowerTick: number;
+    upperTick: number;
+    currentTick: number;
+    inRange: boolean;
+    liquidity: string;
+    token0Amount: string;
+    token1Amount: string;
+    positionValueUsd: string;
+    uncollectedFeesUsd: string;
+  };
+  market: {
+    activeLiquidityUsd: string;
+    realizedVolatilityBps: number;
+    volumeRunRate24hUsd: string;
+    feesRunRate24hUsd: string;
+    measurementWindowSeconds: number;
+    swapCount: number;
+  };
+  lpRequest: FixtureJobResponse["result"]["request"];
+  source: {
+    blockNumber: string;
+    blockTimestamp: string;
+    explorerUrl: string;
+    positionExplorerUrl: string;
+    poolExplorerUrl: string;
+  };
+  boundary: string;
+}
+
 export interface VenusYieldProbe {
   schemaVersion: "positioncrew.venus-yield-probe.v1";
   generatedAt: string;

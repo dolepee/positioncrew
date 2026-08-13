@@ -45,6 +45,9 @@ export const LpRebalanceRequestSchema = z
         fees24hUsd: UnsignedDecimalSchema,
         poolLiquidityUsd: PositiveDecimalSchema,
         realizedVolatilityBps: z.number().int().min(0).max(100_000),
+        volumeMeasurementWindowSeconds: z.number().int().positive().optional(),
+        volumeNormalizationFactor: PositiveDecimalSchema.optional(),
+        swapCount: z.number().int().nonnegative().optional(),
         observedAt: TimestampSchema,
         sourceId: z.string().min(1).max(120),
       })

@@ -8,6 +8,13 @@ const lendingFixture = JSON.parse(
   ),
 ) as Record<string, unknown>;
 
+const lpFixture = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/lp-rebalance/out-of-range-v3-position.v1.json", import.meta.url),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+
 function liveLendingRequest(now: Date, account: string, blockNumber: string) {
   const observedAt = new Date(now.getTime() - 5_000).toISOString();
   const sourceId = `venus-mainnet-block-${blockNumber}`;
@@ -28,6 +35,32 @@ function liveLendingRequest(now: Date, account: string, blockNumber: string) {
   request.sources = [{
     sourceId,
     label: `Venus Classic account and oracle snapshot at BSC block ${blockNumber}`,
+    uri: `https://bscscan.com/block/${blockNumber}`,
+    observedAt,
+  }];
+  return request;
+}
+
+function liveLpRequest(now: Date, tokenId: string, blockNumber: string) {
+  const observedAt = new Date(now.getTime() - 5_000).toISOString();
+  const sourceId = `pancake-position-mainnet-block-${blockNumber}`;
+  const rebase = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(rebase);
+    if (typeof value !== "object" || value === null) return value;
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+      if (key === "observedAt") return [key, observedAt];
+      if (key === "sourceId") return [key, sourceId];
+      return [key, rebase(child)];
+    }));
+  };
+  const request = rebase(structuredClone(lpFixture)) as Record<string, unknown>;
+  request.requestId = `pancake-position-live-e2e-${now.getTime()}`;
+  request.protocol = "PancakeSwap V3 position analysis";
+  request.requestedAt = now.toISOString();
+  request.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+  request.sources = [{
+    sourceId,
+    label: `PancakeSwap V3 position at BSC block ${blockNumber}`,
     uri: `https://bscscan.com/block/${blockNumber}`,
     observedAt,
   }];
@@ -167,6 +200,74 @@ test("a block-pinned Pancake market can become a bounded grid request", async ({
   expect(probe.market.realizedVolatilityBps).toBeGreaterThanOrEqual(0);
   expect(probe.market.volatilitySampleCount).toBeGreaterThanOrEqual(3);
   expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
+});
+
+test("a block-pinned Pancake position can become an LP rebalance request", async ({ page }) => {
+  const tokenId = "1456267";
+  const blockNumber = "115618500";
+  const now = new Date();
+  const lpRequest = liveLpRequest(now, tokenId, blockNumber);
+  await page.route(`**/api/positions/pancake/${tokenId}`, async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.pancake-position-probe.v1",
+        generatedAt: now.toISOString(),
+        chainId: 56,
+        state: "READY",
+        position: {
+          tokenId,
+          owner: "0x556B9306565093C855AEA9AE92A594704c2Cd59e",
+          custody: "MASTER_CHEF_V3",
+          positionManager: "0x46A15B0b27311cedF172AB29E4f4766fbE7F4364",
+          pool: "0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+          pair: "USDT/WBNB",
+          feeTier: 500,
+          lowerTick: -120,
+          upperTick: 120,
+          currentTick: 150,
+          inRange: false,
+          liquidity: "1000000",
+          token0Amount: "10000",
+          token1Amount: "0",
+          positionValueUsd: "10000",
+          uncollectedFeesUsd: "42",
+        },
+        market: {
+          activeLiquidityUsd: "1000000",
+          realizedVolatilityBps: 400,
+          volumeRunRate24hUsd: "5000000",
+          feesRunRate24hUsd: "2000",
+          measurementWindowSeconds: 3600,
+          swapCount: 240,
+        },
+        lpRequest,
+        source: {
+          blockNumber,
+          blockTimestamp: now.toISOString(),
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+          positionExplorerUrl: `https://bscscan.com/nft/0x46A15B0b27311cedF172AB29E4f4766fbE7F4364/${tokenId}`,
+          poolExplorerUrl: "https://bscscan.com/address/0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+        },
+        boundary: "Read-only block-pinned position reconstruction with an exact swap window.",
+      }),
+    });
+  });
+
+  await page.goto("/#jobs");
+  await page.getByRole("combobox", { name: "Provider" }).selectOption("LP_REBALANCE");
+  await expect(page.getByRole("heading", { name: "PancakeSwap LP position" })).toBeVisible();
+  await expect(page.getByLabel("PancakeSwap position NFT ID")).toHaveValue(tokenId);
+  await page.getByRole("button", { name: "Inspect" }).click();
+  await expect(page.getByText("OUT OF RANGE", { exact: true })).toBeVisible();
+  await expect(page.getByText("$10,000", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Use live position" }).click();
+  await expect(page.getByText(`Block-pinned PancakeSwap position from BSC block ${blockNumber}`, { exact: false })).toBeVisible();
+  await expect(page.getByLabel("Current tick")).toBeDisabled();
+  await page.getByRole("button", { name: "Run lp rebalance" }).click();
+  await expect(page.getByRole("heading", { name: "SHIFT range to 0...240" })).toBeVisible();
+  await expect(page.locator(".result-boundary")).toContainText("Block-pinned PancakeSwap position");
 });
 
 test("block-pinned Venus stablecoin rates can become a yield request", async ({ page }) => {

@@ -235,6 +235,22 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
         },
       },
     },
+    "/api/positions/pancake/{tokenId}": {
+      get: {
+        summary: "Convert a block-pinned PancakeSwap V3 position NFT into an unsigned LP request",
+        operationId: "inspectPancakePosition",
+        parameters: [{
+          name: "tokenId",
+          in: "path",
+          required: true,
+          schema: { type: "string", pattern: "^[1-9][0-9]{0,77}$" },
+        }],
+        responses: {
+          "200": { description: "Pinned LP position probe and unsigned rebalance request" },
+          "500": { description: "Position, pool, oracle, fee, or swap-window reads were unavailable" },
+        },
+      },
+    },
     "/api/markets/venus/stable-yields": {
       get: {
         summary: "Build an unsigned yield-allocation request from one pinned Venus block",

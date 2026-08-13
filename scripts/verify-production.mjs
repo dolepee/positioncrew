@@ -23,6 +23,7 @@ const expectedServices = new Set([
   "YIELD_OPTIMIZATION",
   "BOUNDED_GRID",
 ]);
+const referencePancakePositionId = "1456267";
 const checks = [];
 const bscTestnetRpc =
   process.env.BSC_TESTNET_RPC_URL ?? "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
@@ -208,7 +209,7 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 8, "OpenAPI does not expose all job and live-input paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 9, "OpenAPI does not expose all job and live-input paths");
   assert(
     openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===
       "inspectPancakeGridMarket",
@@ -218,6 +219,11 @@ try {
     openApi.paths?.["/api/markets/venus/stable-yields"]?.get?.operationId ===
       "inspectVenusStableYields",
     "OpenAPI omits the live Venus yield probe",
+  );
+  assert(
+    openApi.paths?.["/api/positions/pancake/{tokenId}"]?.get?.operationId ===
+      "inspectPancakePosition",
+    "OpenAPI omits the live Pancake position probe",
   );
 
   const zeroVenus = await fetchJson(
@@ -281,6 +287,45 @@ try {
   );
   assert(pancakeGridJob.result?.job?.state === "COMPLETED", "Pancake grid job did not complete");
   assert(pancakeGridJob.result?.evaluation?.score === 100, "Pancake grid job score is not 100/100");
+
+  const pancakePosition = await fetchJson(
+    "pancake-lp-position",
+    `/api/positions/pancake/${referencePancakePositionId}`,
+  );
+  assert(
+    pancakePosition.schemaVersion === "positioncrew.pancake-position-probe.v1",
+    "Unexpected Pancake position probe schema",
+  );
+  assert(pancakePosition.state === "READY", "Pancake position probe is not ready");
+  assert(
+    pancakePosition.position?.tokenId === referencePancakePositionId,
+    "Pancake position probe returned the wrong NFT",
+  );
+  assert(Number(pancakePosition.position?.positionValueUsd) > 0, "Pancake position value is invalid");
+  assert(Number(pancakePosition.position?.uncollectedFeesUsd) >= 0, "Pancake position fees are invalid");
+  assert(
+    Number(pancakePosition.market?.measurementWindowSeconds) > 0,
+    "Pancake position has no measured swap window",
+  );
+  assert(
+    /^https:\/\/bscscan\.com\/block\/\d+$/.test(pancakePosition.source?.explorerUrl ?? ""),
+    "Pancake position probe is not linked to its pinned BSC block",
+  );
+  assert(
+    pancakePosition.lpRequest?.marketState?.sourceId === pancakePosition.lpRequest?.sources?.[0]?.sourceId,
+    "Pancake position request source binding is inconsistent",
+  );
+  const pancakePositionJob = await postJson(
+    "pancake-lp-live-job",
+    "/api/providers/lp-rebalance/jobs",
+    { request: pancakePosition.lpRequest },
+  );
+  assert(
+    pancakePositionJob.evidenceMode === "CALLER_SUPPLIED_OBSERVATIONS",
+    "Pancake position job changed its evidence mode",
+  );
+  assert(pancakePositionJob.result?.job?.state === "COMPLETED", "Pancake position job did not complete");
+  assert(pancakePositionJob.result?.evaluation?.score === 100, "Pancake position job score is not 100/100");
 
   const venusYield = await fetchJson(
     "venus-yield-market",

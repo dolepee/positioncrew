@@ -85,7 +85,7 @@ export function createLpRebalanceDeliverable(
   const width = request.position.upperTick - request.position.lowerTick;
   const currentTick = request.marketState.currentTick;
   const inRange =
-    currentTick >= request.position.lowerTick && currentTick <= request.position.upperTick;
+    currentTick >= request.position.lowerTick && currentTick < request.position.upperTick;
   const edgeDistance = inRange
     ? Math.min(
         currentTick - request.position.lowerTick,
@@ -127,6 +127,9 @@ export function createLpRebalanceDeliverable(
         ? 5_500
         : 9_000;
   const currentGrossFees = multiplyFixed(feeBase, ratioFromBps(currentUptimeBps));
+  const volumeBoundary = request.marketState.volumeMeasurementWindowSeconds
+    ? `The 24-hour fee input is a run-rate extrapolated from ${request.marketState.volumeMeasurementWindowSeconds} seconds and ${request.marketState.swapCount ?? 0} onchain swaps.`
+    : "Fee estimates use the frozen pool-share and uptime model, not guaranteed future volume.";
 
   if (proposedDecision === null) {
     return LpRebalanceDeliverableSchema.parse({
@@ -153,7 +156,7 @@ export function createLpRebalanceDeliverable(
         `Realized volatility reaches ${request.constraints.highVolatilityBps} bps.`,
       ],
       limitations: [
-        "Fee estimates use the frozen pool-share and uptime model, not guaranteed future volume.",
+        volumeBoundary,
       ],
     });
   }
@@ -239,6 +242,7 @@ export function createLpRebalanceDeliverable(
     ],
     limitations: [
       "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
+      volumeBoundary,
       "Exact V3 inventory composition must be recomputed immediately before execution.",
     ],
   });
