@@ -43,18 +43,28 @@ function jwt(exp: number): string {
 }
 
 describe("PositionCrew TermiX A2A runtime", () => {
-  it("returns an immediately useful, service-specific response without fabricating execution", () => {
-    const decision = buildTermixRuntimeDecision(message(), "LENDING_RESCUE");
+  it.each([
+    ["LENDING_RESCUE", "target health factor", "smallest bounded repay", "lending-rescue"],
+    ["LP_REBALANCE", "PancakeSwap V3 position", "range shift or HOLD", "lp-rebalance"],
+    ["YIELD_OPTIMIZATION", "stablecoin allocation", "migration break-even", "yield-optimization"],
+    ["BOUNDED_GRID", "WBNB/USDT market snapshot", "grid specification", "bounded-grid"],
+  ] as const)(
+    "returns an immediately useful %s response without fabricating execution",
+    (service, requiredInput, usefulResult, slug) => {
+      const decision = buildTermixRuntimeDecision(message(), service);
 
-    expect(decision.disposition).toBe("REPLY");
-    if (decision.disposition !== "REPLY") throw new Error("Expected a reply");
-    expect(decision.text).toContain("5 USDC");
-    expect(decision.text).toContain("target health factor");
-    expect(decision.text).toContain("machine-readable JSON");
-    expect(decision.text).toContain("/api/providers/lending-rescue/manifest");
-    expect(decision.text).toContain("only after their AACP on-chain state is verified");
-    expect(decision.text).not.toMatch(/executed|completed order|earned|revenue/i);
-  });
+      expect(decision.disposition).toBe("REPLY");
+      if (decision.disposition !== "REPLY") throw new Error("Expected a reply");
+      expect(decision.text).toContain("5 USDC");
+      expect(decision.text).toContain(requiredInput);
+      expect(decision.text).toContain(usefulResult);
+      expect(decision.text).toContain("machine-readable JSON");
+      expect(decision.text).toContain(`/providers/${slug}`);
+      expect(decision.text).toContain(`/api/providers/${slug}/manifest`);
+      expect(decision.text).toContain("only after their AACP on-chain state is verified");
+      expect(decision.text).not.toMatch(/executed|completed order|earned|revenue/i);
+    },
+  );
 
   it("never auto-replies to a dispute or value-bearing delivery thread", () => {
     expect(
