@@ -141,6 +141,12 @@ describe("TermiX production AACP readiness", () => {
       "BOUNDED_GRID",
     ]);
     expect(new Set(AACP_PROVIDER_BLUEPRINTS.map((provider) => provider.handle)).size).toBe(4);
+    expect(new Set(AACP_PROVIDER_BLUEPRINTS.map((provider) => provider.mintName)).size).toBe(4);
+    expect(
+      AACP_PROVIDER_BLUEPRINTS.every(
+        (provider) => provider.handle === `${provider.mintName}.agent`,
+      ),
+    ).toBe(true);
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.currency === "USDT")).toBe(true);
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.publicSearch)).toBe(true);
     expect(AACP_PROVIDER_BLUEPRINTS.every((provider) => provider.listing.instantBuyable)).toBe(true);

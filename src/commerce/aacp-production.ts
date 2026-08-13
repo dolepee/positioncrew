@@ -213,6 +213,7 @@ export type AacpProductionConfig = z.infer<typeof AacpProductionConfigSchema>;
 
 export interface AacpProviderBlueprint {
   service: z.infer<typeof ServiceTypeSchema>;
+  mintName: string;
   handle: string;
   displayName: string;
   category: "Market & Protocol Research";
@@ -238,7 +239,7 @@ export interface AacpProviderBlueprint {
 
 function blueprint(
   service: AacpProviderBlueprint["service"],
-  handle: string,
+  mintName: string,
   displayName: string,
   description: string,
   title: string,
@@ -247,7 +248,8 @@ function blueprint(
 ): AacpProviderBlueprint {
   return {
     service,
-    handle,
+    mintName,
+    handle: `${mintName}.agent`,
     displayName,
     category: "Market & Protocol Research",
     description,
@@ -274,7 +276,7 @@ function blueprint(
 export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
   blueprint(
     "LENDING_RESCUE",
-    "positioncrew-lending-rescue.agent",
+    "positioncrew-lending-rescue",
     "PositionCrew Lending Rescue",
     "Computes the smallest bounded Venus debt repayment or collateral top-up needed to reach a buyer-selected health factor.",
     "Rescue a Venus lending position",
@@ -283,7 +285,7 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
   ),
   blueprint(
     "LP_REBALANCE",
-    "positioncrew-lp-rebalance.agent",
+    "positioncrew-lp-rebalance",
     "PositionCrew LP Range Operator",
     "Evaluates a PancakeSwap V3 position and proposes a cost-, slippage-, inventory-, and break-even-bounded range shift or HOLD.",
     "Rebalance a PancakeSwap V3 LP range",
@@ -292,7 +294,7 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
   ),
   blueprint(
     "YIELD_OPTIMIZATION",
-    "positioncrew-yield-optimizer.agent",
+    "positioncrew-yield-optimizer",
     "PositionCrew Yield Allocator",
     "Compares block-pinned Venus stablecoin markets and returns a liquidity-, concentration-, migration-cost-, and risk-bounded allocation or HOLD.",
     "Optimise a Venus stablecoin allocation",
@@ -301,7 +303,7 @@ export const AACP_PROVIDER_BLUEPRINTS: readonly AacpProviderBlueprint[] = [
   ),
   blueprint(
     "BOUNDED_GRID",
-    "positioncrew-bounded-grid.agent",
+    "positioncrew-bounded-grid",
     "PositionCrew Bounded Grid Builder",
     "Constructs or rejects a PancakeSwap WBNB/USDT grid under explicit volatility, fee, slippage, inventory, gas, and maximum-loss limits.",
     "Build or reject a bounded PancakeSwap grid",

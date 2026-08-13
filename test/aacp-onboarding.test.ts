@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  AacpAgentPreparePayloadSchema,
   buildAacpOnboardingManifest,
   inspectAacpOnboardingWallet,
 } from "../src/commerce/aacp-onboarding.js";
-import { AACP_BSC_API } from "../src/commerce/aacp-production.js";
+import {
+  AACP_BSC_API,
+  AACP_PROVIDER_BLUEPRINTS,
+} from "../src/commerce/aacp-production.js";
 
 const OWNER = "0x4444444444444444444444444444444444444444";
 
@@ -114,12 +118,34 @@ describe("TermiX onboarding preflight", () => {
 
     expect(manifest.entries).toHaveLength(4);
     expect(new Set(manifest.entries.map((entry) => entry.agent.name)).size).toBe(4);
+    expect(manifest.entries.map((entry) => entry.agent.name)).toEqual(
+      AACP_PROVIDER_BLUEPRINTS.map((provider) => provider.mintName),
+    );
+    expect(manifest.entries.every((entry) => !entry.agent.name.includes(".agent"))).toBe(true);
     expect(new Set(manifest.entries.map((entry) => entry.listing.skillTag)).size).toBe(4);
     expect(manifest.entries.every((entry) => entry.listing.basePrice === "5")).toBe(true);
     expect(manifest.entries.every((entry) => entry.listing.currency === "USDT")).toBe(true);
     expect(manifest.entries.every((entry) => !("roles" in entry.agent))).toBe(true);
     expect(manifest.walletSignedAgentMints).toBe(4);
     expect(manifest.offchainListingPublishes).toBe(4);
+  });
+
+  it("rejects canonical handles and malformed names in mint prepare payloads", () => {
+    expect(() => AacpAgentPreparePayloadSchema.parse({
+      name: "positioncrew-lending-rescue.agent",
+      displayName: "PositionCrew Lending Rescue",
+      category: "Market & Protocol Research",
+      description: "Computes a bounded lending rescue from pinned market evidence.",
+      tags: ["Venus"],
+    })).toThrow("base names without @ or .agent");
+
+    expect(() => AacpAgentPreparePayloadSchema.parse({
+      name: "@positioncrew-lending-rescue",
+      displayName: "PositionCrew Lending Rescue",
+      category: "Market & Protocol Research",
+      description: "Computes a bounded lending rescue from pinned market evidence.",
+      tags: ["Venus"],
+    })).toThrow("base names without @ or .agent");
   });
 
   it("reads gas and settlement balances without signing or writing", async () => {

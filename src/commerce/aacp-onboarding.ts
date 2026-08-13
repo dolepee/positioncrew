@@ -14,7 +14,14 @@ const SettlementSymbolSchema = z.enum(["USDC", "USDT"]);
 
 export const AacpAgentPreparePayloadSchema = z
   .object({
-    name: z.string().min(3).max(80),
+    name: z
+      .string()
+      .min(3)
+      .max(48)
+      .regex(
+        /^[A-Za-z0-9][A-Za-z0-9_-]*$/,
+        "Agent.family mint names must be base names without @ or .agent",
+      ),
     displayName: z.string().min(3).max(120),
     category: AgentCategorySchema,
     description: z.string().min(32).max(1_000),
@@ -68,11 +75,11 @@ export const AacpOnboardingManifestSchema = z
   })
   .strict()
   .superRefine((manifest, context) => {
-    const handles = manifest.entries.map((entry) => entry.agent.name.toLowerCase());
+    const mintNames = manifest.entries.map((entry) => entry.agent.name.toLowerCase());
     const services = manifest.entries.map((entry) => entry.service);
     const skillTags = manifest.entries.map((entry) => entry.listing.skillTag.toLowerCase());
     for (const [path, values] of [
-      ["agent.name", handles],
+      ["agent.name", mintNames],
       ["service", services],
       ["listing.skillTag", skillTags],
     ] as const) {
@@ -104,7 +111,7 @@ export function buildAacpOnboardingManifest(
     entries: AACP_PROVIDER_BLUEPRINTS.map((provider) => ({
       service: provider.service,
       agent: {
-        name: provider.handle,
+        name: provider.mintName,
         displayName: provider.displayName,
         category: provider.category,
         description: provider.description,
