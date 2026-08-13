@@ -337,12 +337,12 @@ try {
     "AACP readiness does not verify all four mainnet identities",
   );
   assert(
-    aacpReadiness.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING" &&
+    aacpReadiness.state === "PROVIDERS_ONLINE" &&
       aacpReadiness.marketplace.indexedProviderCount === 4 &&
       aacpReadiness.marketplace.publishedListingCount === 4 &&
-      aacpReadiness.marketplace.onlineProviderCount === 0 &&
+      aacpReadiness.marketplace.onlineProviderCount === 4 &&
       aacpReadiness.marketplace.discoveryDegraded === false,
-    "AACP readiness does not report four published listings and zero bound runtimes",
+    "AACP readiness does not report four published and online providers",
   );
   assert(
     aacpReadiness.marketplace.providers.every(
@@ -350,8 +350,9 @@ try {
         expectedAacpListings.get(provider.agentTokenId) === provider.listingId &&
         provider.listingStatus === "PUBLISHED" &&
         provider.liveListingVerified === true &&
-        provider.a2aStatus === "UNBOUND" &&
-        provider.status === "LISTED_OFFLINE" &&
+        provider.a2aStatus === "ONLINE" &&
+        provider.presence === "online" &&
+        provider.status === "ONLINE_AND_LISTED" &&
         typeof provider.listingUrl === "string" &&
         new URL(provider.listingUrl).hostname === "www.agent.family",
     ),

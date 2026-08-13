@@ -918,7 +918,9 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
     },
     boundaries: [
       "This record validates the production AACP config, independent BSC bytecode, four wallet-owned ERC-8004 identities, and four exact public Agent.family listings on BNB Chain mainnet.",
-      "The four listings are published at 5 USDC each; it does not claim an online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue.",
+      onlineCount === AACP_PROVIDER_BLUEPRINTS.length
+        ? "All four 5 USDC listings reported an online A2A runtime when this record was generated; presence is live state, not a durable uptime claim. It does not claim stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue."
+        : "The four listings are published at 5 USDC each; it does not claim an online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue.",
       "Agent.family's default banner remains on the four listings until the prepared PositionCrew media is uploaded through the supported editor flow.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",

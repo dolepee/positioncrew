@@ -364,6 +364,8 @@ describe("TermiX production AACP readiness", () => {
 
     expect(readiness.state).toBe("PROVIDERS_ONLINE");
     expect(readiness.marketplace.onlineProviderCount).toBe(4);
+    expect(readiness.boundaries.join(" ")).toContain("reported an online A2A runtime");
+    expect(readiness.boundaries.join(" ")).toContain("not a durable uptime claim");
   });
 
   it("publishes a fail-closed record when live sources are unavailable", () => {
