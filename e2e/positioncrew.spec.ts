@@ -87,7 +87,7 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await page.getByRole("button", { name: "JSON" }).click();
   await expect(page.getByText("application/json", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Receipt", exact: true }).click();
-  await expect(page.getByText("Evaluation", { exact: true })).toBeVisible();
+  await expect(page.getByText("Score receipt", { exact: true })).toBeVisible();
   await expect(page.getByText("SESSION EMBEDDED", { exact: true })).toBeVisible();
 
   await page.getByRole("button", { name: "Locked receipt" }).click();

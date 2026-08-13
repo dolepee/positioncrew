@@ -34,8 +34,10 @@ const ERC20_ABI = parseAbi([
 ]);
 const ESCROW_ABI = parseAbi([
   "function createOrder(uint256 providerAgentId, bytes32 agreementHash, uint256 budget, uint256 deadline, uint8 settlementMode, uint256 challengeWindow, uint256 clientAgentId) returns (bytes32 orderId)",
+  "function cancelPending(bytes32 orderId)",
   "function acceptOrder(bytes32 orderId)",
   "function submitDelivery(bytes32 orderId, bytes32 deliveryHash)",
+  "function cancelExpired(bytes32 orderId)",
   "function releaseEscrow(bytes32 orderId)",
   "function requestRedo(bytes32 orderId)",
   "function claimAfterTimeout(bytes32 orderId)",
@@ -191,7 +193,7 @@ function mined(
 }
 
 function observation(
-  status: "PENDING_ACCEPT" | "FUNDED" | "IN_PROGRESS" | "DELIVERED" | "IN_DISPUTE" | "SETTLED",
+  status: "PENDING_ACCEPT" | "FUNDED" | "IN_PROGRESS" | "DELIVERED" | "ACCEPTED" | "IN_DISPUTE" | "SETTLED" | "CANCELLED",
   observedAt: string,
   overrides: Record<string, unknown> = {},
 ) {
@@ -204,6 +206,7 @@ function observation(
     currency: "USDT",
     clientAgentId: CLIENT_AGENT,
     providerAgentId: PROVIDER_AGENT,
+    acceptDeadline: "2026-08-13T13:00:00.000Z",
     deliveryDueAt: "2026-08-14T12:00:00.000Z",
     challengeWindowEndsAt: "2026-08-15T12:00:00.000Z",
     redoUsed: false,
@@ -541,6 +544,92 @@ describe("PositionCrew AACP order lifecycle guard", () => {
       new Date("2026-08-13T13:01:00Z"),
     );
     expect(deriveAacpLifecycleStage(binding)).toBe("SETTLEMENT_INDEXING");
+  });
+
+  it("permits a pending-order refund only after the indexed acceptance deadline", async () => {
+    let binding = await pendingBinding();
+    expect(() => recordAacpMinedTransaction(
+      binding,
+      intent("cancelPending"),
+      mined("cancelPending", 23),
+      new Date("2026-08-13T12:59:00Z"),
+    )).toThrow("acceptance window has not elapsed");
+
+    binding = recordAacpMinedTransaction(
+      binding,
+      intent("cancelPending"),
+      mined("cancelPending", 23),
+      new Date("2026-08-13T13:01:00Z"),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("CANCELLATION_INDEXING");
+
+    binding = reconcileAacpOrder(
+      binding,
+      observation("CANCELLED", "2026-08-13T13:02:00Z"),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("CANCELLED");
+  });
+
+  it("permits an expired-delivery refund only after the indexed delivery deadline", async () => {
+    let binding = await inProgressBinding({
+      deliveryDueAt: "2026-08-13T13:00:00Z",
+    });
+    expect(() => recordAacpMinedTransaction(
+      binding,
+      intent("cancelExpired"),
+      mined("cancelExpired", 24),
+      new Date("2026-08-13T12:59:00Z"),
+    )).toThrow("Delivery deadline has not elapsed");
+
+    binding = recordAacpMinedTransaction(
+      binding,
+      intent("cancelExpired"),
+      mined("cancelExpired", 24),
+      new Date("2026-08-13T13:01:00Z"),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("CANCELLATION_INDEXING");
+
+    binding = reconcileAacpOrder(
+      binding,
+      observation("CANCELLED", "2026-08-13T13:02:00Z", {
+        deliveryDueAt: "2026-08-13T13:00:00Z",
+      }),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("CANCELLED");
+  });
+
+  it("fails closed when a cancellation projection lacks a reviewed refund transaction", async () => {
+    const pending = await pendingBinding();
+    expect(() => reconcileAacpOrder(
+      pending,
+      observation("CANCELLED", "2026-08-13T13:02:00Z"),
+    )).toThrow("no reviewed cancellation receipt");
+  });
+
+  it("tracks the documented ACCEPTED projection until settlement is indexed", async () => {
+    let binding = await deliveredBinding();
+    expect(() => reconcileAacpOrder(
+      binding,
+      observation("ACCEPTED", "2026-08-13T12:02:00Z"),
+    )).toThrow("no reviewed releaseEscrow receipt");
+
+    binding = recordAacpMinedTransaction(
+      binding,
+      intent("releaseEscrow"),
+      mined("releaseEscrow", 25),
+      new Date("2026-08-13T12:03:00Z"),
+    );
+    binding = reconcileAacpOrder(
+      binding,
+      observation("ACCEPTED", "2026-08-13T12:04:00Z"),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("SETTLEMENT_INDEXING");
+
+    binding = reconcileAacpOrder(
+      binding,
+      observation("SETTLED", "2026-08-13T12:05:00Z"),
+    );
+    expect(deriveAacpLifecycleStage(binding)).toBe("SETTLED");
   });
 
   it("binds delivery submission to the reviewed artifact hash", async () => {

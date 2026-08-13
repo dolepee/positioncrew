@@ -26,8 +26,10 @@ const ERC20_APPROVE_ABI = parseAbi([
 
 const TERMIX_ESCROW_ABI = parseAbi([
   "function createOrder(uint256 providerAgentId, bytes32 agreementHash, uint256 budget, uint256 deadline, uint8 settlementMode, uint256 challengeWindow, uint256 clientAgentId) returns (bytes32 orderId)",
+  "function cancelPending(bytes32 orderId)",
   "function acceptOrder(bytes32 orderId)",
   "function submitDelivery(bytes32 orderId, bytes32 deliveryHash)",
+  "function cancelExpired(bytes32 orderId)",
   "function releaseEscrow(bytes32 orderId)",
   "function requestRedo(bytes32 orderId)",
   "function claimAfterTimeout(bytes32 orderId)",
@@ -47,8 +49,10 @@ export const AacpOrderStatusSchema = z.enum([
   "FUNDED",
   "IN_PROGRESS",
   "DELIVERED",
+  "ACCEPTED",
   "IN_DISPUTE",
   "SETTLED",
+  "CANCELLED",
 ]);
 
 export const AacpLifecycleStageSchema = z.enum([
@@ -56,6 +60,7 @@ export const AacpLifecycleStageSchema = z.enum([
   "ESCROW_APPROVED",
   "ORDER_INDEXING",
   "PENDING_ACCEPT",
+  "CANCELLATION_INDEXING",
   "PROVIDER_ACCEPT_INDEXING",
   "IN_PROGRESS",
   "DELIVERY_INDEXING",
@@ -66,6 +71,7 @@ export const AacpLifecycleStageSchema = z.enum([
   "IN_DISPUTE",
   "SETTLEMENT_INDEXING",
   "SETTLED",
+  "CANCELLED",
 ]);
 
 export const AacpCheckoutRequestSchema = z
@@ -174,6 +180,7 @@ export const AacpOrderObservationSchema = z
     currency: z.enum(["USDC", "USDT"]),
     clientAgentId: z.string().min(1),
     providerAgentId: z.string().min(1),
+    acceptDeadline: TimestampSchema.nullable().optional(),
     deliveryDueAt: TimestampSchema.nullable(),
     challengeWindowEndsAt: TimestampSchema.nullable(),
     redoUsed: z.boolean(),
@@ -476,9 +483,15 @@ export function deriveAacpLifecycleStage(
   }
 
   if (binding.order.status === "PENDING_ACCEPT") {
+    if (latestActionAfterObservation(binding, ["cancelPending"])) {
+      return "CANCELLATION_INDEXING";
+    }
     return hasAction(binding, "acceptOrder") ? "PROVIDER_ACCEPT_INDEXING" : "PENDING_ACCEPT";
   }
   if (binding.order.status === "FUNDED" || binding.order.status === "IN_PROGRESS") {
+    if (latestActionAfterObservation(binding, ["cancelExpired"])) {
+      return "CANCELLATION_INDEXING";
+    }
     if (binding.order.redoUsed) return "IN_PROGRESS_REDO";
     return hasAction(binding, "submitDelivery") &&
       latestActionAfterObservation(binding, ["submitDelivery"])
@@ -499,8 +512,10 @@ export function deriveAacpLifecycleStage(
     if (pending === "openChallenge") return "DISPUTE_INDEXING";
     return "DELIVERED";
   }
+  if (binding.order.status === "ACCEPTED") return "SETTLEMENT_INDEXING";
   if (binding.order.status === "IN_DISPUTE") return "IN_DISPUTE";
-  return "SETTLED";
+  if (binding.order.status === "SETTLED") return "SETTLED";
+  return "CANCELLED";
 }
 
 export function createAacpCheckoutPlan(
@@ -675,6 +690,16 @@ function assertActionAllowed(
     return;
   }
   if (action === "acceptOrder" && stage === "PENDING_ACCEPT") return;
+  if (action === "cancelPending" && stage === "PENDING_ACCEPT") {
+    const deadline = binding.order?.acceptDeadline;
+    if (!deadline) {
+      throw new AacpLifecycleError("Indexed order is missing its provider acceptance deadline");
+    }
+    if (observedAt.getTime() <= Date.parse(deadline)) {
+      throw new AacpLifecycleError("Provider acceptance window has not elapsed");
+    }
+    return;
+  }
   if (action === "submitDelivery" && ["IN_PROGRESS", "IN_PROGRESS_REDO"].includes(stage)) {
     const priorDeliveries = binding.transactions.filter(
       (transaction) => transaction.action === "submitDelivery",
@@ -691,6 +716,16 @@ function assertActionAllowed(
     }
     if (observedAt.getTime() > Date.parse(binding.order.deliveryDueAt)) {
       throw new AacpLifecycleError("Delivery deadline has elapsed");
+    }
+    return;
+  }
+  if (action === "cancelExpired" && ["IN_PROGRESS", "IN_PROGRESS_REDO"].includes(stage)) {
+    const deadline = binding.order?.deliveryDueAt;
+    if (!deadline) {
+      throw new AacpLifecycleError("Indexed order is missing its delivery deadline");
+    }
+    if (observedAt.getTime() <= Date.parse(deadline)) {
+      throw new AacpLifecycleError("Delivery deadline has not elapsed");
     }
     return;
   }
@@ -796,12 +831,14 @@ const ALLOWED_ORDER_TRANSITIONS: Record<
   z.infer<typeof AacpOrderStatusSchema>,
   ReadonlySet<z.infer<typeof AacpOrderStatusSchema>>
 > = {
-  PENDING_ACCEPT: new Set(["PENDING_ACCEPT", "FUNDED", "IN_PROGRESS", "DELIVERED", "IN_DISPUTE", "SETTLED"]),
-  FUNDED: new Set(["FUNDED", "IN_PROGRESS", "DELIVERED", "IN_DISPUTE", "SETTLED"]),
-  IN_PROGRESS: new Set(["IN_PROGRESS", "DELIVERED", "IN_DISPUTE", "SETTLED"]),
-  DELIVERED: new Set(["DELIVERED", "IN_PROGRESS", "IN_DISPUTE", "SETTLED"]),
+  PENDING_ACCEPT: new Set(["PENDING_ACCEPT", "FUNDED", "IN_PROGRESS", "DELIVERED", "ACCEPTED", "IN_DISPUTE", "SETTLED", "CANCELLED"]),
+  FUNDED: new Set(["FUNDED", "IN_PROGRESS", "DELIVERED", "ACCEPTED", "IN_DISPUTE", "SETTLED", "CANCELLED"]),
+  IN_PROGRESS: new Set(["IN_PROGRESS", "DELIVERED", "ACCEPTED", "IN_DISPUTE", "SETTLED", "CANCELLED"]),
+  DELIVERED: new Set(["DELIVERED", "IN_PROGRESS", "ACCEPTED", "IN_DISPUTE", "SETTLED"]),
+  ACCEPTED: new Set(["ACCEPTED", "SETTLED"]),
   IN_DISPUTE: new Set(["IN_DISPUTE", "SETTLED"]),
   SETTLED: new Set(["SETTLED"]),
+  CANCELLED: new Set(["CANCELLED"]),
 };
 
 function assertProjectionEvidence(
@@ -812,14 +849,14 @@ function assertProjectionEvidence(
     throw new AacpLifecycleError("Indexed order cannot bind before createOrder is mined");
   }
   if (
-    ["FUNDED", "IN_PROGRESS", "DELIVERED", "IN_DISPUTE", "SETTLED"].includes(
+    ["FUNDED", "IN_PROGRESS", "DELIVERED", "ACCEPTED", "IN_DISPUTE", "SETTLED"].includes(
       observation.status,
     ) &&
     !hasAction(binding, "acceptOrder")
   ) {
     throw new AacpLifecycleError(`${observation.status} projection has no reviewed acceptOrder receipt`);
   }
-  if (observation.status === "DELIVERED") {
+  if (["DELIVERED", "ACCEPTED", "IN_DISPUTE", "SETTLED"].includes(observation.status)) {
     const deliveryCount = binding.transactions.filter(
       (transaction) => transaction.action === "submitDelivery",
     ).length;
@@ -835,6 +872,16 @@ function assertProjectionEvidence(
   }
   if (observation.redoUsed && !hasAction(binding, "requestRedo")) {
     throw new AacpLifecycleError("Redo projection has no reviewed requestRedo receipt");
+  }
+  if (observation.status === "ACCEPTED" && !hasAction(binding, "releaseEscrow")) {
+    throw new AacpLifecycleError("ACCEPTED projection has no reviewed releaseEscrow receipt");
+  }
+  if (
+    observation.status === "CANCELLED" &&
+    !hasAction(binding, "cancelPending") &&
+    !hasAction(binding, "cancelExpired")
+  ) {
+    throw new AacpLifecycleError("CANCELLED projection has no reviewed cancellation receipt");
   }
   if (
     observation.status === "SETTLED" &&

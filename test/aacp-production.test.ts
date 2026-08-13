@@ -189,7 +189,8 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.protocol.deployedCount).toBe(readiness.protocol.contractCount);
     expect(readiness.protocol.currencies.map((currency) => currency.symbol)).toEqual(["USDC", "USDT"]);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "HANDLE_AVAILABLE")).toBe(true);
-    expect(readiness.integration.lifecycle).toContain("BUYER_RELEASE_OR_TIMEOUT");
+    expect(readiness.integration.lifecycle).toContain("PENDING_OR_EXPIRED_CANCELLATION");
+    expect(readiness.integration.lifecycle).toContain("BUYER_RELEASE_REDO_DISPUTE_OR_TIMEOUT");
     expect(readiness.integration.runtime.operatorRequiredConversationKinds).toContain("CHALLENGE");
     expect(readiness.boundaries.join(" ")).toContain("does not claim");
   });
@@ -256,7 +257,7 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.network).toMatchObject({ chainId: 56, blockNumber: null });
     expect(readiness.marketplace.requiredProviderCount).toBe(4);
     expect(readiness.integration.runtime.ownerSignerOnHost).toBe(false);
-    expect(readiness.integration.orderGuard.guardedActions).toHaveLength(8);
+    expect(readiness.integration.orderGuard.guardedActions).toHaveLength(10);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "UPSTREAM_UNAVAILABLE")).toBe(true);
     expect(readiness.boundaries.join(" ")).toContain("no cached deployment claim");
   });

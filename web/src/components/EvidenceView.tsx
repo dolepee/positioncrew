@@ -336,7 +336,7 @@ export function EvidenceView({
         </div>
         <div className="history-table-wrap">
           <table className="history-table evidence-table">
-            <thead><tr><th scope="col">Provider</th><th scope="col">Category</th><th scope="col">State</th><th scope="col">Score</th><th scope="col">Request commitment</th><th scope="col">Evaluation receipt</th></tr></thead>
+            <thead><tr><th scope="col">Provider</th><th scope="col">Category</th><th scope="col">State</th><th scope="col">Score</th><th scope="col">Request commitment</th><th scope="col">Conformance receipt</th></tr></thead>
             <tbody>
               {providers.map((provider) => {
                 const result = matrix.get(provider.service);

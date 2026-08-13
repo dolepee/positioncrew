@@ -16,8 +16,10 @@ export const AACP_OPENAPI_URL = "https://docs.termix.ai/api-reference/openapi.js
 export const AACP_ORDER_GUARD_ACTIONS = [
   "approveEscrow",
   "createOrder",
+  "cancelPending",
   "acceptOrder",
   "submitDelivery",
+  "cancelExpired",
   "releaseEscrow",
   "requestRedo",
   "claimAfterTimeout",
@@ -676,9 +678,10 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
         "LISTING_CREATE_PUBLISH",
         "A2A_RUNTIME",
         "CHECKOUT_APPROVE_CREATE",
+        "PENDING_OR_EXPIRED_CANCELLATION",
         "PROVIDER_ACCEPT",
         "ARTIFACT_REGISTER_SUBMIT",
-        "BUYER_RELEASE_OR_TIMEOUT",
+        "BUYER_RELEASE_REDO_DISPUTE_OR_TIMEOUT",
         "INDEXER_RECONCILE",
       ],
     },
@@ -692,7 +695,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
     boundaries: [
       "This record validates the documented production AACP config, independent BSC bytecode, and public Agent.family discovery state.",
       "It does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
-      "PositionCrew's no-wallet trial and deterministic evaluator remain separate from AACP escrow and dispute adjudication.",
+      "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
   };
@@ -764,9 +767,10 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
         "LISTING_CREATE_PUBLISH",
         "A2A_RUNTIME",
         "CHECKOUT_APPROVE_CREATE",
+        "PENDING_OR_EXPIRED_CANCELLATION",
         "PROVIDER_ACCEPT",
         "ARTIFACT_REGISTER_SUBMIT",
-        "BUYER_RELEASE_OR_TIMEOUT",
+        "BUYER_RELEASE_REDO_DISPUTE_OR_TIMEOUT",
         "INDEXER_RECONCILE",
       ],
     },
@@ -791,7 +795,7 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
     boundaries: [
       "TermiX production config or BSC RPC could not be validated at this time; no cached deployment claim is substituted.",
       "This record does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
-      "PositionCrew's no-wallet trial and deterministic evaluator remain separate from AACP escrow and dispute adjudication.",
+      "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
     ],
   };

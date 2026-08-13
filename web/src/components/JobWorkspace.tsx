@@ -472,10 +472,10 @@ function ReceiptView({ response }: { response: FixtureJobResponse }) {
       <dl className="receipt-facts">
         <div><dt>Job ID</dt><dd>{job.jobId}</dd></div>
         <div><dt>Provider</dt><dd>{job.providerId}</dd></div>
-        <div><dt>Evaluator</dt><dd>{job.evaluatorId}</dd></div>
+        <div><dt>Conformance scorer</dt><dd>{job.evaluatorId}</dd></div>
         <div><dt>Envelope</dt><dd>{job.envelopeHash}</dd></div>
         <div><dt>Deliverable</dt><dd>{job.deliverable.deliverableHash}</dd></div>
-        <div><dt>Evaluation</dt><dd>{evaluation.evaluationHash}</dd></div>
+        <div><dt>Score receipt</dt><dd>{evaluation.evaluationHash}</dd></div>
       </dl>
       <ol className="vertical-timeline">
         {job.history.map((entry) => (
