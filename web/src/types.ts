@@ -502,6 +502,66 @@ export interface AgentCaptureManifestResponse {
   manifestHash: string;
 }
 
+export interface MarketplaceInvocationEvidence {
+  schemaVersion: "positioncrew.marketplace-invocation-evidence.v1";
+  protocolHash: string;
+  capturedAt: string;
+  source: {
+    productionBaseUrl: string;
+    productionVersion: number;
+    productionCommitSha: string;
+    protocolCommitSha: string;
+    protocolUrl: string;
+  };
+  records: Array<{
+    sequenceNumber: number;
+    benchmarkSlug: TermixBenchmarkSlug;
+    service: TermixBenchmarkService;
+    runNumber: number;
+    endpointUrl: string;
+    startedAt: string;
+    completedAt: string;
+    elapsedMilliseconds: number;
+    directCostUsd: "0.00";
+    walletRequired: false;
+    httpStatus: number;
+    success: boolean;
+    observation: {
+      evidenceMode: "FROZEN_BSC_TEST_FIXTURE";
+      commerceMode: "IN_MEMORY_CONFORMANCE";
+      receiptMode: "PUBLIC_REPRODUCIBLE";
+      receiptUrl: string;
+      jobId: string;
+      jobState: "COMPLETED";
+      jobHistory: string[];
+      providerId: string;
+      outputHash: string;
+      evaluationHash: string;
+      conformanceScore: 100;
+      criticalFailureCount: 0;
+      responseHash: string;
+    } | null;
+    error: string | null;
+  }>;
+  summaries: Array<{
+    benchmarkSlug: TermixBenchmarkSlug;
+    service: TermixBenchmarkService;
+    attemptCount: 2;
+    successCount: number;
+    medianElapsedMilliseconds: number | null;
+    outputHashesMatch: boolean;
+    evaluationHashesMatch: boolean;
+  }>;
+  aggregate: {
+    plannedAttemptCount: 6;
+    recordedAttemptCount: 6;
+    successCount: number;
+    allAttemptsSucceeded: boolean;
+  };
+  boundaries: string[];
+  evidenceHash: string;
+}
+
 export interface Erc8183TestnetLedger {
   schemaVersion: "positioncrew.erc8183-testnet-ledger.v1";
   capturedAt: string;

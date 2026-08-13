@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   annualizedRatePct,
   annualizedYieldBps,
+  isRetryableRpcFailure,
   pancakeActiveLiquidityUsd,
   poolPriceFromSqrtPriceX96,
   realizedVolatilityBpsFromTickCumulatives,
@@ -63,6 +64,17 @@ describe("BSC telemetry math", () => {
     expect(() => realizedVolatilityBpsFromTickCumulatives([0n, 1n], 60)).toThrow(
       "At least three ordered tick cumulatives",
     );
+  });
+
+  it("retries provider faults but never retries EVM execution failures", () => {
+    expect(isRetryableRpcFailure({ code: -32_005, message: "rate limit exceeded" })).toBe(true);
+    expect(isRetryableRpcFailure({ code: -32_603, message: "temporary internal error" })).toBe(true);
+    expect(isRetryableRpcFailure({
+      code: -32_603,
+      message: "internal error: execution reverted",
+      data: "0x08c379a0",
+    })).toBe(false);
+    expect(isRetryableRpcFailure({ code: 3, message: "execution reverted: policy failed" })).toBe(false);
   });
 
   it("normalizes Venus oracle values into 18-decimal USD across token decimals", () => {

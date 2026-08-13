@@ -4,6 +4,7 @@ PositionCrew is a job-first BSC marketplace for bounded capital operations. A bu
 
 Public application: [positioncrew.dolepee.com](https://positioncrew.dolepee.com)
 
+[![Quality](https://github.com/dolepee/positioncrew/actions/workflows/quality.yml/badge.svg)](https://github.com/dolepee/positioncrew/actions/workflows/quality.yml)
 [![Production smoke](https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml/badge.svg)](https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml)
 
 The product covers all four Build the Era categories with equal depth:
@@ -19,7 +20,7 @@ The web application is the primary interface:
 
 - **Marketplace:** searchable provider registry with distinct provider endpoints, ERC-8004 identity, health routes, listed testnet price, a no-wallet provider trial, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and verified Provider identity count.
 - **Jobs:** provider selection, editable buyer constraints, block-pinned Venus account, Venus stablecoin yield, PancakeSwap market, and PancakeSwap position request builders, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history. For a Venus Classic account with collateral and debt, the builder reconstructs balances, effective risk factors, oracle prices, and wallet inventory at one BSC block, reconciles the result to the Comptroller, and lets the buyer send that unsigned request to the lending provider. The yield builder compares the listed Venus Core Pool USDC, USDT, DAI, and FDUSD markets at one block using measured base supply rates, available cash, oracle prices, token metadata, gas, and measured block time; incentive rewards are deliberately excluded. The LP builder reconciles a USDT/WBNB V3 NFT with its official position manager and pool, reconstructs its token inventory and value, simulates collectible fees without moving funds, and measures volatility and an exact onchain swap window at one block. The bounded-grid builder verifies WBNB/USDT token ordering and reads spot price, current active virtual liquidity, reserve balances, adaptive onchain volatility observations, and gas at one BSC block before enabling an interactive grid request. Protocol observations are locked in the UI while buyer constraints remain editable. Other interactive providers retain a clearly labeled current-clock scenario; a separate locked mode reproduces the historical public fixture receipt and labels it non-executable.
-- **Evidence:** live infrastructure register, a fixed-epoch non-cherry-picked production verification record, funded ERC-8183 testnet receipts, public content-addressed deliverables for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
+- **Evidence:** live infrastructure register, six precommitted no-retry marketplace deliveries, a fixed-epoch non-cherry-picked production verification record, funded ERC-8183 testnet receipts, public content-addressed deliverables for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
 
 The flagship cold-buyer journey is **Rescue a lending position**. It returns exact token base units, projected health factor, execution preconditions, expiry, deterministic evaluation, and a fail-closed refusal when evidence is stale or constraints make the action unsafe.
 
@@ -69,6 +70,7 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 - `GET /api/operations/production` for every observed scheduled production verification run after the fixed monitoring epoch, including unsuccessful outcomes, recomputed from the durable public snapshot on the dedicated `production-monitor` branch;
 - `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
 - `GET /api/benchmarks/captures` for the source-bound, hash-only manifest of the six precommitted agent candidates;
+- `GET /api/benchmarks/marketplace-provenance` for the immutable six-call public delivery record and its precommitted protocol binding;
 - `GET /api/benchmarks/:task/repeatability` for lending-rescue, lp-rebalance, or bounded-grid evidence;
 - `GET /api/commerce/erc8183` for the complete seven-job BSC Testnet ledger;
 - `GET /api/commerce/erc8183/jobs/:jobId/deliverable` for a canonical onchain-bound deliverable manifest;

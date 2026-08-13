@@ -13,6 +13,7 @@ import type {
   FixtureJobResponse,
   JobRequestMode,
   MatrixResponse,
+  MarketplaceInvocationEvidence,
   ProviderCatalogResponse,
   ProviderListing,
   ProductionTrackRecord,
@@ -59,6 +60,7 @@ export default function App() {
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkRepeatabilityResponse[]>([]);
   const [captureManifest, setCaptureManifest] = useState<AgentCaptureManifestResponse | null>(null);
+  const [marketplaceProvenance, setMarketplaceProvenance] = useState<MarketplaceInvocationEvidence | null>(null);
   const [advantagePublication, setAdvantagePublication] = useState<AgentAdvantagePublicationStatus | null>(null);
   const [commerceLedger, setCommerceLedger] = useState<Erc8183TestnetLedger | null>(null);
   const [productionTrackRecord, setProductionTrackRecord] = useState<ProductionTrackRecord | null>(null);
@@ -72,7 +74,7 @@ export default function App() {
   async function loadRegistry() {
     setError(null);
     try {
-      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, commercePayload, advantagePayload, productionRecordPayload] = await Promise.all([
+      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, provenancePayload, commercePayload, advantagePayload, productionRecordPayload] = await Promise.all([
         fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
         fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
         fetch("/api/status", { headers: { Accept: "application/json" } })
@@ -83,6 +85,9 @@ export default function App() {
           .catch(() => null),
         fetch("/api/benchmarks/captures", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<AgentCaptureManifestResponse>(response))
+          .catch(() => null),
+        fetch("/api/benchmarks/marketplace-provenance", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<MarketplaceInvocationEvidence>(response))
           .catch(() => null),
         fetch("/api/commerce/erc8183", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<Erc8183TestnetLedger>(response))
@@ -102,6 +107,7 @@ export default function App() {
       setTelemetry(telemetryPayload);
       setBenchmarks(repeatabilityPayload?.records ?? []);
       setCaptureManifest(capturePayload);
+      setMarketplaceProvenance(provenancePayload);
       setCommerceLedger(commercePayload);
       setAdvantagePublication(advantagePayload);
       setProductionTrackRecord(productionRecordPayload);
@@ -188,7 +194,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} commerceLedger={commerceLedger} advantagePublication={advantagePublication} productionTrackRecord={productionTrackRecord} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} marketplaceProvenance={marketplaceProvenance} commerceLedger={commerceLedger} advantagePublication={advantagePublication} productionTrackRecord={productionTrackRecord} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -199,7 +205,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, commerceLedger, advantagePublication, productionTrackRecord]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, marketplaceProvenance, commerceLedger, advantagePublication, productionTrackRecord]);
 
   return (
     <div className="app-shell">

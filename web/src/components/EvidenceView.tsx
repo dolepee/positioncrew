@@ -17,6 +17,7 @@ import type {
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
   Erc8183TestnetLedger,
+  MarketplaceInvocationEvidence,
   ProviderListing,
   ProductionTrackRecord,
   ServiceId,
@@ -30,6 +31,7 @@ export function EvidenceView({
   telemetry,
   benchmarks,
   captureManifest,
+  marketplaceProvenance,
   commerceLedger,
   advantagePublication,
   productionTrackRecord,
@@ -39,6 +41,7 @@ export function EvidenceView({
   telemetry: SystemTelemetry | null;
   benchmarks: BenchmarkRepeatabilityResponse[];
   captureManifest: AgentCaptureManifestResponse | null;
+  marketplaceProvenance: MarketplaceInvocationEvidence | null;
   commerceLedger: Erc8183TestnetLedger | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
   productionTrackRecord: ProductionTrackRecord | null;
@@ -46,6 +49,9 @@ export function EvidenceView({
   const publishedAdvantage = advantagePublication?.status === "PUBLISHED"
     ? advantagePublication
     : null;
+  const deliveryByService = new Map(
+    (marketplaceProvenance?.summaries ?? []).map((summary) => [summary.service, summary]),
+  );
   const definitions: Array<{ service: TermixBenchmarkService; task: string; category: string }> = [
     { service: "LENDING_RESCUE", task: "Lending position rescue", category: "Security / DeFi" },
     { service: "LP_REBALANCE", task: "LP range rebalancing", category: "Liquidity" },
@@ -53,15 +59,19 @@ export function EvidenceView({
   ];
   const benchmarkRows = definitions.map((definition) => {
     const record = benchmarks.find((candidate) => candidate.service === definition.service);
+    const delivery = deliveryByService.get(definition.service);
     const lock = matrix.get(definition.service)?.benchmarkLock;
     return {
       ...definition,
       record,
+      delivery,
       lock,
-      status: record ? "REPEATABLE" : lock ? "LOCKED" : "PENDING",
-      tone: record ? "captured" : lock ? "locked" : "planned",
-      detail: record
-        ? `${record.runs.length} reproducible provider runs; manual baseline pending`
+      status: delivery?.successCount === 2 ? "DELIVERED" : record ? "REPEATABLE" : lock ? "LOCKED" : "PENDING",
+      tone: delivery?.successCount === 2 || record ? "captured" : lock ? "locked" : "planned",
+      detail: delivery?.successCount === 2
+        ? `2/2 public marketplace jobs · ${delivery.medianElapsedMilliseconds} ms median; manual baseline pending`
+        : record
+          ? `${record.runs.length} reproducible provider runs; manual baseline pending`
         : lock
           ? "Fixture, rubric, and blind protocol committed"
           : "Benchmark lock pending",
@@ -104,6 +114,7 @@ export function EvidenceView({
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
           <span><Coins size={16} /><strong>{commerceLedger?.summary.fundedCompletedJobs ?? "-"}</strong> funded test jobs</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
+          <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> marketplace deliveries</span>
         </div>
       </div>
 
@@ -128,6 +139,45 @@ export function EvidenceView({
             </a>
           </div>
         ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
+      </section>
+
+      <section className="evidence-section delivery-evidence-section" aria-labelledby="delivery-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">TermiX delivery proof</span><h2 id="delivery-title">Hired through the public marketplace</h2></div>
+          <span className={`state-label ${marketplaceProvenance?.aggregate.allAttemptsSucceeded ? "good" : "neutral"}`}><FileCheck2 size={13} /> {marketplaceProvenance ? `${marketplaceProvenance.aggregate.successCount}/6 retained` : "Loading"}</span>
+        </div>
+        {marketplaceProvenance ? (
+          <>
+            <div className="delivery-facts">
+              <div><strong>{marketplaceProvenance.aggregate.successCount}/6</strong><span>public Provider jobs</span><small>Two sequential calls per flagship task</small></div>
+              <div><strong>0</strong><span>retries or replacements</span><small>Every planned attempt remains in sequence</small></div>
+              <div><strong>3/3</strong><span>exact output pairs</span><small>Matched precommitted output and evaluation hashes</small></div>
+              <div><strong>$0</strong><span>judge-trial cost</span><small>No wallet · in-memory conformance rail</small></div>
+            </div>
+            <div className="delivery-task-list" aria-label="Marketplace delivery records by task">
+              {definitions.map((definition) => {
+                const summary = deliveryByService.get(definition.service);
+                const records = marketplaceProvenance.records.filter((record) => record.service === definition.service);
+                const receiptUrl = records[0]?.observation?.receiptUrl;
+                const outputHash = records[0]?.observation?.outputHash;
+                return (
+                  <div key={definition.service}>
+                    <span><strong>{definition.task}</strong><small>{definition.category}</small></span>
+                    <span><strong>{summary?.successCount ?? 0}/2</strong><small>completed</small></span>
+                    <span><strong>{summary?.medianElapsedMilliseconds ?? "-"} ms</strong><small>end-to-end median</small></span>
+                    <span><code>{shortHash(outputHash, 16)}</code><small>output commitment</small></span>
+                    {receiptUrl ? <a href={receiptUrl} target="_blank" rel="noreferrer">Receipt <ExternalLink size={12} /></a> : <span>-</span>}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="operations-boundary">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span><strong>Precommitted delivery overlay.</strong>The protocol was public before these six calls. It proves the exact frozen agent outputs were returned through PositionCrew&apos;s production Provider endpoints; it does not claim paid AACP settlement or live investment performance.</span>
+              <span className="delivery-links"><a href="/api/benchmarks/marketplace-provenance" target="_blank" rel="noreferrer">Raw record <ExternalLink size={12} /></a><a href={marketplaceProvenance.source.protocolUrl} target="_blank" rel="noreferrer">Protocol <ExternalLink size={12} /></a></span>
+            </div>
+          </>
+        ) : <div className="infrastructure-loading">The immutable marketplace delivery record is loading.</div>}
       </section>
 
       <section className="evidence-section operations-section" aria-labelledby="operations-title">
@@ -262,6 +312,7 @@ export function EvidenceView({
             <div><strong>{publishedAdvantage ? 3 : 0}</strong><span>blind scorecards</span><small>{publishedAdvantage ? `${publishedAdvantage.agentBlindQualityScore}/300 agent quality · independently scored` : "manual baseline and evaluator pending"}</small></div>
           </div>
           <a className="benchmark-data-link" href="/api/benchmarks/captures" target="_blank" rel="noreferrer">Open source-bound capture manifest <ExternalLink size={13} /></a>
+          <a className="benchmark-data-link" href="/api/benchmarks/marketplace-provenance" target="_blank" rel="noreferrer">Open public marketplace delivery record <ExternalLink size={13} /></a>
           {publishedAdvantage && <a className="benchmark-data-link" href={publishedAdvantage.reportUrl} target="_blank" rel="noreferrer">Open independently scored report <ExternalLink size={13} /></a>}
         </section>
 
@@ -281,6 +332,10 @@ export function EvidenceView({
               <dt>Agent capture manifest</dt>
               <dd>{captureManifest ? `${shortHash(captureManifest.manifestHash, 18)} · source ${captureManifest.source.commitSha.slice(0, 7)}` : "Loading"}</dd>
             </div>
+            <div>
+              <dt>Marketplace delivery protocol</dt>
+              <dd>{marketplaceProvenance ? `${shortHash(marketplaceProvenance.protocolHash, 18)} · source ${marketplaceProvenance.source.protocolCommitSha.slice(0, 7)}` : "Loading"}</dd>
+            </div>
           </dl>
           {publishedAdvantage ? (
             <div className="claim-warning published">
@@ -298,7 +353,7 @@ export function EvidenceView({
 
       <section className="claim-register" aria-label="Claim boundaries">
         <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
-        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
+        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four receipts reproduce, and six precommitted no-retry jobs delivered the flagship outputs through the public marketplace.</span></div>
         <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed; TermiX AACP remains pending its corrected guide.</span></div>
         <div>{publishedAdvantage ? <BadgeCheck size={17} /> : <Clock3 size={17} />}<span><strong>Track record</strong>{publishedAdvantage ? `${publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the independently scored advantage rule; scope remains limited to the published report.` : "Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published."}</span></div>
       </section>

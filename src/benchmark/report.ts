@@ -9,6 +9,12 @@ import {
   type CompletedBenchmarkEvidence,
 } from "./evidence.js";
 import type { TermixBenchmarkSlug } from "./lock.js";
+import {
+  loadMarketplaceInvocationProtocol,
+  verifyMarketplaceInvocationEvidence,
+  verifyMarketplaceInvocationEvidenceObject,
+  type MarketplaceInvocationEvidence,
+} from "./marketplace-provenance.js";
 
 const TASK_METADATA = {
   "lending-rescue": {
@@ -60,6 +66,19 @@ const BenchmarkLockSchema = z
   })
   .strict();
 
+const MarketplaceDeliverySchema = z
+  .object({
+    attemptCount: z.literal(2),
+    successCount: z.literal(2),
+    allAttemptsSucceeded: z.literal(true),
+    medianElapsedMilliseconds: z.number().positive(),
+    endpointUrl: z.string().url(),
+    receiptUrls: z.tuple([z.string().url(), z.string().url()]),
+    outputHashesMatch: z.literal(true),
+    evaluationHashesMatch: z.literal(true),
+  })
+  .strict();
+
 export const AgentAdvantageReportTaskSchema = z
   .object({
     benchmarkSlug: z.enum(["lending-rescue", "lp-rebalance", "bounded-grid"]),
@@ -72,6 +91,8 @@ export const AgentAdvantageReportTaskSchema = z
     agentDeliverableSummary: z.string().min(1).max(1_000),
     manualDeliverableSummary: z.string().min(1).max(1_000),
     speedupMultiple: z.number().finite().positive(),
+    marketplaceSpeedupMultiple: z.number().finite().positive(),
+    marketplaceDelivery: MarketplaceDeliverySchema,
     costDifferenceUsd: z.number().finite(),
     evidenceDirectory: z.string().regex(/^tasks\/(?:lending-rescue|lp-rebalance|bounded-grid)$/),
     evidenceFiles: EvidenceFilesSchema,
@@ -81,7 +102,7 @@ export const AgentAdvantageReportTaskSchema = z
 
 export const AgentAdvantageReportSchema = z
   .object({
-    schemaVersion: z.literal("positioncrew.agent-advantage-report.v2"),
+    schemaVersion: z.literal("positioncrew.agent-advantage-report.v3"),
     generatedAt: TimestampSchema,
     project: z
       .object({
@@ -94,6 +115,9 @@ export const AgentAdvantageReportSchema = z
       .object({
         manualRunsPerTask: z.literal(1),
         agentRunsPerTask: z.literal(2),
+        marketplaceDeliveriesPerTask: z.literal(2),
+        marketplaceAttemptPolicy: z.literal("ONE_ATTEMPT_PER_RUN_NO_RETRY"),
+        marketplaceTimingSeparatedFromDecisionRule: z.literal(true),
         blindQualityCandidatesPerTask: z.literal(2),
         sourceIdentityHiddenDuringScoring: z.literal(true),
         timeCostAndOperatorHiddenDuringScoring: z.literal(true),
@@ -121,6 +145,9 @@ export const AgentAdvantageReportSchema = z
         allTasksSupportAdvantage: z.boolean(),
         agentOutputPairsMatching: z.number().int().min(0).max(3),
         totalCriticalFailures: z.number().int().min(0),
+        marketplaceDeliverySuccessCount: z.literal(6),
+        marketplaceEvidenceHash: HashSchema,
+        marketplaceProtocolHash: HashSchema,
         evidenceManifestHash: HashSchema,
       })
       .strict(),
@@ -171,11 +198,12 @@ function taskMarkdown(task: AgentAdvantageReportTask): string {
     "| Measure | Agent | Manual |",
     "| --- | ---: | ---: |",
     `| Blind quality score | ${task.result.agent.score}/100 | ${task.result.manual.score}/100 |`,
-    `| Elapsed time | ${task.result.agent.medianElapsedMilliseconds} ms median | ${task.result.manual.elapsedMilliseconds} ms |`,
+    `| Locked decision-rule time | ${task.result.agent.medianElapsedMilliseconds} ms median | ${task.result.manual.elapsedMilliseconds} ms |`,
+    `| Public marketplace delivery | ${task.marketplaceDelivery.medianElapsedMilliseconds} ms median | ${task.result.manual.elapsedMilliseconds} ms |`,
     `| Direct cost | $${task.result.agent.medianDirectCostUsd} median | $${task.result.manual.directCostUsd} |`,
     `| Critical failures | ${task.result.agent.conformanceCriticalFailureCount + task.result.agent.blindCriticalFailureCount} | ${task.result.manual.blindCriticalFailureCount} |`,
     "",
-    `Agent delivery was ${task.speedupMultiple}x faster by the locked timer. Cost difference (manual minus agent) was $${task.costDifferenceUsd}.`,
+    `Public marketplace delivery was ${task.marketplaceSpeedupMultiple}x faster than the manual run. The pre-registered decision-rule timer measured ${task.speedupMultiple}x; it excludes network transit and remains the only timing used by the locked advantage rule. Cost difference (manual minus agent) was $${task.costDifferenceUsd}.`,
     "",
     `Agent provider: \`${task.result.agent.providerId}\`. Manual operator: ${task.result.manual.operatorId}. Evaluator: ${task.result.evaluator.displayName}.`,
     "",
@@ -187,6 +215,7 @@ function taskMarkdown(task: AgentAdvantageReportTask): string {
     `- [Completed scorecard](tasks/${task.benchmarkSlug}/completed-scorecard.json)`,
     `- [Opened source mapping](tasks/${task.benchmarkSlug}/source-mapping.opened.json)`,
     `- [Complete result](tasks/${task.benchmarkSlug}/agent-advantage-result.json)`,
+    `- [Marketplace delivery record](marketplace-invocation-evidence.json)`,
     "",
   ].join("\n");
 }
@@ -209,6 +238,7 @@ function reportMarkdown(report: AgentAdvantageReport): string {
     "- The independent evaluator saw two anonymized outputs and the frozen rubric, but no source identity, time, cost, or operator information.",
     "- A salted commitment bound the private source mapping before scoring. This bundle opens that mapping after the completed scorecard.",
     "- A positive result requires agent quality at least equal to manual quality, matching agent output hashes, zero agent critical failures, and lower median agent time.",
+    "- A separately precommitted overlay retained two no-retry public marketplace deliveries per task. It reports end-to-end HTTP latency and exact output commitments without changing the locked decision rule.",
     `- The same manual operator completed all three tasks: ${report.participants.manualOperator.displayName} (${report.participants.manualOperator.contactReference}).`,
     `- A different independent evaluator scored all six blinded candidates: ${report.participants.blindEvaluator.displayName} (${report.participants.blindEvaluator.contactReference}).`,
     "",
@@ -218,6 +248,8 @@ function reportMarkdown(report: AgentAdvantageReport): string {
     ...report.boundaries.map((boundary) => `- ${boundary}`),
     "",
     `Evidence manifest commitment: \`${report.summary.evidenceManifestHash}\``,
+    "",
+    `Marketplace delivery evidence: \`${report.summary.marketplaceEvidenceHash}\``,
     "",
     `Report commitment: \`${report.reportHash}\``,
     "",
@@ -266,12 +298,13 @@ function reportTaskHtml(task: AgentAdvantageReportTask, index: number): string {
     <div class="comparison" role="table" aria-label="Agent and manual comparison">
       <div class="comparison-row header" role="row"><span role="columnheader">Measure</span><span role="columnheader">Agent</span><span role="columnheader">Manual</span></div>
       <div class="comparison-row" role="row"><span role="cell">Blind quality</span><strong role="cell">${task.result.agent.score}/100</strong><strong role="cell">${task.result.manual.score}/100</strong></div>
-      <div class="comparison-row" role="row"><span role="cell">Elapsed time</span><strong role="cell">${escapeHtml(formatDuration(task.result.agent.medianElapsedMilliseconds))} median</strong><strong role="cell">${escapeHtml(formatDuration(task.result.manual.elapsedMilliseconds))}</strong></div>
+      <div class="comparison-row" role="row"><span role="cell">Locked decision-rule time</span><strong role="cell">${escapeHtml(formatDuration(task.result.agent.medianElapsedMilliseconds))} median</strong><strong role="cell">${escapeHtml(formatDuration(task.result.manual.elapsedMilliseconds))}</strong></div>
+      <div class="comparison-row" role="row"><span role="cell">Public marketplace delivery</span><strong role="cell">${escapeHtml(formatDuration(task.marketplaceDelivery.medianElapsedMilliseconds))} median</strong><strong role="cell">${escapeHtml(formatDuration(task.result.manual.elapsedMilliseconds))}</strong></div>
       <div class="comparison-row" role="row"><span role="cell">Direct cost</span><strong role="cell">${escapeHtml(formatUsd(task.result.agent.medianDirectCostUsd))} median</strong><strong role="cell">${escapeHtml(formatUsd(task.result.manual.directCostUsd))}</strong></div>
       <div class="comparison-row" role="row"><span role="cell">Critical failures</span><strong role="cell">${task.result.agent.conformanceCriticalFailureCount + task.result.agent.blindCriticalFailureCount}</strong><strong role="cell">${task.result.manual.blindCriticalFailureCount}</strong></div>
     </div>
     <div class="task-foot">
-      <p><strong>${task.speedupMultiple}x</strong> faster on the locked timer. Manual minus agent direct cost: <strong>${escapeHtml(formatUsd(task.costDifferenceUsd))}</strong>.</p>
+      <p><strong>${task.marketplaceSpeedupMultiple}x</strong> faster through the public marketplace; <strong>${task.speedupMultiple}x</strong> on the locked internal timer. Manual minus agent direct cost: <strong>${escapeHtml(formatUsd(task.costDifferenceUsd))}</strong>.</p>
       <nav aria-label="${escapeHtml(task.title)} evidence">
         <a href="${directory}/agent-output.json">Agent output</a>
         <a href="${directory}/manual-output.json">Manual output</a>
@@ -307,12 +340,12 @@ function reportHtml(report: AgentAdvantageReport): string {
 <body>
   <header class="hero"><div class="shell"><div><span class="eyebrow">TermiX / independently scored evidence</span><h1>Agent Advantage Report</h1><p>${escapeHtml(aggregate)}</p></div><div class="hero-meta"><span>Project</span><strong>PositionCrew</strong><span>Generated</span><strong>${escapeHtml(formatUtcTimestamp(report.generatedAt))}</strong><span>Scope</span><strong>Three frozen BSC capital tasks</strong></div></div></header>
   <main class="shell">
-    <section class="summary" aria-label="Report summary"><div><strong>${report.summary.supportedAdvantageCount}/3</strong><span>tasks supporting advantage</span></div><div><strong>${report.summary.agentOutputPairsMatching}/3</strong><span>matching agent repeats</span></div><div><strong>${report.summary.totalCriticalFailures}</strong><span>agent critical failures</span></div><div><strong>${agentQualityScore}/300</strong><span>agent blind quality</span></div></section>
+    <section class="summary" aria-label="Report summary"><div><strong>${report.summary.supportedAdvantageCount}/3</strong><span>tasks supporting advantage</span></div><div><strong>${report.summary.marketplaceDeliverySuccessCount}/6</strong><span>public marketplace deliveries</span></div><div><strong>${report.summary.totalCriticalFailures}</strong><span>agent critical failures</span></div><div><strong>${agentQualityScore}/300</strong><span>agent blind quality</span></div></section>
     <section class="intro"><div><span class="eyebrow">Pre-registered method</span><h2>Same tasks. Hidden sources. Different people.</h2><p>One manual operator completed each task without PositionCrew or AI. A different evaluator scored six anonymized outputs against rubrics committed before either human saw a candidate. Timing, cost, operator identity, and the source mapping remained hidden during quality scoring.</p></div><div class="people"><div><span>Manual operator</span><strong>${escapeHtml(report.participants.manualOperator.displayName)}</strong><small>${escapeHtml(report.participants.manualOperator.contactReference)}</small></div><div><span>Blind evaluator</span><strong>${escapeHtml(report.participants.blindEvaluator.displayName)}</strong><small>${escapeHtml(report.participants.blindEvaluator.contactReference)}</small></div></div></section>
     ${report.tasks.map((task, index) => reportTaskHtml(task, index + 1)).join("\n")}
-    <section class="boundaries"><h2>Claim boundaries</h2><ul>${report.boundaries.map((boundary) => `<li>${escapeHtml(boundary)}</li>`).join("")}</ul><div class="commitments"><div><span>Evidence manifest</span><code>${escapeHtml(report.summary.evidenceManifestHash)}</code></div><div><span>Report commitment</span><code>${escapeHtml(report.reportHash)}</code></div></div></section>
+    <section class="boundaries"><h2>Claim boundaries</h2><ul>${report.boundaries.map((boundary) => `<li>${escapeHtml(boundary)}</li>`).join("")}</ul><div class="commitments"><div><span>Human + blind evidence</span><code>${escapeHtml(report.summary.evidenceManifestHash)}</code></div><div><span>Marketplace delivery</span><code>${escapeHtml(report.summary.marketplaceEvidenceHash)}</code></div><div><span>Report commitment</span><code>${escapeHtml(report.reportHash)}</code></div></div></section>
   </main>
-  <footer class="shell footer"><a href="agent-advantage-report.json">Machine-readable report</a><a href="agent-advantage-report.md">Markdown report</a><a href="https://positioncrew.dolepee.com">Live marketplace</a><a href="https://github.com/dolepee/positioncrew">Public repository</a></footer>
+  <footer class="shell footer"><a href="agent-advantage-report.json">Machine-readable report</a><a href="agent-advantage-report.md">Markdown report</a><a href="marketplace-invocation-evidence.json">Marketplace delivery evidence</a><a href="https://positioncrew.dolepee.com">Live marketplace</a><a href="https://github.com/dolepee/positioncrew">Public repository</a></footer>
 </body>
 </html>\n`;
 }
@@ -403,10 +436,39 @@ function requireConsistentParticipants(
   };
 }
 
+function marketplaceDeliveryFor(
+  slug: TermixBenchmarkSlug,
+  evidence: MarketplaceInvocationEvidence,
+): z.infer<typeof MarketplaceDeliverySchema> {
+  const summary = evidence.summaries.find((candidate) => candidate.benchmarkSlug === slug);
+  const records = evidence.records.filter((candidate) => candidate.benchmarkSlug === slug);
+  if (!summary || records.length !== 2 || records.some((record) => !record.success || !record.observation)) {
+    throw new Error(`${slug} does not have two successful retained marketplace deliveries`);
+  }
+  const [first, second] = records;
+  if (!first?.observation || !second?.observation) {
+    throw new Error(`${slug} marketplace delivery observations are missing`);
+  }
+  if (first.endpointUrl !== second.endpointUrl) {
+    throw new Error(`${slug} marketplace delivery endpoints differ`);
+  }
+  return MarketplaceDeliverySchema.parse({
+    attemptCount: summary.attemptCount,
+    successCount: summary.successCount,
+    allAttemptsSucceeded: summary.successCount === summary.attemptCount,
+    medianElapsedMilliseconds: summary.medianElapsedMilliseconds,
+    endpointUrl: first.endpointUrl,
+    receiptUrls: [first.observation.receiptUrl, second.observation.receiptUrl],
+    outputHashesMatch: summary.outputHashesMatch,
+    evaluationHashesMatch: summary.evaluationHashesMatch,
+  });
+}
+
 export function buildAgentAdvantageReport(
   sessionDirectories: string[],
   outputDirectoryInput: string,
   now = new Date(),
+  projectRoot = process.cwd(),
 ): AgentAdvantageReport {
   if (sessionDirectories.length !== 3) {
     throw new Error("The TermiX Agent Advantage report requires exactly three completed tasks");
@@ -421,12 +483,14 @@ export function buildAgentAdvantageReport(
     throw new Error("The report requires one completed lending, LP, and grid benchmark");
   }
   const participants = requireConsistentParticipants(evidence);
+  const marketplaceEvidence = verifyMarketplaceInvocationEvidence(projectRoot);
   const outputDirectory = resolve(outputDirectoryInput);
   mkdirSync(outputDirectory, { recursive: true, mode: 0o700 });
   const tasks = requiredSlugs.map((slug) => {
     const item = bySlug.get(slug)!;
     const metadata = TASK_METADATA[slug];
     const evidenceBundle = writeTaskEvidence(outputDirectory, item);
+    const marketplaceDelivery = marketplaceDeliveryFor(slug, marketplaceEvidence);
     return {
       benchmarkSlug: slug,
       ...metadata,
@@ -439,6 +503,11 @@ export function buildAgentAdvantageReport(
         item.result.manual.elapsedMilliseconds,
         item.result.agent.medianElapsedMilliseconds,
       ),
+      marketplaceSpeedupMultiple: speedup(
+        item.result.manual.elapsedMilliseconds,
+        marketplaceDelivery.medianElapsedMilliseconds,
+      ),
+      marketplaceDelivery,
       costDifferenceUsd: usdDifference(
         item.result.manual.directCostUsd,
         item.result.agent.medianDirectCostUsd,
@@ -455,7 +524,7 @@ export function buildAgentAdvantageReport(
     })),
   );
   const body = {
-    schemaVersion: "positioncrew.agent-advantage-report.v2" as const,
+    schemaVersion: "positioncrew.agent-advantage-report.v3" as const,
     generatedAt: now.toISOString(),
     project: {
       name: "PositionCrew" as const,
@@ -465,6 +534,9 @@ export function buildAgentAdvantageReport(
     methodology: {
       manualRunsPerTask: 1 as const,
       agentRunsPerTask: 2 as const,
+      marketplaceDeliveriesPerTask: 2 as const,
+      marketplaceAttemptPolicy: "ONE_ATTEMPT_PER_RUN_NO_RETRY" as const,
+      marketplaceTimingSeparatedFromDecisionRule: true as const,
       blindQualityCandidatesPerTask: 2 as const,
       sourceIdentityHiddenDuringScoring: true as const,
       timeCostAndOperatorHiddenDuringScoring: true as const,
@@ -487,6 +559,9 @@ export function buildAgentAdvantageReport(
           task.result.agent.blindCriticalFailureCount,
         0,
       ),
+      marketplaceDeliverySuccessCount: marketplaceEvidence.aggregate.successCount as 6,
+      marketplaceEvidenceHash: marketplaceEvidence.evidenceHash,
+      marketplaceProtocolHash: marketplaceEvidence.protocolHash,
       evidenceManifestHash,
     },
     tasks,
@@ -494,7 +569,8 @@ export function buildAgentAdvantageReport(
       "Results apply only to the three disclosed frozen fixtures and do not establish live investment performance.",
       "Conformance and blind task quality do not prove paid AACP settlement, external-provider traction, or mainnet execution.",
       "Manual timing depends on the named operator and disclosed method; another operator may perform differently.",
-      "Agent timing covers local Provider and evaluator execution against an already-loaded frozen fixture; it excludes network transit, wallet interaction, and commerce settlement latency.",
+      "The pre-registered agent decision timer covers local Provider and evaluator execution against an already-loaded frozen fixture; it excludes network transit, wallet interaction, and commerce settlement latency.",
+      "A separately precommitted no-retry overlay reports end-to-end public marketplace HTTP delivery time. It is attached for delivery provenance and does not alter the locked Agent Advantage decision rule.",
       "Agent direct cost is the measured marginal cost of the local deterministic run and excludes prior engineering and shared hosting; manual cost is the operator-disclosed direct cost for that run.",
       "Modeled economic outputs are bounded recommendations, not guaranteed fills, returns, or liquidation prevention.",
     ],
@@ -504,6 +580,10 @@ export function buildAgentAdvantageReport(
     reportHash: canonicalHash(body),
   });
   writeJson(join(outputDirectory, "agent-advantage-report.json"), report);
+  writeJson(
+    join(outputDirectory, "marketplace-invocation-evidence.json"),
+    marketplaceEvidence,
+  );
   writeText(join(outputDirectory, "agent-advantage-report.md"), reportMarkdown(report));
   writeText(join(outputDirectory, "agent-advantage-report.html"), reportHtml(report));
   return report;
@@ -516,6 +596,7 @@ function reportBody(report: AgentAdvantageReport): Omit<AgentAdvantageReport, "r
 
 export function verifyAgentAdvantageReport(
   outputDirectoryInput: string,
+  projectRoot = process.cwd(),
 ): AgentAdvantageReport {
   const outputDirectory = resolve(outputDirectoryInput);
   const report = AgentAdvantageReportSchema.parse(
@@ -523,6 +604,21 @@ export function verifyAgentAdvantageReport(
   );
   if (canonicalHash(reportBody(report)) !== report.reportHash) {
     throw new Error("Agent Advantage report commitment is invalid");
+  }
+  const attachedMarketplaceEvidence = verifyMarketplaceInvocationEvidenceObject(
+    JSON.parse(
+      readFileSync(
+        join(outputDirectory, "marketplace-invocation-evidence.json"),
+        "utf8",
+      ),
+    ),
+    loadMarketplaceInvocationProtocol(projectRoot),
+  );
+  if (
+    attachedMarketplaceEvidence.evidenceHash !== report.summary.marketplaceEvidenceHash ||
+    attachedMarketplaceEvidence.protocolHash !== report.summary.marketplaceProtocolHash
+  ) {
+    throw new Error("Attached marketplace delivery evidence differs from the report summary");
   }
   if (
     readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8") !==
@@ -541,6 +637,40 @@ export function verifyAgentAdvantageReport(
     throw new Error("Agent Advantage report tasks are missing, duplicated, or out of order");
   }
   for (const task of report.tasks) {
+    const expectedMarketplaceDelivery = marketplaceDeliveryFor(
+      task.benchmarkSlug,
+      attachedMarketplaceEvidence,
+    );
+    if (canonicalHash(expectedMarketplaceDelivery) !== canonicalHash(task.marketplaceDelivery)) {
+      throw new Error(`${task.benchmarkSlug} marketplace delivery differs from its attached evidence`);
+    }
+    if (
+      task.marketplaceSpeedupMultiple !==
+      speedup(
+        task.result.manual.elapsedMilliseconds,
+        task.marketplaceDelivery.medianElapsedMilliseconds,
+      )
+    ) {
+      throw new Error(`${task.benchmarkSlug} marketplace speedup is inconsistent`);
+    }
+    if (
+      task.speedupMultiple !==
+      speedup(
+        task.result.manual.elapsedMilliseconds,
+        task.result.agent.medianElapsedMilliseconds,
+      )
+    ) {
+      throw new Error(`${task.benchmarkSlug} locked-timer speedup is inconsistent`);
+    }
+    if (
+      task.costDifferenceUsd !==
+      usdDifference(
+        task.result.manual.directCostUsd,
+        task.result.agent.medianDirectCostUsd,
+      )
+    ) {
+      throw new Error(`${task.benchmarkSlug} cost difference is inconsistent`);
+    }
     const expectedDirectory = `tasks/${task.benchmarkSlug}`;
     if (task.evidenceDirectory !== expectedDirectory) {
       throw new Error(`${task.benchmarkSlug} evidence directory is not canonical`);
@@ -596,6 +726,9 @@ export function verifyAgentAdvantageReport(
         task.result.agent.blindCriticalFailureCount,
       0,
     ),
+    marketplaceDeliverySuccessCount: attachedMarketplaceEvidence.aggregate.successCount as 6,
+    marketplaceEvidenceHash: attachedMarketplaceEvidence.evidenceHash,
+    marketplaceProtocolHash: attachedMarketplaceEvidence.protocolHash,
     evidenceManifestHash: expectedEvidenceManifestHash,
   };
   if (canonicalHash(expectedSummary) !== canonicalHash(report.summary)) {

@@ -138,6 +138,7 @@ export function stageAgentAdvantageReport(
       "agent-advantage-report.json",
       "agent-advantage-report.md",
       "agent-advantage-report.html",
+      "marketplace-invocation-evidence.json",
     ]) {
       copyFileSync(join(reportDirectory, filename), join(temporaryDestination, filename));
     }

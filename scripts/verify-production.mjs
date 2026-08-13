@@ -246,6 +246,62 @@ try {
     new URL(marketplace.operatingRecordUrl).origin === baseUrl.origin,
     "Marketplace operating record is not canonical",
   );
+  assert(
+    new URL(marketplace.marketplaceDeliveryEvidenceUrl).origin === baseUrl.origin,
+    "Marketplace delivery evidence is not canonical",
+  );
+
+  const marketplaceDelivery = await fetchJson(
+    "marketplace-delivery-evidence",
+    marketplace.marketplaceDeliveryEvidenceUrl,
+  );
+  assert(
+    marketplaceDelivery.schemaVersion === "positioncrew.marketplace-invocation-evidence.v1",
+    "Unexpected marketplace delivery evidence schema",
+  );
+  const { evidenceHash: _marketplaceEvidenceHash, ...marketplaceDeliveryBody } = marketplaceDelivery;
+  assert(
+    canonicalSha256(marketplaceDeliveryBody) === marketplaceDelivery.evidenceHash,
+    "Marketplace delivery evidence commitment is invalid",
+  );
+  assert(
+    marketplaceDelivery.protocolHash ===
+      "sha256:4935a4d6a32291112a1f64911765429ca90e65aa9a8a2d966634833cced597e4",
+    "Marketplace delivery evidence changed its precommitted protocol",
+  );
+  assert(
+    marketplaceDelivery.aggregate?.plannedAttemptCount === 6 &&
+      marketplaceDelivery.aggregate?.recordedAttemptCount === 6 &&
+      marketplaceDelivery.aggregate?.successCount === 6 &&
+      marketplaceDelivery.aggregate?.allAttemptsSucceeded === true,
+    "Marketplace delivery evidence does not contain six successful retained attempts",
+  );
+  assert(
+    marketplaceDelivery.records?.length === 6 &&
+      marketplaceDelivery.records.every(
+        (record, index) =>
+          record.sequenceNumber === index + 1 &&
+          record.success === true &&
+          record.httpStatus === 200 &&
+          record.observation?.jobState === "COMPLETED" &&
+          record.observation?.jobHistory?.join(",") ===
+            "CREATED,FUNDED,ASSIGNED,SUBMITTED,EVALUATED,COMPLETED",
+      ),
+    "Marketplace delivery records are missing, reordered, or incomplete",
+  );
+  assert(
+    marketplaceDelivery.summaries?.length === 3 &&
+      marketplaceDelivery.summaries.every(
+        (summary) =>
+          summary.attemptCount === 2 &&
+          summary.successCount === 2 &&
+          summary.outputHashesMatch === true &&
+          summary.evaluationHashesMatch === true &&
+          summary.medianElapsedMilliseconds > 0,
+      ),
+    "Marketplace delivery summaries are inconsistent",
+  );
+  report.marketplaceDeliveryEvidence = marketplaceDelivery;
 
   const advantagePublication = await fetchJson(
     "agent-advantage-publication",
@@ -286,7 +342,7 @@ try {
       "/evidence/agent-advantage/agent-advantage-report.json",
     );
     assert(
-      advantageReport.schemaVersion === "positioncrew.agent-advantage-report.v2",
+      advantageReport.schemaVersion === "positioncrew.agent-advantage-report.v3",
       "Unexpected Agent Advantage report schema",
     );
     assert(
@@ -316,6 +372,28 @@ try {
         advantagePublication.supportedAdvantageCount,
       "Published Agent Advantage summary differs from its status record",
     );
+    const attachedMarketplaceDelivery = await fetchJson(
+      "agent-advantage-marketplace-delivery",
+      "/evidence/agent-advantage/marketplace-invocation-evidence.json",
+    );
+    assert(
+      attachedMarketplaceDelivery.evidenceHash ===
+        advantageReport.summary?.marketplaceEvidenceHash &&
+        attachedMarketplaceDelivery.protocolHash ===
+          advantageReport.summary?.marketplaceProtocolHash &&
+        attachedMarketplaceDelivery.aggregate?.successCount === 6,
+      "Published Agent Advantage report has inconsistent marketplace delivery evidence",
+    );
+    assert(
+      advantageReport.tasks?.every(
+        (task) =>
+          task.marketplaceDelivery?.attemptCount === 2 &&
+          task.marketplaceDelivery?.successCount === 2 &&
+          task.marketplaceDelivery?.allAttemptsSucceeded === true &&
+          task.marketplaceDelivery?.medianElapsedMilliseconds > 0,
+      ),
+      "Published Agent Advantage tasks omit marketplace delivery provenance",
+    );
     const advantageHtml = await fetchText(
       "agent-advantage-report-html",
       advantagePublication.reportUrl,
@@ -331,11 +409,16 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 10, "OpenAPI does not expose all job and live-input paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 11, "OpenAPI does not expose all job and evidence paths");
   assert(
     openApi.paths?.["/api/operations/production"]?.get?.operationId ===
       "getProductionTrackRecord",
     "OpenAPI omits the production verification record",
+  );
+  assert(
+    openApi.paths?.["/api/benchmarks/marketplace-provenance"]?.get?.operationId ===
+      "getMarketplaceInvocationEvidence",
+    "OpenAPI omits marketplace delivery evidence",
   );
   assert(
     openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===

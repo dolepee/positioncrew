@@ -139,6 +139,7 @@ export function buildMarketplaceManifest(
     catalogUrl: absolute(origin, "/api/providers"),
     openApiUrl: absolute(origin, "/openapi.json"),
     operatingRecordUrl: absolute(origin, "/api/operations/production"),
+    marketplaceDeliveryEvidenceUrl: absolute(origin, "/api/benchmarks/marketplace-provenance"),
     providers: PROVIDER_CATALOG.map((provider) => ({
       providerId: provider.providerId,
       service: provider.service,
@@ -227,6 +228,18 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
           "200": {
             description:
               "Every observed scheduled verification run after the fixed epoch, or a bounded source-unavailable record",
+          },
+        },
+      },
+    },
+    "/api/benchmarks/marketplace-provenance": {
+      get: {
+        summary: "Read the precommitted public marketplace delivery record",
+        operationId: "getMarketplaceInvocationEvidence",
+        responses: {
+          "200": {
+            description:
+              "Six retained no-retry Provider invocations with end-to-end timing and exact output commitments",
           },
         },
       },

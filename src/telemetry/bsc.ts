@@ -132,6 +132,13 @@ interface RpcResult {
   error?: { code: number; message: string; data?: unknown };
 }
 
+class RpcTransportError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "RpcTransportError";
+  }
+}
+
 interface RpcBlock {
   number: Hex;
   timestamp: Hex;
@@ -142,45 +149,122 @@ interface RpcLog {
   topics: Hex[];
 }
 
-async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
-  const response = await fetch(rpcUrl, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(15_000),
-    body: JSON.stringify(
-      calls.map((call, index) => ({
-        jsonrpc: "2.0",
-        id: index + 1,
-        method: call.method,
-        params: call.params,
-      })),
-    ),
-  });
-  if (!response.ok) throw new Error(`BSC RPC returned HTTP ${response.status}`);
-  const payload: unknown = await response.json();
+function rpcFallbacks(primary: string): readonly string[] {
+  if (primary === MAINNET_RPC) return [MAINNET_RPC, LOG_RPC];
+  if (primary === LOG_RPC) return [LOG_RPC, MAINNET_RPC];
+  return [primary];
+}
+
+export function isRetryableRpcFailure(error: NonNullable<RpcResult["error"]>): boolean {
+  const executionFailure = /execution reverted|invalid opcode|out of gas|revert/i.test(
+    `${error.message} ${typeof error.data === "string" ? error.data : ""}`,
+  );
+  if (executionFailure) return false;
+  return (
+    error.code === -32_005 ||
+    /busy|gateway|header not found|internal error|limit|rate|temporar|timeout/i.test(error.message)
+  );
+}
+
+function rpcEntryError(error: NonNullable<RpcResult["error"]>): Error {
+  const message = `BSC RPC ${error.code}: ${error.message}`;
+  if (isRetryableRpcFailure(error)) {
+    return new RpcTransportError(message);
+  }
+  return new Error(message);
+}
+
+async function rpcBatchOnce(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
+  let response: Response;
+  try {
+    response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify(
+        calls.map((call, index) => ({
+          jsonrpc: "2.0",
+          id: index + 1,
+          method: call.method,
+          params: call.params,
+        })),
+      ),
+    });
+  } catch (error) {
+    throw new RpcTransportError(
+      `BSC RPC request failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!response.ok) throw new RpcTransportError(`BSC RPC returned HTTP ${response.status}`);
+  let payload: unknown;
+  try {
+    payload = await response.json();
+  } catch {
+    throw new RpcTransportError("BSC RPC returned malformed JSON");
+  }
   const entries = (Array.isArray(payload) ? payload : [payload]) as RpcResult[];
   const byId = new Map(entries.map((entry) => [entry.id, entry]));
   return calls.map((_, index) => {
     const entry = byId.get(index + 1);
-    if (!entry) throw new Error(`BSC RPC omitted response ${index + 1}`);
-    if (entry.error) throw new Error(`BSC RPC ${entry.error.code}: ${entry.error.message}`);
-    if (entry.result === undefined) throw new Error(`BSC RPC response ${index + 1} has no result`);
+    if (!entry) throw new RpcTransportError(`BSC RPC omitted response ${index + 1}`);
+    if (entry.error) throw rpcEntryError(entry.error);
+    if (entry.result === undefined) {
+      throw new RpcTransportError(`BSC RPC response ${index + 1} has no result`);
+    }
     return entry.result;
   });
 }
 
-async function rpcRequest(rpcUrl: string, call: RpcCall): Promise<unknown> {
-  const response = await fetch(rpcUrl, {
-    method: "POST",
-    headers: { Accept: "application/json", "Content-Type": "application/json" },
-    signal: AbortSignal.timeout(15_000),
-    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: call.method, params: call.params }),
-  });
-  if (!response.ok) throw new Error(`BSC RPC returned HTTP ${response.status}`);
-  const entry = await response.json() as RpcResult;
-  if (entry.error) throw new Error(`BSC RPC ${entry.error.code}: ${entry.error.message}`);
-  if (entry.result === undefined) throw new Error("BSC RPC response has no result");
+async function rpcBatch(rpcUrl: string, calls: readonly RpcCall[]): Promise<unknown[]> {
+  const failures: string[] = [];
+  for (const candidate of rpcFallbacks(rpcUrl)) {
+    try {
+      return await rpcBatchOnce(candidate, calls);
+    } catch (error) {
+      if (!(error instanceof RpcTransportError)) throw error;
+      failures.push(`${new URL(candidate).host}: ${error.message}`);
+    }
+  }
+  throw new RpcTransportError(`BSC RPC providers unavailable (${failures.join("; ")})`);
+}
+
+async function rpcRequestOnce(rpcUrl: string, call: RpcCall): Promise<unknown> {
+  let response: Response;
+  try {
+    response = await fetch(rpcUrl, {
+      method: "POST",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      signal: AbortSignal.timeout(15_000),
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: call.method, params: call.params }),
+    });
+  } catch (error) {
+    throw new RpcTransportError(
+      `BSC RPC request failed: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+  if (!response.ok) throw new RpcTransportError(`BSC RPC returned HTTP ${response.status}`);
+  let entry: RpcResult;
+  try {
+    entry = await response.json() as RpcResult;
+  } catch {
+    throw new RpcTransportError("BSC RPC returned malformed JSON");
+  }
+  if (entry.error) throw rpcEntryError(entry.error);
+  if (entry.result === undefined) throw new RpcTransportError("BSC RPC response has no result");
   return entry.result;
+}
+
+async function rpcRequest(rpcUrl: string, call: RpcCall): Promise<unknown> {
+  const failures: string[] = [];
+  for (const candidate of rpcFallbacks(rpcUrl)) {
+    try {
+      return await rpcRequestOnce(candidate, call);
+    } catch (error) {
+      if (!(error instanceof RpcTransportError)) throw error;
+      failures.push(`${new URL(candidate).host}: ${error.message}`);
+    }
+  }
+  throw new RpcTransportError(`BSC RPC providers unavailable (${failures.join("; ")})`);
 }
 
 async function rpcBatchChunked(

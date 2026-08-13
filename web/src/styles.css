@@ -736,6 +736,19 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .operations-boundary span { color: var(--muted); font-size: 10px; line-height: 1.45; }
 .operations-boundary strong { margin-right: 4px; color: var(--ink); }
 .operations-boundary a { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); font-size: 10px; font-weight: 750; text-decoration: none; }
+.delivery-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.delivery-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
+.delivery-facts > div:last-child { border-right: 0; }
+.delivery-facts strong { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.delivery-facts span { margin-top: 4px; color: var(--ink); font-size: 10px; font-weight: 750; }
+.delivery-facts small { margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.delivery-task-list > div { display: grid; grid-template-columns: minmax(180px, 1.35fr) minmax(70px, .45fr) minmax(110px, .65fr) minmax(130px, .9fr) auto; align-items: center; gap: 14px; min-height: 66px; padding: 10px 15px; border-bottom: 1px solid var(--line); }
+.delivery-task-list span { display: flex; min-width: 0; flex-direction: column; }
+.delivery-task-list strong { font-size: 11px; }
+.delivery-task-list small { margin-top: 3px; color: var(--muted); font-size: 9px; }
+.delivery-task-list code { overflow-wrap: anywhere; color: var(--muted); font-size: 9px; }
+.delivery-task-list a { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); font-size: 10px; font-weight: 750; text-decoration: none; }
+.delivery-links { display: flex; align-items: center; gap: 12px; }
 .receipt-table-link { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); text-decoration: none; }
 .commerce-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
 .commerce-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
@@ -801,6 +814,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .infrastructure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .commerce-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .operations-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .delivery-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .delivery-facts > div:nth-child(2) { border-right: 0; }
+  .delivery-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .operations-facts > div:nth-child(2) { border-right: 0; }
   .operations-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .commerce-facts > div:nth-child(2) { border-right: 0; }
@@ -956,6 +972,14 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .operations-runs > a:last-child { border-bottom: 0; }
   .operations-boundary { grid-template-columns: auto minmax(0, 1fr); }
   .operations-boundary a { grid-column: 2; }
+  .delivery-facts { grid-template-columns: 1fr; }
+  .delivery-facts > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .delivery-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
+  .delivery-facts > div:last-child { border-bottom: 0; }
+  .delivery-task-list > div { grid-template-columns: minmax(0, 1fr) auto; gap: 8px 12px; }
+  .delivery-task-list > div > span:nth-child(n + 3) { grid-column: 1 / -1; }
+  .delivery-task-list > div > a { grid-column: 2; grid-row: 1; }
+  .delivery-links { grid-column: 2; flex-wrap: wrap; }
   .commerce-facts > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
   .commerce-facts > div:last-child { border-bottom: 0; }
   .commerce-boundary { grid-template-columns: auto minmax(0, 1fr); }

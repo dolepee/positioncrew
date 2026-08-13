@@ -398,9 +398,9 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await page.goto("/#evidence");
   await expect(page.getByRole("heading", { name: "Evidence register" })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("3/3", { exact: true })).toBeVisible();
+  await expect(page.getByText("3/3", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("6", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("REPEATABLE", { exact: true })).toHaveCount(3);
+  await expect(page.getByText("DELIVERED", { exact: true })).toHaveCount(3);
   await expect(page.getByText("source-committed agent runs", { exact: true })).toBeVisible();
   await expect(page.getByText(/source 3b28703/).first()).toBeVisible();
   await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
@@ -436,6 +436,32 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   const captures = await captureResponse.json();
   expect(captures.manifestHash).toBe("sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1");
   expect(captures.benchmarks.flatMap((item: { candidates: unknown[] }) => item.candidates)).toHaveLength(6);
+});
+
+test("the evidence page exposes the precommitted public marketplace deliveries", async ({ page, request }) => {
+  const response = await request.get("/api/benchmarks/marketplace-provenance");
+  expect(response.ok()).toBeTruthy();
+  const provenance = await response.json();
+  expect(provenance.aggregate).toMatchObject({
+    plannedAttemptCount: 6,
+    recordedAttemptCount: 6,
+    successCount: 6,
+    allAttemptsSucceeded: true,
+  });
+
+  await page.goto("/#evidence");
+  const deliverySection = page.getByRole("region", { name: "Hired through the public marketplace" });
+  await expect(deliverySection).toBeVisible();
+  await expect(deliverySection.getByText("6/6", { exact: true }).first()).toBeVisible();
+  await expect(deliverySection.getByText("public Provider jobs", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByText("0", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByText("retries or replacements", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByText("3/3", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByText("exact output pairs", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByRole("link", { name: /Raw record/ })).toHaveAttribute(
+    "href",
+    "/api/benchmarks/marketplace-provenance",
+  );
 });
 
 test("a published Agent Advantage status exposes the committed report without changing its scope", async ({ page }) => {
