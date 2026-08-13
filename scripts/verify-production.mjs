@@ -210,6 +210,26 @@ try {
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
   assert(Object.keys(openApi.paths ?? {}).length === 4, "OpenAPI does not expose four job paths");
 
+  const zeroVenus = await fetchJson(
+    "venus-zero-position",
+    "/api/wallets/0x0000000000000000000000000000000000000000/venus",
+  );
+  assert(
+    zeroVenus.schemaVersion === "positioncrew.venus-account-probe.v1",
+    "Unexpected Venus account probe schema",
+  );
+  assert(zeroVenus.state === "NO_POSITION", "Zero address unexpectedly has a Venus position");
+  assert(zeroVenus.position?.debtValueUsd === "0", "Zero address Venus debt is nonzero");
+  assert(
+    zeroVenus.position?.collateralValueUsd === "0",
+    "Zero address Venus collateral is nonzero",
+  );
+  assert(zeroVenus.rescueRequest === null, "Zero address produced a rescue request");
+  assert(
+    /^https:\/\/bscscan\.com\/block\/\d+$/.test(zeroVenus.source?.explorerUrl ?? ""),
+    "Venus account probe is not linked to its pinned BSC block",
+  );
+
   for (const entry of marketplace.providers) {
     assert(expectedServices.has(entry.service), `Unexpected provider service: ${entry.service}`);
     const identity = await verifyIdentity(entry);

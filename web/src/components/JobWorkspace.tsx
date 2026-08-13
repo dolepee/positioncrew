@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
@@ -276,22 +276,79 @@ function NumberField({
   );
 }
 
-function LendingPositionBar({ response }: { response: FixtureJobResponse | null }) {
-  const position = response?.result.deliverable.position;
+function displayHealthFactor(value: number | null): string {
+  if (value === null || !Number.isFinite(value)) return "No debt";
+  return value.toFixed(8).replace(/0+$/, "").replace(/\.$/, "");
+}
+
+function healthMarkerPercent(value: number | null, upperBound: number): number {
+  if (value === null || !Number.isFinite(value)) return 0;
+  return Math.min(100, Math.max(0, ((value - 0.8) / (upperBound - 0.8)) * 100));
+}
+
+function healthMarkerPosition(value: number | null, upperBound: number): string {
+  return `${healthMarkerPercent(value, upperBound)}%`;
+}
+
+function lendingPositionMetrics(request: JobRequest | null) {
+  if (!request || request.service !== "LENDING_RESCUE") {
+    return { current: null, stressed: null, target: "-" };
+  }
+  const position = objectValue(request.position);
+  const collateral = Array.isArray(position.collateral) ? position.collateral : [];
+  const debt = Array.isArray(position.debt) ? position.debt : [];
+  const weightedCollateral = collateral.reduce((total, item) => {
+    const balance = objectValue(item);
+    if (balance.collateralEnabled !== true) return total;
+    return total +
+      Number(balance.amount ?? 0) *
+      Number(balance.priceUsd ?? 0) *
+      Number(balance.liquidationThresholdBps ?? 0) / 10_000;
+  }, 0);
+  const debtValue = debt.reduce((total, item) => {
+    const balance = objectValue(item);
+    return total + Number(balance.amount ?? 0) * Number(balance.priceUsd ?? 0);
+  }, 0);
+  const current = debtValue > 0 ? weightedCollateral / debtValue : null;
+  const stressMultiplier = 1 - Number(request.stressPriceDropBps ?? 0) / 10_000;
+  return {
+    current,
+    stressed: current === null ? null : current * Math.max(0, stressMultiplier),
+    target: String(request.targetHealthFactor ?? "-"),
+  };
+}
+
+function LendingPositionBar({ request }: { request: JobRequest | null }) {
+  const position = lendingPositionMetrics(request);
+  const target = Number(position.target);
+  const upperBound = Math.max(
+    1.5,
+    Number.isFinite(target) ? target * 1.2 : 0,
+    position.current ?? 0,
+    position.stressed ?? 0,
+  ) * 1.05;
+  const dangerWidth = healthMarkerPercent(1, upperBound);
+  const targetPosition = healthMarkerPercent(Number.isFinite(target) ? target : 1.2, upperBound);
+  const bufferWidth = Math.max(0, targetPosition - dangerWidth);
+  const safeWidth = Math.max(0, 100 - dangerWidth - bufferWidth);
   return (
     <div className="position-bar" aria-label="Lending position health">
-      <div className="position-bar-track" aria-hidden="true">
+      <div
+        className="position-bar-track"
+        aria-hidden="true"
+        style={{ gridTemplateColumns: `${dangerWidth}% ${bufferWidth}% ${safeWidth}%` }}
+      >
         <span className="zone-danger" />
         <span className="zone-buffer" />
         <span className="zone-safe" />
-        <i className="marker stressed" />
-        <i className="marker current" />
-        <i className="marker target" />
+        <i className="marker stressed" style={{ left: healthMarkerPosition(position.stressed, upperBound) }} />
+        <i className="marker current" style={{ left: healthMarkerPosition(position.current, upperBound) }} />
+        <i className="marker target" style={{ left: healthMarkerPosition(target, upperBound) }} />
       </div>
       <div className="position-bar-labels">
-        <span><i className="dot stressed" /> Stress {position?.stressedHealthFactor ?? "0.939"}</span>
-        <span><i className="dot current" /> Current {position?.currentHealthFactor ?? "1.043"}</span>
-        <span><i className="dot target" /> Target {position?.targetHealthFactor ?? "1.250"}</span>
+        <span><i className="dot stressed" /> Stress {displayHealthFactor(position.stressed)}</span>
+        <span><i className="dot current" /> Current {displayHealthFactor(position.current)}</span>
+        <span><i className="dot target" /> Target {position.target}</span>
       </div>
     </div>
   );
@@ -302,6 +359,12 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
   const metrics = metricsFor(deliverable);
   const details = actionDetails(deliverable);
   const conditions = conditionsFor(deliverable);
+  const sources = Array.isArray(response.result.request.sources)
+    ? response.result.request.sources
+    : [];
+  const usesBlockPinnedVenusInput = sources.some((source) =>
+    String(objectValue(source).sourceId ?? "").startsWith("venus-mainnet-block-"),
+  );
   return (
     <div className="result-summary-view">
       <div className="decision-header">
@@ -318,7 +381,9 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
         {response.evidenceMode === "FROZEN_BSC_TEST_FIXTURE" ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
         <span>{response.evidenceMode === "FROZEN_BSC_TEST_FIXTURE"
           ? "Locked historical fixture. This is a reproducible receipt, not a currently executable instruction."
-          : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
+          : usesBlockPinnedVenusInput
+            ? "Block-pinned Venus input. The provider output is unsigned and must be revalidated against current protocol state before execution."
+            : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
       </div>
       <div className="decision-metrics">
         {metrics.map((metric) => (
@@ -392,7 +457,13 @@ function ReceiptView({ response }: { response: FixtureJobResponse }) {
   );
 }
 
-function WalletRiskProbe({ telemetry }: { telemetry: SystemTelemetry | null }) {
+function WalletRiskProbe({
+  telemetry,
+  onUseRequest,
+}: {
+  telemetry: SystemTelemetry | null;
+  onUseRequest: (request: JobRequest) => void;
+}) {
   const [account, setAccount] = useState("");
   const [probe, setProbe] = useState<VenusAccountProbe | null>(null);
   const [loading, setLoading] = useState(false);
@@ -436,6 +507,8 @@ function WalletRiskProbe({ telemetry }: { telemetry: SystemTelemetry | null }) {
             autoComplete="off"
             placeholder="0x account address"
             value={account}
+            aria-invalid={Boolean(error)}
+            aria-describedby={error ? "wallet-probe-error" : undefined}
             onChange={(event) => setAccount(event.target.value)}
           />
         </label>
@@ -444,7 +517,7 @@ function WalletRiskProbe({ telemetry }: { telemetry: SystemTelemetry | null }) {
           {loading ? "Reading" : "Inspect"}
         </button>
       </div>
-      {error && <div className="wallet-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
+      {error && <div className="wallet-probe-error" id="wallet-probe-error" role="alert"><AlertTriangle size={14} /> {error}</div>}
       {probe && (
         <div className="wallet-probe-result" aria-live="polite">
           <div className="wallet-probe-state">
@@ -452,12 +525,21 @@ function WalletRiskProbe({ telemetry }: { telemetry: SystemTelemetry | null }) {
             <a href={probe.source.explorerUrl} target="_blank" rel="noreferrer">Block {Number(probe.source.blockNumber).toLocaleString("en-US")} <ExternalLink size={12} /></a>
           </div>
           <dl>
-            <div><dt>Liquidity</dt><dd>${probe.liquidityUsd}</dd></div>
-            <div><dt>Shortfall</dt><dd>${probe.shortfallUsd}</dd></div>
-            <div><dt>Markets</dt><dd>{probe.enteredMarkets.length}</dd></div>
-            <div><dt>Gas balance</dt><dd>{probe.nativeBalanceBnb} BNB</dd></div>
+            <div><dt>Health factor</dt><dd>{probe.position.healthFactor ?? "No debt"}</dd></div>
+            <div><dt>Collateral</dt><dd>${probe.position.collateralValueUsd}</dd></div>
+            <div><dt>Debt</dt><dd>${probe.position.debtValueUsd}</dd></div>
+            <div><dt>Markets</dt><dd>{probe.position.markets.length}</dd></div>
           </dl>
           <p>{probe.boundary}</p>
+          {probe.rescueRequest && (
+            <button
+              className="wallet-probe-use"
+              type="button"
+              onClick={() => onUseRequest(probe.rescueRequest!)}
+            >
+              Use live position <ArrowRight size={14} aria-hidden="true" />
+            </button>
+          )}
         </div>
       )}
     </section>
@@ -515,14 +597,29 @@ export function JobWorkspace({
   const [draft, setDraft] = useState<JobDraft>(EMPTY_DRAFT);
   const [resultView, setResultView] = useState<ResultView>("summary");
   const [inputMode, setInputMode] = useState<WorkspaceInputMode>("interactive");
+  const [liveRequest, setLiveRequest] = useState<JobRequest | null>(null);
+  const liveRequestRef = useRef<JobRequest | null>(null);
   const shownResponse = activeJob?.response ?? null;
-  const inputRequest = fixture?.result.request;
+  const fixtureRequest = fixture?.result.request;
+  const inputRequest = inputMode === "locked"
+    ? fixtureRequest
+    : liveRequest ?? fixtureRequest;
+  const liveSourceId = String(
+    objectValue((liveRequest?.sources as unknown[] | undefined)?.[0]).sourceId ?? "",
+  );
+  const liveBlockNumber = liveSourceId.replace("venus-mainnet-block-", "");
 
   useEffect(() => {
     setResultView("summary");
     setInputMode("interactive");
-    setDraft(draftFromRequest(inputRequest));
-  }, [service, inputRequest]);
+    liveRequestRef.current = null;
+    setLiveRequest(null);
+    setDraft(draftFromRequest(fixtureRequest));
+  }, [service]);
+
+  useEffect(() => {
+    if (!liveRequestRef.current) setDraft(draftFromRequest(fixtureRequest));
+  }, [fixtureRequest]);
 
   const draftRequest = useMemo(
     () => inputRequest ? applyDraft(inputRequest, draft) : null,
@@ -542,7 +639,9 @@ export function JobWorkspace({
     if (!inputRequest || !draftRequest) return;
     const next = inputMode === "locked"
       ? structuredClone(inputRequest)
-      : freshInteractiveRequest(draftRequest);
+      : liveRequest
+        ? structuredClone(draftRequest)
+        : freshInteractiveRequest(draftRequest);
     const mode: JobRequestMode = inputMode === "locked"
       ? "FROZEN_FIXTURE"
       : "CALLER_SUPPLIED_OBSERVATIONS";
@@ -551,7 +650,19 @@ export function JobWorkspace({
 
   function selectInputMode(mode: WorkspaceInputMode) {
     setInputMode(mode);
-    setDraft(draftFromRequest(inputRequest));
+    const selectedRequest = mode === "locked"
+      ? fixtureRequest
+      : liveRequest ?? fixtureRequest;
+    setDraft(draftFromRequest(selectedRequest));
+    setResultView("summary");
+  }
+
+  function useLiveRequest(request: JobRequest) {
+    const next = structuredClone(request);
+    liveRequestRef.current = next;
+    setLiveRequest(next);
+    setInputMode("interactive");
+    setDraft(draftFromRequest(request));
     setResultView("summary");
   }
 
@@ -590,8 +701,8 @@ export function JobWorkspace({
           <p className="composer-summary">{provider?.summary ?? task.description}</p>
           {service === "LENDING_RESCUE" ? (
             <>
-              <WalletRiskProbe telemetry={telemetry} />
-              <LendingPositionBar response={fixture ?? null} />
+              <WalletRiskProbe telemetry={telemetry} onUseRequest={useLiveRequest} />
+              <LendingPositionBar request={draftRequest} />
               <div className="form-grid">
                 <NumberField label="Target health factor" value={draft.targetHealth} onChange={(value) => updateDraft("targetHealth", value)} disabled={inputsDisabled} min="1.01" max="3" step="0.01" />
                 <NumberField label="Maximum action (USD)" value={draft.maxAction} onChange={(value) => updateDraft("maxAction", value)} disabled={inputsDisabled} min="1" max="10000" step="1" />
@@ -649,6 +760,8 @@ export function JobWorkspace({
             <AlertTriangle size={15} aria-hidden="true" />
             <span>{inputMode === "locked"
               ? "Historical August 12 fixture. The public receipt is reproducible, but the instruction is no longer executable."
+              : liveRequest
+                ? `Block-pinned Venus position from BSC block ${liveBlockNumber || "unknown"}. Limits remain editable; observations are not rebased.`
               : customRequest
                 ? "Current-clock scenario with custom bounds. Inputs and timestamps are caller-controlled; this is not benchmark evidence or live wallet execution."
                 : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>

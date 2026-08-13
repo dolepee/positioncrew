@@ -233,6 +233,26 @@ export interface VenusAccountProbe {
   liquidityUsd: string;
   shortfallUsd: string;
   enteredMarkets: string[];
+  position: {
+    collateralValueUsd: string;
+    liquidationWeightedCollateralUsd: string;
+    debtValueUsd: string;
+    healthFactor: string | null;
+    markets: Array<{
+      vToken: string;
+      symbol: string;
+      underlying: string;
+      decimals: number;
+      suppliedAmount: string;
+      borrowedAmount: string;
+      walletAmount: string;
+      priceUsd: string;
+      collateralFactorBps: number;
+      liquidationThresholdBps: number;
+      collateralEnabled: boolean;
+    }>;
+  };
+  rescueRequest: FixtureJobResponse["result"]["request"] | null;
   source: {
     comptroller: string;
     blockNumber: string;

@@ -1,4 +1,38 @@
 import { expect, test } from "@playwright/test";
+import { readFileSync } from "node:fs";
+
+const lendingFixture = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/lending-rescue/stressed-venus-position.v1.json", import.meta.url),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+
+function liveLendingRequest(now: Date, account: string, blockNumber: string) {
+  const observedAt = new Date(now.getTime() - 5_000).toISOString();
+  const sourceId = `venus-mainnet-block-${blockNumber}`;
+  const rebase = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(rebase);
+    if (typeof value !== "object" || value === null) return value;
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+      if (key === "observedAt") return [key, observedAt];
+      if (key === "sourceId") return [key, sourceId];
+      return [key, rebase(child)];
+    }));
+  };
+  const request = rebase(structuredClone(lendingFixture)) as Record<string, unknown>;
+  request.requestId = `venus-live-e2e-${now.getTime()}`;
+  request.account = account;
+  request.requestedAt = now.toISOString();
+  request.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+  request.sources = [{
+    sourceId,
+    label: `Venus Classic account and oracle snapshot at BSC block ${blockNumber}`,
+    uri: `https://bscscan.com/block/${blockNumber}`,
+    observedAt,
+  }];
+  return request;
+}
 
 test("a cold buyer can discover, hire, and inspect the lending provider", async ({ page }) => {
   await page.goto("/#marketplace");
@@ -43,7 +77,71 @@ test("live BSC telemetry and Venus wallet risk are independently inspectable", a
   await page.getByPlaceholder("0x account address").fill("0x0000000000000000000000000000000000000001");
   await page.getByRole("button", { name: "Inspect" }).click();
   await expect(page.getByText("NO POSITION", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("link", { name: /Block [0-9,]+/ })).toHaveAttribute("href", /bscscan\.com\/address/);
+  await expect(page.getByRole("link", { name: /Block [0-9,]+/ })).toHaveAttribute("href", /bscscan\.com\/block/);
+});
+
+test("a block-pinned Venus position can become the provider request", async ({ page }) => {
+  const account = "0x1111111111111111111111111111111111111111";
+  const blockNumber = "115607036";
+  const now = new Date();
+  const rescueRequest = liveLendingRequest(now, account, blockNumber);
+  await page.route("**/api/wallets/*/venus", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.venus-account-probe.v1",
+        generatedAt: now.toISOString(),
+        chainId: 56,
+        account,
+        state: "LIQUID",
+        nativeBalanceBnb: "0.25",
+        usdtBalance: "200",
+        liquidityUsd: "40",
+        shortfallUsd: "0",
+        enteredMarkets: [
+          "0xA07c5b74C9B40447a954e1466938b865b6BBea36",
+          "0xfD5840Cd36d94D7229439859C0112a4185BC0255",
+        ],
+        position: {
+          collateralValueUsd: "1200",
+          liquidationWeightedCollateralUsd: "960",
+          debtValueUsd: "920",
+          healthFactor: "1.04347826",
+          markets: [{
+            vToken: "0xA07c5b74C9B40447a954e1466938b865b6BBea36",
+            symbol: "WBNB",
+            underlying: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+            decimals: 18,
+            suppliedAmount: "2",
+            borrowedAmount: "0",
+            walletAmount: "0.5",
+            priceUsd: "600",
+            collateralFactorBps: 8000,
+            liquidationThresholdBps: 8000,
+            collateralEnabled: true,
+          }],
+        },
+        rescueRequest,
+        source: {
+          comptroller: "0xfD36E2c2a6789Db23113685031d7F16329158384",
+          blockNumber,
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+        },
+        boundary: "Block-pinned Venus Classic reconstruction.",
+      }),
+    });
+  });
+
+  await page.goto("/#jobs");
+  await page.getByPlaceholder("0x account address").fill(account);
+  await page.getByRole("button", { name: "Inspect" }).click();
+  await expect(page.getByText("1.04347826", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Use live position" }).click();
+  await expect(page.getByText(`Block-pinned Venus position from BSC block ${blockNumber}`, { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  await expect(page.getByRole("heading", { name: "Repay 152 USDT" })).toBeVisible();
+  await expect(page.getByText(/Block-pinned Venus input/)).toBeVisible();
 });
 
 test("all four mandatory capital jobs return category-specific results", async ({ page }) => {
