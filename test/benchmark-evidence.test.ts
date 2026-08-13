@@ -125,6 +125,7 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     expect(result.agent.outputHashesMatch).toBe(true);
     expect(result.agent.score).toBe(100);
     expect(result.manual.score).toBe(100);
+    expect(result.manual.blindCriticalFailureCount).toBe(0);
     expect(result.advantageSupported).toBe(true);
   });
 
@@ -306,11 +307,20 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       "bounded-grid",
     ]);
     expect(existsSync(join(outputDirectory, "agent-advantage-report.md"))).toBe(true);
+    expect(existsSync(join(outputDirectory, "agent-advantage-report.html"))).toBe(true);
     expect(existsSync(join(outputDirectory, "tasks", "bounded-grid", "manual-output.json"))).toBe(true);
     expect(readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8")).toContain(
       "PositionCrew Agent Advantage Report",
     );
     expect(verifyAgentAdvantageReport(outputDirectory).reportHash).toBe(report.reportHash);
+
+    const htmlPath = join(outputDirectory, "agent-advantage-report.html");
+    const originalHtml = readFileSync(htmlPath, "utf8");
+    writeFileSync(htmlPath, originalHtml.replace("Agent Advantage Report", "Edited Report"));
+    expect(() => verifyAgentAdvantageReport(outputDirectory)).toThrow(
+      "The HTML report does not match the committed report data",
+    );
+    writeFileSync(htmlPath, originalHtml);
 
     const agentOutputPath = join(
       outputDirectory,

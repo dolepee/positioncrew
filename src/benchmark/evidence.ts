@@ -239,6 +239,7 @@ export const AgentAdvantageResultSchema = z
         method: z.string().min(10).max(1_000),
         independenceAttestation: z.literal(MANUAL_INDEPENDENCE_ATTESTATION),
         score: z.number().int().min(0).max(100),
+        blindCriticalFailureCount: z.number().int().min(0),
         elapsedMilliseconds: z.number().int().min(1),
         directCostUsd: UnsignedDecimalSchema,
       })
@@ -894,6 +895,7 @@ function deriveBenchmarkResult(
       method: manual.source.method,
       independenceAttestation: manual.source.independenceAttestation,
       score: manualScore.total,
+      blindCriticalFailureCount: manualScore.criticalFailureCount,
       elapsedMilliseconds: manual.elapsedMilliseconds,
       directCostUsd: manual.directCostUsd,
     },

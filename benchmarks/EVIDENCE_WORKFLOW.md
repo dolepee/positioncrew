@@ -73,7 +73,7 @@ The resulting claim applies only to the frozen task. It is not live investment p
 
 ## 6. Assemble the three-task report
 
-After all three reveals succeed, generate the complete Markdown and JSON report plus attached outputs, scorecards, opened mappings, and candidate records:
+After all three reveals succeed, generate the standalone judge-facing HTML report, Markdown and JSON reports, plus attached outputs, scorecards, opened mappings, and candidate records:
 
 ```bash
 npm run benchmark:session -- report <output-directory> <lending-session> <lp-session> <grid-session>
@@ -87,4 +87,4 @@ It also requires one consistent manual-operator identity, one consistent blind-e
 npm run benchmark:verify-report -- <output-directory>
 ```
 
-The verifier rejects a changed report, attachment, task manifest, participant summary, aggregate summary, or result attachment.
+The verifier deterministically regenerates both human-readable presentations from the committed JSON and rejects a changed HTML/Markdown report, attachment, task manifest, participant summary, aggregate summary, or result attachment.

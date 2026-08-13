@@ -69,6 +69,8 @@ export const AgentAdvantageReportTaskSchema = z
     taskId: z.string().min(8),
     benchmarkLock: BenchmarkLockSchema,
     result: AgentAdvantageResultSchema,
+    agentDeliverableSummary: z.string().min(1).max(1_000),
+    manualDeliverableSummary: z.string().min(1).max(1_000),
     speedupMultiple: z.number().finite().positive(),
     costDifferenceUsd: z.number().finite(),
     evidenceDirectory: z.string().regex(/^tasks\/(?:lending-rescue|lp-rebalance|bounded-grid)$/),
@@ -162,12 +164,16 @@ function taskMarkdown(task: AgentAdvantageReportTask): string {
     "",
     `**Result:** ${status} for this frozen task only.`,
     "",
+    `**Agent deliverable:** ${task.agentDeliverableSummary}`,
+    "",
+    `**Manual deliverable:** ${task.manualDeliverableSummary}`,
+    "",
     "| Measure | Agent | Manual |",
     "| --- | ---: | ---: |",
     `| Blind quality score | ${task.result.agent.score}/100 | ${task.result.manual.score}/100 |`,
     `| Elapsed time | ${task.result.agent.medianElapsedMilliseconds} ms median | ${task.result.manual.elapsedMilliseconds} ms |`,
     `| Direct cost | $${task.result.agent.medianDirectCostUsd} median | $${task.result.manual.directCostUsd} |`,
-    `| Critical failures | ${task.result.agent.conformanceCriticalFailureCount + task.result.agent.blindCriticalFailureCount} | n/a |`,
+    `| Critical failures | ${task.result.agent.conformanceCriticalFailureCount + task.result.agent.blindCriticalFailureCount} | ${task.result.manual.blindCriticalFailureCount} |`,
     "",
     `Agent delivery was ${task.speedupMultiple}x faster by the locked timer. Cost difference (manual minus agent) was $${task.costDifferenceUsd}.`,
     "",
@@ -216,6 +222,99 @@ function reportMarkdown(report: AgentAdvantageReport): string {
     `Report commitment: \`${report.reportHash}\``,
     "",
   ].join("\n");
+}
+
+function escapeHtml(value: unknown): string {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatDuration(milliseconds: number): string {
+  if (milliseconds >= 60_000) return `${(milliseconds / 60_000).toFixed(2)} min`;
+  if (milliseconds >= 1_000) return `${(milliseconds / 1_000).toFixed(2)} sec`;
+  return `${milliseconds} ms`;
+}
+
+function formatUsd(value: string | number): string {
+  const amount = Number(value);
+  if (!Number.isFinite(amount)) return "$-";
+  return `$${amount.toFixed(6).replace(/(?:\.0+|(?<=\.[0-9]*?)0+)$/, "")}`;
+}
+
+function formatUtcTimestamp(value: string): string {
+  return value.replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
+}
+
+function reportTaskHtml(task: AgentAdvantageReportTask, index: number): string {
+  const status = task.result.advantageSupported ? "SUPPORTED" : "NOT SUPPORTED";
+  const tone = task.result.advantageSupported ? "supported" : "unsupported";
+  const directory = `tasks/${encodeURIComponent(task.benchmarkSlug)}`;
+  return `<section class="task" aria-labelledby="task-${index}">
+    <div class="task-head">
+      <div><span class="eyebrow">Task ${index} / ${escapeHtml(task.category)}</span><h2 id="task-${index}">${escapeHtml(task.title)}</h2></div>
+      <span class="result ${tone}">${status}</span>
+    </div>
+    <p class="stakes">${escapeHtml(task.highStakesReason)}</p>
+    <div class="deliverables">
+      <article><span>Agent deliverable</span><p>${escapeHtml(task.agentDeliverableSummary)}</p></article>
+      <article><span>Manual deliverable</span><p>${escapeHtml(task.manualDeliverableSummary)}</p></article>
+    </div>
+    <div class="comparison" role="table" aria-label="Agent and manual comparison">
+      <div class="comparison-row header" role="row"><span role="columnheader">Measure</span><span role="columnheader">Agent</span><span role="columnheader">Manual</span></div>
+      <div class="comparison-row" role="row"><span role="cell">Blind quality</span><strong role="cell">${task.result.agent.score}/100</strong><strong role="cell">${task.result.manual.score}/100</strong></div>
+      <div class="comparison-row" role="row"><span role="cell">Elapsed time</span><strong role="cell">${escapeHtml(formatDuration(task.result.agent.medianElapsedMilliseconds))} median</strong><strong role="cell">${escapeHtml(formatDuration(task.result.manual.elapsedMilliseconds))}</strong></div>
+      <div class="comparison-row" role="row"><span role="cell">Direct cost</span><strong role="cell">${escapeHtml(formatUsd(task.result.agent.medianDirectCostUsd))} median</strong><strong role="cell">${escapeHtml(formatUsd(task.result.manual.directCostUsd))}</strong></div>
+      <div class="comparison-row" role="row"><span role="cell">Critical failures</span><strong role="cell">${task.result.agent.conformanceCriticalFailureCount + task.result.agent.blindCriticalFailureCount}</strong><strong role="cell">${task.result.manual.blindCriticalFailureCount}</strong></div>
+    </div>
+    <div class="task-foot">
+      <p><strong>${task.speedupMultiple}x</strong> faster on the locked timer. Manual minus agent direct cost: <strong>${escapeHtml(formatUsd(task.costDifferenceUsd))}</strong>.</p>
+      <nav aria-label="${escapeHtml(task.title)} evidence">
+        <a href="${directory}/agent-output.json">Agent output</a>
+        <a href="${directory}/manual-output.json">Manual output</a>
+        <a href="${directory}/completed-scorecard.json">Blind scorecard</a>
+        <a href="${directory}/agent-advantage-result.json">Result JSON</a>
+      </nav>
+      <code>${escapeHtml(task.evidenceManifestHash)}</code>
+    </div>
+  </section>`;
+}
+
+function reportHtml(report: AgentAdvantageReport): string {
+  const aggregate = report.summary.allTasksSupportAdvantage
+    ? "All three frozen tasks satisfy the pre-registered decision rule."
+    : `${report.summary.supportedAdvantageCount} of 3 frozen tasks satisfy the pre-registered decision rule.`;
+  const agentQualityScore = report.tasks.reduce(
+    (total, task) => total + task.result.agent.score,
+    0,
+  );
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="PositionCrew Agent Advantage Report for three high-stakes BSC capital tasks.">
+  <title>PositionCrew Agent Advantage Report</title>
+  <style>
+    :root{color-scheme:light;--ink:#161d19;--muted:#5d6861;--line:#d8dfda;--paper:#fff;--soft:#f2f5f2;--green:#17644f;--green-soft:#e7f3ee;--yellow:#f4c542;--yellow-soft:#fff8dd;--red:#923b49;--dark:#111713}
+    *{box-sizing:border-box}html{background:#e9eeea}body{margin:0;color:var(--ink);background:#e9eeea;font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;letter-spacing:0}a{color:var(--green);font-weight:750;text-underline-offset:3px}code{overflow-wrap:anywhere;font:11px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace}.shell{width:min(1180px,calc(100% - 32px));margin:0 auto}.hero{color:#fff;background:var(--dark);border-bottom:5px solid var(--yellow)}.hero .shell{display:grid;grid-template-columns:minmax(0,1fr) minmax(320px,.45fr);gap:44px;padding:48px 0 42px}.eyebrow{display:block;color:#758279;font-size:10px;font-weight:850;text-transform:uppercase}.hero .eyebrow{color:#b9c4bd}.hero h1{margin:10px 0 12px;font-size:clamp(32px,5vw,62px);line-height:1.02;letter-spacing:0}.hero p{max-width:720px;margin:0;color:#c9d1cc;font-size:17px}.hero-meta{align-self:end;border-left:1px solid #3a453e;padding-left:24px}.hero-meta span,.hero-meta strong{display:block}.hero-meta span{color:#9eaaa3;font-size:11px;text-transform:uppercase}.hero-meta strong{margin:5px 0 18px;font-size:14px}.summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-top:0;background:var(--paper)}.summary div{min-width:0;padding:20px;border-right:1px solid var(--line)}.summary div:last-child{border-right:0}.summary strong,.summary span{display:block}.summary strong{font-size:27px;line-height:1.1}.summary span{margin-top:7px;color:var(--muted);font-size:11px}.intro{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(300px,.85fr);gap:38px;padding:38px 0}.intro h2{margin:7px 0 10px;font-size:25px}.intro p{margin:0;color:var(--muted)}.people{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);background:var(--paper)}.people div{min-width:0;padding:16px}.people div+div{border-left:1px solid var(--line)}.people span,.people strong,.people small{display:block}.people span{color:var(--muted);font-size:10px;text-transform:uppercase}.people strong{margin-top:6px}.people small{margin-top:3px;overflow-wrap:anywhere;color:var(--muted)}.task{margin-bottom:22px;border:1px solid var(--line);background:var(--paper)}.task-head{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:22px 24px;border-bottom:1px solid var(--line)}.task h2{margin:5px 0 0;font-size:22px}.result{flex:0 0 auto;padding:6px 9px;border:1px solid;font-size:10px;font-weight:900}.result.supported{color:var(--green);border-color:#9fc5b5;background:var(--green-soft)}.result.unsupported{color:var(--red);border-color:#d6a8af;background:#fff1f3}.stakes{margin:0;padding:15px 24px;color:#5b4c19;background:var(--yellow-soft);border-bottom:1px solid #eadba0}.deliverables{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid var(--line)}.deliverables article{padding:20px 24px}.deliverables article+article{border-left:1px solid var(--line)}.deliverables span{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.deliverables p{margin:7px 0 0}.comparison{padding:8px 24px}.comparison-row{display:grid;grid-template-columns:minmax(150px,1fr) minmax(130px,.75fr) minmax(130px,.75fr);gap:18px;padding:11px 0;border-bottom:1px solid #e8ece9}.comparison-row:last-child{border-bottom:0}.comparison-row.header{color:var(--muted);font-size:10px;font-weight:850;text-transform:uppercase}.comparison-row strong{font-size:13px}.task-foot{display:grid;grid-template-columns:minmax(250px,1fr) minmax(310px,auto);gap:14px 24px;align-items:center;padding:17px 24px;background:var(--soft);border-top:1px solid var(--line)}.task-foot p{margin:0}.task-foot nav{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:12px}.task-foot code{grid-column:1/-1;color:var(--muted)}.boundaries{margin:36px 0 50px;padding:26px 28px;color:#d5ded8;background:var(--dark);border-left:5px solid var(--yellow)}.boundaries h2{margin:0 0 12px;color:#fff;font-size:20px}.boundaries ul{margin:0;padding-left:19px}.boundaries li+li{margin-top:8px}.commitments{display:grid;grid-template-columns:1fr 1fr;gap:1px;margin-top:22px;background:#354039;border:1px solid #354039}.commitments div{min-width:0;padding:14px;background:#1b241f}.commitments span,.commitments code{display:block}.commitments span{color:#9faca4;font-size:10px;text-transform:uppercase}.commitments code{margin-top:5px;color:#fff}.footer{padding:0 0 40px;color:var(--muted);font-size:11px}.footer a{margin-right:14px}@media(max-width:760px){.shell{width:min(100% - 18px,1180px)}.hero .shell,.intro{grid-template-columns:1fr}.hero .shell{gap:26px;padding:32px 0}.hero-meta{border-top:1px solid #3a453e;border-left:0;padding:18px 0 0}.summary{grid-template-columns:1fr 1fr}.summary div:nth-child(2){border-right:0}.summary div:nth-child(-n+2){border-bottom:1px solid var(--line)}.people,.deliverables,.commitments{grid-template-columns:1fr}.people div+div,.deliverables article+article{border-top:1px solid var(--line);border-left:0}.task-head{padding:18px}.stakes,.deliverables article,.comparison,.task-foot{padding-left:18px;padding-right:18px}.comparison-row{grid-template-columns:minmax(100px,.8fr) 1fr 1fr;gap:8px}.task-foot{grid-template-columns:1fr}.task-foot nav{justify-content:flex-start}.task-foot code{grid-column:1}.boundaries{padding:22px 18px}}
+    @media print{html,body{background:#fff}.hero{-webkit-print-color-adjust:exact;print-color-adjust:exact}.task{break-inside:avoid}.shell{width:100%}.footer{display:none}}
+  </style>
+</head>
+<body>
+  <header class="hero"><div class="shell"><div><span class="eyebrow">TermiX / independently scored evidence</span><h1>Agent Advantage Report</h1><p>${escapeHtml(aggregate)}</p></div><div class="hero-meta"><span>Project</span><strong>PositionCrew</strong><span>Generated</span><strong>${escapeHtml(formatUtcTimestamp(report.generatedAt))}</strong><span>Scope</span><strong>Three frozen BSC capital tasks</strong></div></div></header>
+  <main class="shell">
+    <section class="summary" aria-label="Report summary"><div><strong>${report.summary.supportedAdvantageCount}/3</strong><span>tasks supporting advantage</span></div><div><strong>${report.summary.agentOutputPairsMatching}/3</strong><span>matching agent repeats</span></div><div><strong>${report.summary.totalCriticalFailures}</strong><span>agent critical failures</span></div><div><strong>${agentQualityScore}/300</strong><span>agent blind quality</span></div></section>
+    <section class="intro"><div><span class="eyebrow">Pre-registered method</span><h2>Same tasks. Hidden sources. Different people.</h2><p>One manual operator completed each task without PositionCrew or AI. A different evaluator scored six anonymized outputs against rubrics committed before either human saw a candidate. Timing, cost, operator identity, and the source mapping remained hidden during quality scoring.</p></div><div class="people"><div><span>Manual operator</span><strong>${escapeHtml(report.participants.manualOperator.displayName)}</strong><small>${escapeHtml(report.participants.manualOperator.contactReference)}</small></div><div><span>Blind evaluator</span><strong>${escapeHtml(report.participants.blindEvaluator.displayName)}</strong><small>${escapeHtml(report.participants.blindEvaluator.contactReference)}</small></div></div></section>
+    ${report.tasks.map((task, index) => reportTaskHtml(task, index + 1)).join("\n")}
+    <section class="boundaries"><h2>Claim boundaries</h2><ul>${report.boundaries.map((boundary) => `<li>${escapeHtml(boundary)}</li>`).join("")}</ul><div class="commitments"><div><span>Evidence manifest</span><code>${escapeHtml(report.summary.evidenceManifestHash)}</code></div><div><span>Report commitment</span><code>${escapeHtml(report.reportHash)}</code></div></div></section>
+  </main>
+  <footer class="shell footer"><a href="agent-advantage-report.json">Machine-readable report</a><a href="agent-advantage-report.md">Markdown report</a><a href="https://positioncrew.dolepee.com">Live marketplace</a><a href="https://github.com/dolepee/positioncrew">Public repository</a></footer>
+</body>
+</html>\n`;
 }
 
 function writeTaskEvidence(
@@ -334,6 +433,8 @@ export function buildAgentAdvantageReport(
       taskId: item.session.taskId,
       benchmarkLock: item.session.benchmarkLock,
       result: item.result,
+      agentDeliverableSummary: item.representative.output.summary,
+      manualDeliverableSummary: item.manual.output.summary,
       speedupMultiple: speedup(
         item.result.manual.elapsedMilliseconds,
         item.result.agent.medianElapsedMilliseconds,
@@ -404,6 +505,7 @@ export function buildAgentAdvantageReport(
   });
   writeJson(join(outputDirectory, "agent-advantage-report.json"), report);
   writeText(join(outputDirectory, "agent-advantage-report.md"), reportMarkdown(report));
+  writeText(join(outputDirectory, "agent-advantage-report.html"), reportHtml(report));
   return report;
 }
 
@@ -421,6 +523,18 @@ export function verifyAgentAdvantageReport(
   );
   if (canonicalHash(reportBody(report)) !== report.reportHash) {
     throw new Error("Agent Advantage report commitment is invalid");
+  }
+  if (
+    readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8") !==
+    reportMarkdown(report)
+  ) {
+    throw new Error("The Markdown report does not match the committed report data");
+  }
+  if (
+    readFileSync(join(outputDirectory, "agent-advantage-report.html"), "utf8") !==
+    reportHtml(report)
+  ) {
+    throw new Error("The HTML report does not match the committed report data");
   }
   const expectedSlugs = ["lending-rescue", "lp-rebalance", "bounded-grid"];
   if (report.tasks.map((task) => task.benchmarkSlug).join(",") !== expectedSlugs.join(",")) {
