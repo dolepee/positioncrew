@@ -1,5 +1,19 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
+
+const TRANSIENT_REQUEST_ERROR = /socket hang up|ECONNRESET|ECONNREFUSED|fetch failed/i;
+
+async function getWithTransportRetry(request: APIRequestContext, url: string) {
+  try {
+    return await request.get(url);
+  } catch (error) {
+    if (!TRANSIENT_REQUEST_ERROR.test(error instanceof Error ? error.message : String(error))) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    return request.get(url);
+  }
+}
 
 const lendingFixture = JSON.parse(
   readFileSync(
@@ -103,7 +117,7 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await expect(receiptLink).toBeVisible();
   const receiptPath = await receiptLink.getAttribute("href");
   expect(receiptPath).toMatch(/^\/api\/receipts\/sha256:[a-f0-9]{64}$/);
-  const receipt = await page.request.get(receiptPath!);
+  const receipt = await getWithTransportRetry(page.request, receiptPath!);
   expect(receipt.status()).toBe(200);
   expect((await receipt.json()).schemaVersion).toBe("positioncrew.public-receipt.v1");
 });
@@ -211,7 +225,7 @@ test("a block-pinned Pancake market can become a bounded grid request", async ({
   await expect(page.getByRole("heading", { name: /Build [45] bounded orders/ })).toBeVisible();
   await expect(page.getByText(/Block-pinned PancakeSwap input/)).toBeVisible();
 
-  const response = await page.request.get("/api/markets/pancake/wbnb-usdt/grid");
+  const response = await getWithTransportRetry(page.request, "/api/markets/pancake/wbnb-usdt/grid");
   expect(response.status()).toBe(200);
   const probe = await response.json();
   expect(probe).toMatchObject({
@@ -305,7 +319,7 @@ test("block-pinned Venus stablecoin rates can become a yield request", async ({ 
   await expect(page.getByRole("heading", { name: /SUPPLY to venus-core-/ })).toBeVisible();
   await expect(page.getByText(/Block-pinned Venus yield input/)).toBeVisible();
 
-  const response = await page.request.get("/api/markets/venus/stable-yields");
+  const response = await getWithTransportRetry(page.request, "/api/markets/venus/stable-yields");
   expect(response.status()).toBe(200);
   const probe = await response.json();
   expect(probe).toMatchObject({
@@ -408,7 +422,7 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
 });
 
 test("the evidence page separates conformance from advantage claims", async ({ page, request }) => {
-  const publicationResponse = await request.get("/evidence/agent-advantage-status.json");
+  const publicationResponse = await getWithTransportRetry(request, "/evidence/agent-advantage-status.json");
   expect(publicationResponse.ok()).toBe(true);
   expect(await publicationResponse.json()).toMatchObject({
     schemaVersion: "positioncrew.agent-advantage-publication.v1",
@@ -435,7 +449,7 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(aacpSection.getByText("USDC + USDT", { exact: true })).toBeVisible();
   await expect(aacpSection.getByText(/does not claim that a wallet-signed agent mint, paid order/)).toBeVisible();
 
-  const aacpResponse = await page.request.get("/api/commerce/aacp");
+  const aacpResponse = await getWithTransportRetry(page.request, "/api/commerce/aacp");
   expect(aacpResponse.status()).toBe(200);
   const aacp = await aacpResponse.json();
   expect(aacp).toMatchObject({
@@ -447,7 +461,7 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   });
   expect(aacp.marketplace.providers).toHaveLength(4);
 
-  const commerceResponse = await page.request.get("/api/commerce/erc8183");
+  const commerceResponse = await getWithTransportRetry(page.request, "/api/commerce/erc8183");
   expect(commerceResponse.status()).toBe(200);
   const commerce = await commerceResponse.json();
   expect(commerce.schemaVersion).toBe("positioncrew.erc8183-testnet-ledger.v1");
@@ -461,14 +475,14 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   });
   expect(commerce.jobs.filter((job: { runType: string }) => job.runType === "FUNDED_CATEGORY_RECEIPT")).toHaveLength(4);
 
-  const benchmarkResponse = await page.request.get("/api/benchmarks/repeatability");
+  const benchmarkResponse = await getWithTransportRetry(page.request, "/api/benchmarks/repeatability");
   expect(benchmarkResponse.status()).toBe(200);
   const benchmark = await benchmarkResponse.json();
   expect(benchmark.schemaVersion).toBe("positioncrew.benchmark-repeatability-matrix.v1");
   expect(benchmark.records).toHaveLength(3);
   expect(benchmark.records.every((record: { runs: unknown[] }) => record.runs.length === 2)).toBe(true);
 
-  const captureResponse = await page.request.get("/api/benchmarks/captures");
+  const captureResponse = await getWithTransportRetry(page.request, "/api/benchmarks/captures");
   expect(captureResponse.status()).toBe(200);
   const captures = await captureResponse.json();
   expect(captures.manifestHash).toBe("sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1");
@@ -476,7 +490,7 @@ test("the evidence page separates conformance from advantage claims", async ({ p
 });
 
 test("the evidence page exposes the precommitted public marketplace deliveries", async ({ page, request }) => {
-  const response = await request.get("/api/benchmarks/marketplace-provenance");
+  const response = await getWithTransportRetry(request, "/api/benchmarks/marketplace-provenance");
   expect(response.ok()).toBeTruthy();
   const provenance = await response.json();
   expect(provenance.aggregate).toMatchObject({
@@ -647,7 +661,7 @@ test("providers expose machine-readable manifests and exact schemas", async ({ p
     "/api/providers/lending-rescue/manifest",
   );
 
-  const marketplaceResponse = await request.get("/.well-known/positioncrew.json");
+  const marketplaceResponse = await getWithTransportRetry(request, "/.well-known/positioncrew.json");
   expect(marketplaceResponse.ok()).toBeTruthy();
   const marketplace = await marketplaceResponse.json();
   expect(marketplace.providers).toHaveLength(4);
@@ -655,7 +669,7 @@ test("providers expose machine-readable manifests and exact schemas", async ({ p
   expect(marketplace.claims.judgeTrial).toBe("NO_WALLET_PROVIDER_CALL");
   expect(marketplace.operatingRecordUrl).toMatch(/\/api\/operations\/production$/);
 
-  const providerResponse = await request.get("/api/providers/lending-rescue/manifest");
+  const providerResponse = await getWithTransportRetry(request, "/api/providers/lending-rescue/manifest");
   expect(providerResponse.ok()).toBeTruthy();
   const provider = await providerResponse.json();
   expect(provider.provider.service).toBe("LENDING_RESCUE");
@@ -666,7 +680,8 @@ test("providers expose machine-readable manifests and exact schemas", async ({ p
     settlement: "NO_PAYMENT",
   });
 
-  const schemaResponse = await request.get(
+  const schemaResponse = await getWithTransportRetry(
+    request,
     "/api/schemas/positioncrew.lending-rescue.request.v1",
   );
   expect(schemaResponse.ok()).toBeTruthy();
