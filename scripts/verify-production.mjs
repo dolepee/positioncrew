@@ -238,6 +238,14 @@ try {
     marketplace.claims?.providerIdentity === "ERC8004_BSC_TESTNET_VERIFIED",
     "Marketplace identity claim changed unexpectedly",
   );
+  assert(
+    marketplace.claims?.judgeTrial === "NO_WALLET_PROVIDER_CALL",
+    "Marketplace judge-trial boundary changed unexpectedly",
+  );
+  assert(
+    new URL(marketplace.operatingRecordUrl).origin === baseUrl.origin,
+    "Marketplace operating record is not canonical",
+  );
 
   const advantagePublication = await fetchJson(
     "agent-advantage-publication",
@@ -323,7 +331,12 @@ try {
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 9, "OpenAPI does not expose all job and live-input paths");
+  assert(Object.keys(openApi.paths ?? {}).length === 10, "OpenAPI does not expose all job and live-input paths");
+  assert(
+    openApi.paths?.["/api/operations/production"]?.get?.operationId ===
+      "getProductionTrackRecord",
+    "OpenAPI omits the production verification record",
+  );
   assert(
     openApi.paths?.["/api/markets/pancake/wbnb-usdt/grid"]?.get?.operationId ===
       "inspectPancakeGridMarket",
@@ -339,6 +352,77 @@ try {
       "inspectPancakePosition",
     "OpenAPI omits the live Pancake position probe",
   );
+
+  const productionRecord = await fetchJson(
+    "production-track-record",
+    marketplace.operatingRecordUrl,
+  );
+  assert(
+    productionRecord.schemaVersion === "positioncrew.production-track-record.v1",
+    "Unexpected production track-record schema",
+  );
+  assert(
+    productionRecord.epoch?.schemaVersion === "positioncrew.production-monitor-epoch.v1",
+    "Production track record has no fixed epoch",
+  );
+  assert(
+    productionRecord.epoch?.startedAt === "2026-08-13T04:00:00.000Z",
+    "Production monitoring epoch changed",
+  );
+  assert(
+    productionRecord.epoch?.aggregation?.coverage === "LATEST_100_SCHEDULED_RUNS",
+    "Production track record changed its disclosed aggregation window",
+  );
+  assert(
+    productionRecord.epoch?.aggregation?.excludeEvents?.includes("push") &&
+      productionRecord.epoch?.aggregation?.excludeEvents?.includes("workflow_dispatch"),
+    "Production track record no longer excludes non-scheduled runs",
+  );
+  assert(Array.isArray(productionRecord.runs), "Production track-record runs are missing");
+  assert(
+    productionRecord.summary?.observedRunCount === productionRecord.runs.length,
+    "Production track-record observed count is inconsistent",
+  );
+  if (productionRecord.status === "SOURCE_UNAVAILABLE") {
+    assert(
+      productionRecord.source?.sourceStatus === "UNAVAILABLE" &&
+        productionRecord.summary?.totalScheduledRunsSinceEpoch === null &&
+        productionRecord.summary?.rollingPassRatePct === null,
+      "Unavailable production source inferred a reliability result",
+    );
+  } else {
+    assert(
+      productionRecord.source?.sourceStatus === "AVAILABLE",
+      "Available production record has the wrong source state",
+    );
+    assert(
+      Number.isInteger(productionRecord.summary?.totalScheduledRunsSinceEpoch) &&
+        productionRecord.summary.totalScheduledRunsSinceEpoch >= productionRecord.runs.length,
+      "Production track-record total count is invalid",
+    );
+    assert(
+      productionRecord.summary.completedRuns + productionRecord.summary.pendingRuns ===
+        productionRecord.runs.length,
+      "Production track-record completion counts are inconsistent",
+    );
+    assert(
+      productionRecord.summary.successfulRuns + productionRecord.summary.unsuccessfulRuns ===
+        productionRecord.summary.completedRuns,
+      "Production track-record conclusions are inconsistent",
+    );
+    assert(
+      new Set(productionRecord.runs.map((run) => run.runId)).size ===
+        productionRecord.runs.length,
+      "Production track record contains duplicate runs",
+    );
+    assert(
+      productionRecord.runs.every(
+        (run) => Date.parse(run.createdAt) >= Date.parse(productionRecord.epoch.startedAt),
+      ),
+      "Production track record includes a run before its epoch",
+    );
+  }
+  report.productionTrackRecord = productionRecord;
 
   const zeroVenus = await fetchJson(
     "venus-zero-position",
@@ -497,6 +581,12 @@ try {
     assert(
       manifest.commerce?.settlement === "IN_MEMORY_CONFORMANCE",
       `${entry.service} settlement boundary changed unexpectedly`,
+    );
+    assert(
+      manifest.pricing?.judgeTrial?.amount === "0" &&
+        manifest.pricing?.judgeTrial?.walletRequired === false &&
+        manifest.pricing?.judgeTrial?.settlement === "NO_PAYMENT",
+      `${entry.service} no-wallet trial boundary changed unexpectedly`,
     );
 
     const health = await fetchJson(`${entry.service}:health`, manifest.transport?.health?.url);

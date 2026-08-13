@@ -935,7 +935,7 @@ export function JobWorkspace({
     <main className="page-shell jobs-page">
       <div className="page-title-row compact">
         <div>
-          <span className="page-kicker">Bounded job workspace</span>
+          <span className="page-kicker">No-wallet provider trial</span>
           <h1>Define the job. Inspect the action.</h1>
           <p>The provider returns a machine-readable decision, execution guards, and a reproducible receipt.</p>
         </div>
@@ -1045,7 +1045,12 @@ export function JobWorkspace({
                 : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>
           </div>
           <div className="composer-footer">
-            <span><strong>5 TEST_USDC</strong><small>{inputMode === "locked" ? "Public locked receipt" : "Current-clock scenario · in-memory rail"}</small></span>
+            <span>
+              <strong>{inputMode === "locked" ? `${provider?.price.amount ?? "5"} ${provider?.price.token ?? "TEST_USDC"}` : "Free provider trial"}</strong>
+              <small>{inputMode === "locked"
+                ? "Public locked receipt"
+                : `${provider?.price.amount ?? "5"} ${provider?.price.token ?? "TEST_USDC"} listed price · no wallet required`}</small>
+            </span>
             <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || liveMarketPending || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
@@ -1072,7 +1077,7 @@ export function JobWorkspace({
               <span className="empty-result-icon"><ShieldCheck size={28} strokeWidth={1.6} /></span>
               <span className="empty-result-kicker">READY FOR REQUEST</span>
               <h2>Your bounded action will appear here.</h2>
-              <p>One provider call produces the decision, guardrails, machine JSON, and receipt.</p>
+              <p>One no-wallet trial call produces the decision, guardrails, machine JSON, and receipt.</p>
               <div className="empty-result-flow" aria-hidden="true">
                 <span><b>01</b> Request</span><ArrowRight size={14} /><span><b>02</b> Evaluate</span><ArrowRight size={14} /><span><b>03</b> Receipt</span>
               </div>

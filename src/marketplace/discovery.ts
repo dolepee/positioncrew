@@ -97,7 +97,15 @@ export function buildProviderManifest(
         deliverable: schemaUrl(origin, provider.deliverableSchema),
       },
     },
-    pricing: provider.price,
+    pricing: {
+      ...provider.price,
+      judgeTrial: {
+        amount: "0",
+        token: "NONE",
+        walletRequired: false,
+        settlement: "NO_PAYMENT",
+      },
+    },
     verification: {
       mode: provider.verification,
       healthUrl: absolute(origin, provider.healthEndpoint),
@@ -107,7 +115,7 @@ export function buildProviderManifest(
       settlement: provider.settlement,
       adapter: "PENDING_SUPPORTED_AACP_GUIDE",
       boundary:
-        "The public endpoint runs a conformance lifecycle with TEST_USDC semantics. It does not claim paid AACP or mainnet settlement.",
+        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately; paid AACP and mainnet settlement are not claimed.",
     },
   };
 }
@@ -130,6 +138,7 @@ export function buildMarketplaceManifest(
     },
     catalogUrl: absolute(origin, "/api/providers"),
     openApiUrl: absolute(origin, "/openapi.json"),
+    operatingRecordUrl: absolute(origin, "/api/operations/production"),
     providers: PROVIDER_CATALOG.map((provider) => ({
       providerId: provider.providerId,
       service: provider.service,
@@ -141,6 +150,7 @@ export function buildMarketplaceManifest(
       categoryCoverage: "4_OF_4",
       providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
       settlement: "IN_MEMORY_CONFORMANCE",
+      judgeTrial: "NO_WALLET_PROVIDER_CALL",
       agentAdvantage: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     },
   };
@@ -204,9 +214,21 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
     ...providerPaths,
     "/api/status": {
       get: {
-        summary: "Read current BSC, PancakeSwap, Venus, and AACP boundary telemetry",
+        summary: "Read current BSC, PancakeSwap, Venus, and integration-boundary telemetry",
         operationId: "getSystemTelemetry",
         responses: { "200": { description: "Current public system telemetry" } },
+      },
+    },
+    "/api/operations/production": {
+      get: {
+        summary: "Read the non-cherry-picked scheduled production verification record",
+        operationId: "getProductionTrackRecord",
+        responses: {
+          "200": {
+            description:
+              "Every observed scheduled verification run after the fixed epoch, or a bounded source-unavailable record",
+          },
+        },
       },
     },
     "/api/wallets/{account}/venus": {

@@ -57,7 +57,7 @@ export function MarketplaceView({
             <h1>Hire a capital operator.</h1>
             <p>Choose the outcome. PositionCrew returns a bounded action you can inspect before anything executes.</p>
             <button className="market-intro-action" type="button" onClick={() => onCreateJob("LENDING_RESCUE")}>
-              Rescue a lending position <ArrowRight size={17} aria-hidden="true" />
+              Try lending rescue free <ArrowRight size={17} aria-hidden="true" />
             </button>
           </div>
           <div className="market-system-panel" aria-label="Marketplace system status">
@@ -66,7 +66,7 @@ export function MarketplaceView({
               <div><strong>{telemetry ? Number(telemetry.mainnet.blockNumber).toLocaleString("en-US") : "-"}</strong><span>BSC block</span></div>
               <div><strong>{telemetry ? `$${telemetry.market.spotPriceUsd}` : "-"}</strong><span>WBNB / USDT</span></div>
               <div><strong>{telemetry ? `${telemetry.venus.supplyAprPct}%` : "-"}</strong><span>Venus vUSDT APR</span></div>
-              <div><strong>{telemetry ? `${telemetry.aacp.deployedCount}/${telemetry.aacp.contractCount}` : "-"}</strong><span>AACP contracts</span></div>
+              <div><strong>{providers.length ? `${providers.length}/4` : "-"}</strong><span>verified agents</span></div>
             </div>
             <p>{telemetry ? `Block-pinned RPC reads · ${telemetry.mainnet.rpcLatencyMs} ms · ${new Date(telemetry.generatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}` : "Provider decisions remain available while live chain telemetry synchronises."}</p>
           </div>
@@ -88,7 +88,7 @@ export function MarketplaceView({
               <span className="task-deck-top"><span>{task.index}</span><Icon size={19} aria-hidden="true" /></span>
               <strong>{task.title}</strong>
               <small>{task.description}</small>
-              <span className="task-deck-foot"><b>5 TEST_USDC</b><ArrowUpRight size={15} aria-hidden="true" /></span>
+              <span className="task-deck-foot"><span><b>Free trial</b><small>5 TEST_USDC listed</small></span><ArrowUpRight size={15} aria-hidden="true" /></span>
             </button>
           );
         })}
@@ -166,7 +166,7 @@ export function MarketplaceView({
                           </button>
                         </td>
                         <td><span className="category-label">{provider.category}</span></td>
-                        <td><strong className="mono-value">{provider.price.amount} {provider.price.token}</strong></td>
+                        <td><span className="trial-price"><strong>{provider.price.amount} {provider.price.token}</strong><small>Trial free</small></span></td>
                         <td><span className="verification-label"><BadgeCheck size={14} /> {result?.result.evaluation.score ?? "-"}/100</span></td>
                         <td><span className={`availability-label ${result ? "ready" : "pending"}`}><i /> {result ? "Reachable" : "Checking"}</span></td>
                       </tr>
@@ -187,7 +187,7 @@ export function MarketplaceView({
                   <div><span>{selected.category}</span><h2>{selected.name}</h2></div>
                 </div>
                 <div className="provider-detail-meta">
-                  <strong>{selected.price.amount} {selected.price.token}<small>per completed job</small></strong>
+                  <strong>{selected.price.amount} {selected.price.token}<small>listed price · no-wallet trial free</small></strong>
                   <span className={`availability-label ${selectedResult ? "ready" : "pending"}`}><i /> {selectedResult ? "Reachable" : "Checking"}</span>
                 </div>
                 <p className="provider-summary">{selected.summary}</p>
@@ -201,7 +201,7 @@ export function MarketplaceView({
                   <div><dt><BadgeCheck size={14} /> Conformance</dt><dd>{selectedResult?.result.evaluation.score ?? "-"}/100 · {selectedResult?.result.job.state ?? "Checking"}</dd></div>
                 </dl>
                 <button className="primary-action" type="button" onClick={() => onCreateJob(selected.service)}>
-                  Open {serviceLabel(selected.service).toLowerCase()} workspace
+                  Open free {serviceLabel(selected.service).toLowerCase()} trial
                   <ArrowRight size={16} aria-hidden="true" />
                 </button>
                 {selectedResult?.receipt.path ? (
@@ -212,8 +212,8 @@ export function MarketplaceView({
                   </a>
                 ) : null}
                 <div className="provider-boundary">
-                  <strong>Environment boundary</strong>
-                  <span>Live BSC context · ERC-8004 testnet identity · frozen decision fixture · AACP terminal settlement gated</span>
+                  <strong>Trial boundary</strong>
+                  <span>No wallet or token required · live Provider endpoint · ERC-8004 testnet identity · funded testnet commerce evidence disclosed separately</span>
                 </div>
               </>
             ) : (

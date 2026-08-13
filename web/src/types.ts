@@ -222,6 +222,63 @@ export interface SystemTelemetry {
   };
 }
 
+export interface ProductionMonitorEpoch {
+  schemaVersion: "positioncrew.production-monitor-epoch.v1";
+  startedAt: string;
+  baseUrl: string;
+  workflow: {
+    owner: string;
+    repository: string;
+    file: string;
+    url: string;
+    event: "schedule";
+    cadenceMinutes: number;
+  };
+  verification: {
+    expectedCheckCountAtEpoch: number;
+    scope: string[];
+  };
+  aggregation: {
+    coverage: "LATEST_100_SCHEDULED_RUNS";
+    excludeEvents: string[];
+  };
+  boundary: string;
+}
+
+export interface ProductionTrackRecord {
+  schemaVersion: "positioncrew.production-track-record.v1";
+  generatedAt: string;
+  status: "COLLECTING" | "OPERATIONAL" | "DEGRADED" | "SOURCE_UNAVAILABLE";
+  epoch: ProductionMonitorEpoch;
+  source: {
+    provider: "GITHUB_ACTIONS";
+    apiUrl: string;
+    workflowUrl: string;
+    sourceStatus: "AVAILABLE" | "UNAVAILABLE";
+  };
+  summary: {
+    totalScheduledRunsSinceEpoch: number | null;
+    observedRunCount: number;
+    completedRuns: number;
+    successfulRuns: number;
+    unsuccessfulRuns: number;
+    pendingRuns: number;
+    rollingPassRatePct: number | null;
+    rollingWindowStartedAt: string | null;
+    rollingWindowEndedAt: string | null;
+  };
+  runs: Array<{
+    runId: number;
+    status: string;
+    conclusion: string | null;
+    createdAt: string;
+    completedAt: string | null;
+    headSha: string;
+    url: string;
+  }>;
+  boundary: string;
+}
+
 export interface VenusAccountProbe {
   schemaVersion: "positioncrew.venus-account-probe.v1";
   generatedAt: string;

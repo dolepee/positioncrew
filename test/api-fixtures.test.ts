@@ -164,6 +164,15 @@ describe("public fixture job boundary", () => {
         },
       },
       commerce: { settlement: "IN_MEMORY_CONFORMANCE" },
+      pricing: {
+        amount: "5",
+        token: "TEST_USDC",
+        judgeTrial: {
+          amount: "0",
+          walletRequired: false,
+          settlement: "NO_PAYMENT",
+        },
+      },
     });
     expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
     expect(marketplace).toMatchObject({
@@ -171,12 +180,16 @@ describe("public fixture job boundary", () => {
       claims: {
         categoryCoverage: "4_OF_4",
         providerIdentity: "ERC8004_BSC_TESTNET_VERIFIED",
+        judgeTrial: "NO_WALLET_PROVIDER_CALL",
       },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
-    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(9);
+    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(10);
     expect(openApi.paths).toMatchObject({
       "/api/status": { get: { operationId: "getSystemTelemetry" } },
+      "/api/operations/production": {
+        get: { operationId: "getProductionTrackRecord" },
+      },
       "/api/wallets/{account}/venus": { get: { operationId: "inspectVenusAccount" } },
       "/api/markets/pancake/wbnb-usdt/grid": {
         get: { operationId: "inspectPancakeGridMarket" },

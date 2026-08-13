@@ -72,9 +72,12 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await expect(page.getByRole("heading", { name: "Hire a capital operator." })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).last()).toBeVisible();
   await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByRole("button", { name: "Try lending rescue free" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Open lending rescue workspace" }).click();
+  await page.getByRole("button", { name: "Open free lending rescue trial" }).click();
   await expect(page.getByRole("heading", { name: "Define the job. Inspect the action." })).toBeVisible();
+  await expect(page.getByText("Free provider trial", { exact: true })).toBeVisible();
+  await expect(page.getByText("5 TEST_USDC listed price · no wallet required", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Interactive" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Run lending rescue" }).click();
 
@@ -104,7 +107,7 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
 test("live BSC telemetry and Venus wallet risk are independently inspectable", async ({ page }) => {
   await page.goto("/#marketplace");
   await expect(page.getByText("LIVE BSC DATA", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByText("8/8", { exact: true })).toBeVisible();
+  await expect(page.locator(".market-system-panel").getByText("4/4", { exact: true })).toBeVisible();
 
   await page.goto("/#jobs");
   await page.getByPlaceholder("0x account address").fill("0x0000000000000000000000000000000000000001");
@@ -465,6 +468,90 @@ test("a published Agent Advantage status exposes the committed report without ch
   await expect(page.getByText(/scope remains limited to the published report/)).toBeVisible();
 });
 
+test("the evidence page exposes every scheduled production outcome after the fixed epoch", async ({ page }) => {
+  await page.route("**/api/operations/production**", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.production-track-record.v1",
+        generatedAt: "2026-08-13T07:30:00.000Z",
+        status: "DEGRADED",
+        epoch: {
+          schemaVersion: "positioncrew.production-monitor-epoch.v1",
+          startedAt: "2026-08-13T04:00:00.000Z",
+          baseUrl: "https://positioncrew.dolepee.com",
+          workflow: {
+            owner: "dolepee",
+            repository: "positioncrew",
+            file: "production-smoke.yml",
+            url: "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
+            event: "schedule",
+            cadenceMinutes: 30,
+          },
+          verification: {
+            expectedCheckCountAtEpoch: 57,
+            scope: ["Providers and public receipts"],
+          },
+          aggregation: {
+            coverage: "LATEST_100_SCHEDULED_RUNS",
+            excludeEvents: ["push", "workflow_dispatch"],
+          },
+          boundary: "Production verification only.",
+        },
+        source: {
+          provider: "GITHUB_ACTIONS",
+          apiUrl: "https://api.github.com/repos/dolepee/positioncrew/actions/workflows/production-smoke.yml/runs",
+          workflowUrl: "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
+          sourceStatus: "AVAILABLE",
+        },
+        summary: {
+          totalScheduledRunsSinceEpoch: 2,
+          observedRunCount: 2,
+          completedRuns: 2,
+          successfulRuns: 1,
+          unsuccessfulRuns: 1,
+          pendingRuns: 0,
+          rollingPassRatePct: 50,
+          rollingWindowStartedAt: "2026-08-13T05:47:00.000Z",
+          rollingWindowEndedAt: "2026-08-13T06:17:00.000Z",
+        },
+        runs: [
+          {
+            runId: 102,
+            status: "completed",
+            conclusion: "failure",
+            createdAt: "2026-08-13T06:17:00.000Z",
+            completedAt: "2026-08-13T06:20:00.000Z",
+            headSha: "2".repeat(40),
+            url: "https://github.com/dolepee/positioncrew/actions/runs/102",
+          },
+          {
+            runId: 101,
+            status: "completed",
+            conclusion: "success",
+            createdAt: "2026-08-13T05:47:00.000Z",
+            completedAt: "2026-08-13T05:50:00.000Z",
+            headSha: "1".repeat(40),
+            url: "https://github.com/dolepee/positioncrew/actions/runs/101",
+          },
+        ],
+        boundary: "Not financial performance or Agent Advantage.",
+      }),
+    });
+  });
+
+  await page.goto("/#evidence");
+  await expect(page.getByRole("heading", { name: "Production verification record" })).toBeVisible();
+  await expect(page.getByText("1 unsuccessful", { exact: true })).toBeVisible();
+  await expect(page.getByText("50%", { exact: true })).toBeVisible();
+  await expect(page.getByText("failures remain visible", { exact: false })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Run #102/ })).toHaveAttribute(
+    "href",
+    "https://github.com/dolepee/positioncrew/actions/runs/102",
+  );
+  await expect(page.getByText("Non-cherry-picked operating evidence.", { exact: true })).toBeVisible();
+});
+
 test("the app has no page-level horizontal overflow", async ({ page }) => {
   for (const route of ["#marketplace", "#jobs", "#evidence"]) {
     await page.goto(`/${route}`);
@@ -489,12 +576,19 @@ test("providers expose machine-readable manifests and exact schemas", async ({ p
   const marketplace = await marketplaceResponse.json();
   expect(marketplace.providers).toHaveLength(4);
   expect(marketplace.claims.agentAdvantage).toBe("PENDING_INDEPENDENT_BLIND_EVALUATION");
+  expect(marketplace.claims.judgeTrial).toBe("NO_WALLET_PROVIDER_CALL");
+  expect(marketplace.operatingRecordUrl).toMatch(/\/api\/operations\/production$/);
 
   const providerResponse = await request.get("/api/providers/lending-rescue/manifest");
   expect(providerResponse.ok()).toBeTruthy();
   const provider = await providerResponse.json();
   expect(provider.provider.service).toBe("LENDING_RESCUE");
   expect(provider.commerce.settlement).toBe("IN_MEMORY_CONFORMANCE");
+  expect(provider.pricing.judgeTrial).toMatchObject({
+    amount: "0",
+    walletRequired: false,
+    settlement: "NO_PAYMENT",
+  });
 
   const schemaResponse = await request.get(
     "/api/schemas/positioncrew.lending-rescue.request.v1",

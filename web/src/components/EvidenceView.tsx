@@ -18,6 +18,7 @@ import type {
   FixtureJobResponse,
   Erc8183TestnetLedger,
   ProviderListing,
+  ProductionTrackRecord,
   ServiceId,
   SystemTelemetry,
   TermixBenchmarkService,
@@ -31,6 +32,7 @@ export function EvidenceView({
   captureManifest,
   commerceLedger,
   advantagePublication,
+  productionTrackRecord,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
@@ -39,6 +41,7 @@ export function EvidenceView({
   captureManifest: AgentCaptureManifestResponse | null;
   commerceLedger: Erc8183TestnetLedger | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
+  productionTrackRecord: ProductionTrackRecord | null;
 }) {
   const publishedAdvantage = advantagePublication?.status === "PUBLISHED"
     ? advantagePublication
@@ -73,6 +76,20 @@ export function EvidenceView({
   const flagshipCommerceJobs = commerceLedger?.jobs.filter(
     (job) => job.runType === "FUNDED_CATEGORY_RECEIPT",
   ) ?? [];
+  const productionStatusLabel = productionTrackRecord?.status === "OPERATIONAL"
+    ? "All observed passed"
+    : productionTrackRecord?.status === "DEGRADED"
+      ? `${productionTrackRecord.summary.unsuccessfulRuns} unsuccessful`
+      : productionTrackRecord?.status === "COLLECTING"
+        ? "Collecting"
+        : productionTrackRecord?.status === "SOURCE_UNAVAILABLE"
+          ? "Source unavailable"
+          : "Loading";
+  const productionStatusTone = productionTrackRecord?.status === "OPERATIONAL"
+    ? "good"
+    : productionTrackRecord?.status === "DEGRADED" || productionTrackRecord?.status === "SOURCE_UNAVAILABLE"
+      ? "warn"
+      : "neutral";
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -111,13 +128,50 @@ export function EvidenceView({
             </a>
           </div>
         ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
-        {telemetry && (
-          <div className="aacp-contract-strip" aria-label="Verified AACP contracts">
-            {telemetry.aacp.contracts.map((contract) => (
-              <a key={contract.address} href={contract.explorerUrl} target="_blank" rel="noreferrer"><i className={contract.deployed ? "deployed" : "missing"} />{contract.name}<code>{shortHash(contract.address, 10)}</code></a>
-            ))}
-          </div>
-        )}
+      </section>
+
+      <section className="evidence-section operations-section" aria-labelledby="operations-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">Observed reliability</span><h2 id="operations-title">Production verification record</h2></div>
+          <span className={`state-label ${productionStatusTone}`}><Radio size={13} /> {productionStatusLabel}</span>
+        </div>
+        {productionTrackRecord ? (
+          <>
+            <div className="operations-facts">
+              <div><strong>{productionTrackRecord.summary.successfulRuns}/{productionTrackRecord.summary.completedRuns}</strong><span>successful scheduled runs</span><small>{productionTrackRecord.summary.pendingRuns} pending · failures remain visible</small></div>
+              <div><strong>{productionTrackRecord.summary.rollingPassRatePct === null ? "-" : `${productionTrackRecord.summary.rollingPassRatePct}%`}</strong><span>observed pass rate</span><small>Latest 100 scheduled runs after the fixed epoch</small></div>
+              <div><strong>{productionTrackRecord.epoch.workflow.cadenceMinutes} min</strong><span>verification cadence</span><small>Push and manually triggered runs excluded</small></div>
+              <div><strong>{productionTrackRecord.epoch.verification.expectedCheckCountAtEpoch}</strong><span>checks per run at epoch</span><small>Providers, receipts, BSC state, and claim boundaries</small></div>
+            </div>
+            {productionTrackRecord.runs.length > 0 ? (
+              <div className="operations-runs" aria-label="Recent scheduled verification runs">
+                {productionTrackRecord.runs.slice(0, 3).map((run) => {
+                  const successful = run.status === "completed" && run.conclusion === "success";
+                  return (
+                    <a key={run.runId} href={run.url} target="_blank" rel="noreferrer">
+                      <span className={`operations-run-state ${successful ? "passed" : run.status === "completed" ? "failed" : "pending"}`}><i />{run.status === "completed" ? run.conclusion ?? "unknown" : run.status}</span>
+                      <strong>Run #{run.runId}</strong>
+                      <code>{run.headSha.slice(0, 7)}</code>
+                      <time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}</time>
+                      <ExternalLink size={13} aria-hidden="true" />
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="infrastructure-loading">
+                {productionTrackRecord.status === "SOURCE_UNAVAILABLE"
+                  ? "The public workflow source is temporarily unavailable; no pass rate is inferred."
+                  : `The fixed monitoring epoch began ${new Date(productionTrackRecord.epoch.startedAt).toLocaleString()}; the first scheduled sample is pending.`}
+              </div>
+            )}
+            <div className="operations-boundary">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span><strong>Non-cherry-picked operating evidence.</strong>Every observed scheduled run after the fixed epoch is counted. This measures production verification, not demand, financial performance, mainnet execution, or Agent Advantage.</span>
+              <a href={productionTrackRecord.source.workflowUrl} target="_blank" rel="noreferrer">All workflow runs <ExternalLink size={12} /></a>
+            </div>
+          </>
+        ) : <div className="infrastructure-loading">The public scheduled verification record is loading.</div>}
       </section>
 
       <section className="evidence-section commerce-evidence-section" aria-labelledby="commerce-title">

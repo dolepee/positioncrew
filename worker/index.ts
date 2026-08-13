@@ -2,6 +2,7 @@ import { ZodError } from "zod";
 import agentCaptureManifest from "../benchmarks/agent-capture-commitments-2026-08-12.json" with { type: "json" };
 import erc8183Job489Deliverable from "../evidence/erc8183-job-489.deliverable.json" with { type: "json" };
 import erc8183TestnetLedger from "../evidence/erc8183-jobs.testnet.json" with { type: "json" };
+import productionMonitorEpoch from "../evidence/production-monitor-epoch.json" with { type: "json" };
 import {
   runBenchmarkRepeatability,
   runFixtureRequest,
@@ -22,6 +23,13 @@ import {
   getProviderBySlug,
   getSchemaDocument,
 } from "../src/marketplace/discovery.js";
+import {
+  buildProductionTrackRecord,
+  githubWorkflowRunsApiUrl,
+  unavailableProductionTrackRecord,
+  type ProductionMonitorEpoch,
+  type ProductionTrackRecord,
+} from "../src/operations/production-track-record.js";
 import {
   getSystemTelemetry,
   inspectPancakeGridMarket,
@@ -52,6 +60,10 @@ const BENCHMARK_SLUGS = new Map<string, TermixBenchmarkService>([
   ["lp-rebalance", "LP_REBALANCE"],
   ["bounded-grid", "BOUNDED_GRID"],
 ]);
+
+const MONITOR_EPOCH = productionMonitorEpoch as ProductionMonitorEpoch;
+let productionRecordCache: { expiresAt: number; record: ProductionTrackRecord } | null = null;
+let productionRecordRequest: Promise<ProductionTrackRecord> | null = null;
 
 const API_HEADERS = {
   "Access-Control-Allow-Headers": "Accept, Content-Type",
@@ -178,6 +190,48 @@ async function publicReceipt(hash: string): Promise<Response> {
   );
 }
 
+async function loadProductionTrackRecord(): Promise<ProductionTrackRecord> {
+  if (productionRecordCache && productionRecordCache.expiresAt > Date.now()) {
+    return productionRecordCache.record;
+  }
+  if (productionRecordRequest) return productionRecordRequest;
+  productionRecordRequest = (async () => {
+    let record: ProductionTrackRecord;
+    let ttlMs: number;
+    try {
+      const response = await fetch(githubWorkflowRunsApiUrl(MONITOR_EPOCH), {
+        headers: {
+          Accept: "application/vnd.github+json",
+          "User-Agent": "PositionCrew-Production-Record/1.0",
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        signal: AbortSignal.timeout(10_000),
+      });
+      if (!response.ok) throw new Error(`GitHub Actions returned HTTP ${response.status}`);
+      record = buildProductionTrackRecord(await response.json(), MONITOR_EPOCH);
+      ttlMs = 5 * 60_000;
+    } catch {
+      record = unavailableProductionTrackRecord(MONITOR_EPOCH);
+      ttlMs = 60_000;
+    }
+    productionRecordCache = { expiresAt: Date.now() + ttlMs, record };
+    return record;
+  })();
+  try {
+    return await productionRecordRequest;
+  } finally {
+    productionRecordRequest = null;
+  }
+}
+
+async function productionTrackRecord(): Promise<Response> {
+  const record = await loadProductionTrackRecord();
+  if (record.status !== "SOURCE_UNAVAILABLE") {
+    return json(record, 200, "public, max-age=0, s-maxage=300, stale-while-revalidate=900");
+  }
+  return json(record, 200, "public, max-age=0, s-maxage=60, stale-while-revalidate=300");
+}
+
 async function rescue(request: Request): Promise<Response> {
   if (request.method === "GET") return json(await runFrozenFixture("LENDING_RESCUE"));
 
@@ -246,6 +300,11 @@ async function api(request: Request, url: URL): Promise<Response> {
         200,
         "public, max-age=0, s-maxage=15, stale-while-revalidate=30",
       );
+    }
+
+    if (url.pathname === "/api/operations/production") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return productionTrackRecord();
     }
 
     if (url.pathname === "/api/benchmarks/repeatability") {
