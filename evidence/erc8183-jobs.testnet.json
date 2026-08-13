@@ -1,0 +1,186 @@
+{
+  "schemaVersion": "positioncrew.erc8183-testnet-ledger.v1",
+  "capturedAt": "2026-08-13T00:06:14.000Z",
+  "network": {
+    "name": "BSC Testnet",
+    "chainId": 97,
+    "explorer": "https://testnet.bscscan.com"
+  },
+  "protocol": {
+    "name": "ERC-8183 / APEX",
+    "commerce": "0xa206c0517B6371C6638CD9e4a42Cc9f02A33B0DE",
+    "router": "0xD7d36D66d2F1B608A0F943f722D27e3744f66F25",
+    "policy": "0xd6a4217588F6B1F5657a92A3e94E6422aD771cEA",
+    "paymentToken": "0xc70B8741B8B07A6d61E54fd4B20f22Fa648E5565",
+    "paymentTokenSymbol": "U",
+    "paymentTokenDecimals": 18,
+    "disputeWindowSeconds": 900,
+    "voteQuorum": 1,
+    "platformFeeBps": 0,
+    "deploymentSource": "https://github.com/bnb-chain/apex-contracts/blob/b40b18011407ba13516661d3784bcb727a0c7794/scripts/addresses.ts",
+    "deploymentSourceCommit": "b40b18011407ba13516661d3784bcb727a0c7794"
+  },
+  "parties": {
+    "client": "0x939F689A1Aeef6FB2eEFe9Ba7386B6653bcbc6b3",
+    "provider": "0x50da554F1bF6A86469DB201C56bfe967d2E7c43d",
+    "relationship": "SAME_DISCLOSED_OPERATOR_SEPARATE_WALLETS"
+  },
+  "summary": {
+    "completedLifecycles": 7,
+    "fundedCompletedJobs": 6,
+    "zeroPricePathProbes": 1,
+    "mandatoryCategoriesCovered": 4,
+    "totalEscrowBaseUnits": "600000000000000000",
+    "totalEscrowDisplay": "0.6 U",
+    "externalBuyerJobs": 0,
+    "externalRevenue": "0"
+  },
+  "claimBoundary": [
+    "All jobs are operator-controlled BSC testnet integration evidence using separate client and provider wallets.",
+    "The six funded jobs prove escrow, provider submission, optimistic evaluation, completion, and token release; they do not prove external demand or revenue.",
+    "The deliverables use frozen BSC fixtures and deterministic conformance checks; they do not establish Agent Advantage over a manual operator.",
+    "TermiX AACP integration remains separate and pending the corrected Agent.family builder guide."
+  ],
+  "jobs": [
+    {
+      "jobId": 489,
+      "service": "LENDING_RESCUE",
+      "providerAgentId": 1810,
+      "runType": "ZERO_PRICE_PATH_PROBE",
+      "budgetBaseUnits": "0",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/489/deliverable",
+      "manifestHash": "0x954821354fa5e5e501e785d40a1c1772c9a4d35de900f84d31952bead8372880",
+      "transactions": {
+        "create": "0xc8d05efef87250ab4bd6bea9d42ef8d589b005dc967f727efe61650c58d83ffb",
+        "setBudget": "0x78c9bfb68219be4be014307a49ca312328ce72c654eb8cfe5614cea94d3ff08f",
+        "register": "0x33efe9be798b7fb568237fb9eb63ae308357e99645dc38a831e8e21e1b0f1307",
+        "fund": "0x17378886f83e1261914b98394b99bebd286918a064571547a49c8e92db134b71",
+        "submit": "0x0957ee66a4c15fffc9b1597e5ba51ef6d1b9d850e14ee7e4551c8aa264af46b2",
+        "settle": "0xa3678d473ee6dee7e4bc9692d02287a57ba840c5e9ef16bbb6c7d296b7cd7e66"
+      },
+      "completedAt": "2026-08-12T23:57:17.000Z",
+      "completionBlock": 124739254
+    },
+    {
+      "jobId": 490,
+      "service": "LENDING_RESCUE",
+      "providerAgentId": 1810,
+      "runType": "FUNDED_CATEGORY_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/490/deliverable",
+      "manifestHash": "0x70332b09542edb6e7dc142fda2dc23d143343522a083cf6ef1ee0073a1dbba00",
+      "transactions": {
+        "create": "0xa0db99f6247a48420134b0a4840fe16003f68137ca4efa99b7eccbe5f38692d5",
+        "setBudget": "0x1f2a7bfcdaa97f0a63f1d64ac7bcfee1d1596fd14817f61774bf02b5dfa6b940",
+        "register": "0x883049ced7fdf3b212b3d8e6dc92d541a42c0d7678cd50664a2f3680b07a56e3",
+        "fund": "0x95ea7e73f4c426bcc685cca03b394bcc9c8e80f9a6b8d278871108233c22f059",
+        "submit": "0x1fa8aabc4d1a18db5e317c27d1832433307501eabdab1d8c629f1cd0b1ac9042",
+        "settle": "0x731cb1f760ffb0c870458dc3db68d22d97d8b9c10f1bc192f9e3cc1ee018a76f"
+      },
+      "completedAt": "2026-08-13T00:05:35.000Z",
+      "completionBlock": 124740361
+    },
+    {
+      "jobId": 491,
+      "service": "LP_REBALANCE",
+      "providerAgentId": 1811,
+      "runType": "FUNDED_CATEGORY_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/491/deliverable",
+      "manifestHash": "0xfa273eeb306951556b7d5c1c36d74c2ee41fda7e447e28135bdc8d2f3842f3a4",
+      "transactions": {
+        "create": "0x1dd11e77e3d9133b2a5ccd8e1c290c18b465d4b4dae96ee7af3bf9b37bd5cbd3",
+        "setBudget": "0xe8b88c36bcbbed355d030a8270e41e768b15895ee2c83d5ab93acaa93c44db47",
+        "register": "0x1fe9237eef4cb4b67e78a1c6dbacc62e8d8f71405dd4b8724e7e5a2ab3e1bc05",
+        "fund": "0xc3e5055d0bee5343c9338a9f92e60469c8834e0f40c5fff1e78e935b0d382121",
+        "submit": "0xf1bd2868c67313d00065dbbf6277ec1657255d809b5c08f301dd303310629f41",
+        "settle": "0x267b9b8293947e2f462857d87283f1db2ee8d2e60adc0dd0d4406a11b54dd78a"
+      },
+      "completedAt": "2026-08-13T00:05:43.000Z",
+      "completionBlock": 124740378
+    },
+    {
+      "jobId": 492,
+      "service": "YIELD_OPTIMIZATION",
+      "providerAgentId": 1812,
+      "runType": "FUNDED_CATEGORY_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/492/deliverable",
+      "manifestHash": "0x06a675418762555db3e6fc52363f050d43dae992677cb87ddafd821d90d62bb9",
+      "transactions": {
+        "create": "0xf64117423b65a5ed7d4073bb7afaba6ca67c543ba1859023471088933abc9a03",
+        "setBudget": "0x6fcec80d3e4c55770d4942479260336f89cbaeef68a73b941c570d78d6a57fbe",
+        "register": "0x115348cfe0c792b4daca5d6a40cb2ab301321229bcda4eef4c2615750dc92040",
+        "fund": "0xbed900ef1b4fb44d26a482015fdc7323ee211db4a44f89a975517576087afa92",
+        "submit": "0xd13cabd0fb2caa4e4f0f9178eb08008c7f72a9b1747f2f714f1afdd8efca0465",
+        "settle": "0x0fac752328aa325382ea28f92f939b8c0f76750631f5460ed0706100f0b51d58"
+      },
+      "completedAt": "2026-08-13T00:05:50.000Z",
+      "completionBlock": 124740394
+    },
+    {
+      "jobId": 493,
+      "service": "BOUNDED_GRID",
+      "providerAgentId": 1813,
+      "runType": "FUNDED_CATEGORY_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/493/deliverable",
+      "manifestHash": "0xc53f23852b2c7041dddd436e847edf78460b00b6141ddcd1e1ad0985adb1f3d5",
+      "transactions": {
+        "create": "0x7be81fd8a1576c82b3d3b5eb1c0dd95d90e7ff3f70e192cc6d91f68fbba3b49d",
+        "setBudget": "0x44adc88334764bdfc4a5f2a87bfb096faea70e727d647be658db204517fcb7f0",
+        "register": "0x6c4d812ffb723199db3e755b88d83ee665257c315bd48944fb153fdbcb5d2f3b",
+        "fund": "0x752ce4816c4253efa38c6cd3dc33c51e1f1644500c9eb3cb6fa8eea10f0f3d81",
+        "submit": "0xaacd16d9395020ed713defa3ca67844250b14cac2c3a3df070ea2264c522e6ea",
+        "settle": "0xb9215bfa352d2626b49e5455fbb63a81cc018a1dcfb734eac6b75e192caba1e9"
+      },
+      "completedAt": "2026-08-13T00:05:56.000Z",
+      "completionBlock": 124740408
+    },
+    {
+      "jobId": 494,
+      "service": "YIELD_OPTIMIZATION",
+      "providerAgentId": 1812,
+      "runType": "FUNDED_REPEAT_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/494/deliverable",
+      "manifestHash": "0x192e536e6f8676502cd80aa0a148589ffc895a75fe5fd6e352c1f82ba59859bc",
+      "transactions": {
+        "create": "0xb6e5761eafe243e5b15e6050a5db3d140893753cc98e86f9ee055b233c11d4bd",
+        "setBudget": "0x84c702eb16ccc1c2ca9699b12d863686f1048b97b607c69c6ded76f642f8d2c0",
+        "register": "0xa3d5cabff8c2fcb7a7bc25e24be172a3c2a01d58c25743b568051f29ce1f46b3",
+        "fund": "0x2c6fddb269b91075682e11e8ccae3924c884b4ad6170b273699f9c1b7f28983e",
+        "submit": "0x5a682ec2f899bd792118544ea463bc31af03de1d4845186e075512ea18236fce",
+        "settle": "0x80a3c1ef43ac4e8398405138104c2a4b1d6b8ad7f9c72cbc307ef2010257ad73"
+      },
+      "completedAt": "2026-08-13T00:06:07.000Z",
+      "completionBlock": 124740432
+    },
+    {
+      "jobId": 495,
+      "service": "BOUNDED_GRID",
+      "providerAgentId": 1813,
+      "runType": "FUNDED_REPEAT_RECEIPT",
+      "budgetBaseUnits": "100000000000000000",
+      "status": "COMPLETED",
+      "manifestUrl": "https://positioncrew.dolepee.com/api/commerce/erc8183/jobs/495/deliverable",
+      "manifestHash": "0x17c5e5f21b3a4460259acc425a72ea10fcf59e91fe54aa57c6e5599d2f275f2d",
+      "transactions": {
+        "create": "0xb7c8a84c52c099a200e37ba37aaec01a158301251f9860a94bd4779fc19fd7c6",
+        "setBudget": "0x433c55dbe8fac29cf3b18391d6ac8a08aca2f68fc8eebda1c751322868600ee8",
+        "register": "0xf466308360e08c918ee099501bd28564d4035356ab6592c2f878dde3665a8bc1",
+        "fund": "0xead57822a4a90d1f3de86be264cb649a400885f2678e77052234f52e5db7486c",
+        "submit": "0x3fdce5b192ffc9201b98d62df310d873bfa82fe5b0fa67d1fe2dd55c9a0c419f",
+        "settle": "0xd82b6ce8b4d9149bb10c5b7fa54bef007dd4b8315cce1be7b547d162615a5c8d"
+      },
+      "completedAt": "2026-08-13T00:06:14.000Z",
+      "completionBlock": 124740448
+    }
+  ]
+}

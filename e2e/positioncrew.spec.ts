@@ -115,7 +115,25 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText("source-committed agent runs", { exact: true })).toBeVisible();
   await expect(page.getByText(/source 3b28703/).first()).toBeVisible();
   await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
-  await expect(page.getByText(/backend proof completion is not represented as available/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Funded provider receipts" })).toBeVisible();
+  await expect(page.getByText("0.6 U", { exact: true })).toBeVisible();
+  await expect(page.getByText("Verified integration, disclosed operator.", { exact: true })).toBeVisible();
+  await expect(page.getByText(/not external purchases, revenue, or the pending blind Agent Advantage result/)).toBeVisible();
+  await expect(page.getByText(/TermiX AACP remains pending its corrected guide/)).toBeVisible();
+
+  const commerceResponse = await page.request.get("/api/commerce/erc8183");
+  expect(commerceResponse.status()).toBe(200);
+  const commerce = await commerceResponse.json();
+  expect(commerce.schemaVersion).toBe("positioncrew.erc8183-testnet-ledger.v1");
+  expect(commerce.summary).toMatchObject({
+    completedLifecycles: 7,
+    fundedCompletedJobs: 6,
+    mandatoryCategoriesCovered: 4,
+    totalEscrowDisplay: "0.6 U",
+    externalBuyerJobs: 0,
+    externalRevenue: "0",
+  });
+  expect(commerce.jobs.filter((job: { runType: string }) => job.runType === "FUNDED_CATEGORY_RECEIPT")).toHaveLength(4);
 
   const benchmarkResponse = await page.request.get("/api/benchmarks/repeatability");
   expect(benchmarkResponse.status()).toBe(200);

@@ -3,6 +3,7 @@ import {
   BadgeCheck,
   Check,
   Clock3,
+  Coins,
   ExternalLink,
   FileCheck2,
   LockKeyhole,
@@ -14,6 +15,7 @@ import type {
   AgentCaptureManifestResponse,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
+  Erc8183TestnetLedger,
   ProviderListing,
   ServiceId,
   SystemTelemetry,
@@ -26,12 +28,14 @@ export function EvidenceView({
   telemetry,
   benchmarks,
   captureManifest,
+  commerceLedger,
 }: {
   providers: ProviderListing[];
   matrix: Map<ServiceId, FixtureJobResponse>;
   telemetry: SystemTelemetry | null;
   benchmarks: BenchmarkRepeatabilityResponse[];
   captureManifest: AgentCaptureManifestResponse | null;
+  commerceLedger: Erc8183TestnetLedger | null;
 }) {
   const definitions: Array<{ service: TermixBenchmarkService; task: string; category: string }> = [
     { service: "LENDING_RESCUE", task: "Lending position rescue", category: "Security / DeFi" },
@@ -60,6 +64,9 @@ export function EvidenceView({
     (total, benchmark) => total + benchmark.candidates.length,
     0,
   ) ?? 0;
+  const flagshipCommerceJobs = commerceLedger?.jobs.filter(
+    (job) => job.runType === "FUNDED_CATEGORY_RECEIPT",
+  ) ?? [];
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -72,6 +79,7 @@ export function EvidenceView({
           <span><Radio size={16} /><strong>{telemetry ? `#${Number(telemetry.mainnet.blockNumber).toLocaleString("en-US")}` : "-"}</strong> live BSC block</span>
           <span><BadgeCheck size={16} /><strong>{providers.length}/4</strong> BSC identities</span>
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
+          <span><Coins size={16} /><strong>{commerceLedger?.summary.fundedCompletedJobs ?? "-"}</strong> funded test jobs</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
         </div>
       </div>
@@ -104,6 +112,46 @@ export function EvidenceView({
             ))}
           </div>
         )}
+      </section>
+
+      <section className="evidence-section commerce-evidence-section" aria-labelledby="commerce-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">Onchain commerce</span><h2 id="commerce-title">Funded provider receipts</h2></div>
+          <span className={`state-label ${commerceLedger ? "good" : "neutral"}`}><Coins size={13} /> {commerceLedger ? "6/6 completed" : "Loading"}</span>
+        </div>
+        {commerceLedger ? (
+          <>
+            <div className="commerce-facts">
+              <div><strong>{commerceLedger.summary.totalEscrowDisplay}</strong><span>testnet escrow released</span><small>Six funded jobs · platform fee {commerceLedger.protocol.platformFeeBps} bps</small></div>
+              <div><strong>{commerceLedger.summary.mandatoryCategoriesCovered}/4</strong><span>mandatory categories</span><small>One flagship receipt per provider</small></div>
+              <div><strong>{commerceLedger.summary.completedLifecycles}</strong><span>completed lifecycles</span><small>Six funded · one zero-price path probe</small></div>
+              <div><strong>{commerceLedger.protocol.disputeWindowSeconds / 60} min</strong><span>optimistic challenge</span><small>Policy quorum {commerceLedger.protocol.voteQuorum} · all approved</small></div>
+            </div>
+            <div className="history-table-wrap">
+              <table className="history-table commerce-ledger-table">
+                <thead><tr><th scope="col">Service</th><th scope="col">Job</th><th scope="col">Agent</th><th scope="col">Escrow</th><th scope="col">State</th><th scope="col">Manifest</th><th scope="col">Settlement</th></tr></thead>
+                <tbody>
+                  {flagshipCommerceJobs.map((job) => (
+                    <tr key={job.jobId}>
+                      <td><strong>{providers.find((provider) => provider.service === job.service)?.name ?? job.service}</strong><small>{job.service}</small></td>
+                      <td><code>#{job.jobId}</code></td>
+                      <td><a className="receipt-table-link" href={`https://testnet.bscscan.com/token/0x8004A818BFB912233c491871b3d84c89A494BD9e?a=${job.providerAgentId}`} target="_blank" rel="noreferrer">#{job.providerAgentId}<ExternalLink size={12} /></a></td>
+                      <td>0.1 U</td>
+                      <td><span className="state-label good"><Check size={12} /> {job.status}</span></td>
+                      <td><a className="receipt-table-link" href={job.manifestUrl} target="_blank" rel="noreferrer"><code>{shortHash(job.manifestHash)}</code><ExternalLink size={12} /></a></td>
+                      <td><a className="receipt-table-link" href={`${commerceLedger.network.explorer}/tx/${job.transactions.settle}`} target="_blank" rel="noreferrer"><code>{shortHash(job.transactions.settle)}</code><ExternalLink size={12} /></a></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="commerce-boundary">
+              <ShieldCheck size={16} aria-hidden="true" />
+              <span><strong>Verified integration, disclosed operator.</strong> Separate client and provider wallets completed real BSC testnet escrow. These jobs are not external purchases, revenue, or the pending blind Agent Advantage result.</span>
+              <a href="/api/commerce/erc8183" target="_blank" rel="noreferrer">Full ledger <ExternalLink size={12} /></a>
+            </div>
+          </>
+        ) : <div className="infrastructure-loading">Commerce evidence is temporarily unavailable. Provider conformance remains independently reproducible.</div>}
       </section>
 
       <section className="evidence-section" aria-labelledby="coverage-title">
@@ -183,7 +231,7 @@ export function EvidenceView({
       <section className="claim-register" aria-label="Claim boundaries">
         <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
         <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four frozen provider jobs reproduce through public content-addressed receipts.</span></div>
-        <div><AlertTriangle size={17} /><span><strong>Settlement</strong>AACP contracts are verified on BSC testnet; backend proof completion is not represented as available.</span></div>
+        <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed; TermiX AACP remains pending its corrected guide.</span></div>
         <div><Clock3 size={17} /><span><strong>Track record</strong>Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published.</span></div>
       </section>
     </main>

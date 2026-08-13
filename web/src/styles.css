@@ -684,6 +684,19 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .aacp-contract-strip i.deployed { background: var(--green); }
 .aacp-contract-strip code { min-width: 0; margin-left: auto; overflow: hidden; color: #7d8883; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .receipt-table-link { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); text-decoration: none; }
+.commerce-facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-bottom: 1px solid var(--line); }
+.commerce-facts > div { display: flex; min-width: 0; min-height: 92px; padding: 15px; border-right: 1px solid var(--line); flex-direction: column; }
+.commerce-facts > div:last-child { border-right: 0; }
+.commerce-facts strong { color: var(--ink); font-size: 18px; font-variant-numeric: tabular-nums; }
+.commerce-facts span { margin-top: 4px; color: var(--ink); font-size: 10px; font-weight: 750; }
+.commerce-facts small { margin-top: 7px; color: var(--muted); font-size: 9px; line-height: 1.4; }
+.commerce-ledger-table td:first-child strong, .commerce-ledger-table td:first-child small { display: block; }
+.commerce-ledger-table td:first-child small { margin-top: 4px; color: var(--muted); font-size: 9px; }
+.commerce-boundary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 12px 15px; border-top: 1px solid var(--line); background: var(--green-soft); }
+.commerce-boundary > svg { color: var(--green); }
+.commerce-boundary span { color: var(--muted); font-size: 10px; line-height: 1.45; }
+.commerce-boundary strong { margin-right: 4px; color: var(--ink); }
+.commerce-boundary a { display: inline-flex; align-items: center; gap: 5px; color: var(--blue); font-size: 10px; font-weight: 750; text-decoration: none; }
 .evidence-table td:first-child strong, .evidence-table td:first-child small { display: block; }
 .evidence-table td:first-child small { margin-top: 4px; color: var(--muted); font-family: "SFMono-Regular", Consolas, monospace; font-size: 10px; }
 .evidence-table td:first-child .receipt-table-link { margin-top: 6px; font-size: 10px; }
@@ -731,6 +744,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-metrics > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .receipt-view { grid-template-columns: 1fr; }
   .infrastructure-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .commerce-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .commerce-facts > div:nth-child(2) { border-right: 0; }
+  .commerce-facts > div:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
   .infrastructure-grid > a:nth-child(2) { border-right: 0; }
   .infrastructure-grid > a:nth-child(-n + 2) { border-bottom: 1px solid var(--line); }
 }
@@ -878,6 +894,12 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .evidence-table td:nth-child(5)::before { content: "Request"; }
   .evidence-table td:nth-child(6)::before { content: "Receipt"; }
   .evidence-table td code { min-width: 0; overflow-wrap: anywhere; }
+  .commerce-facts { grid-template-columns: 1fr; }
+  .commerce-facts > div { min-height: 78px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .commerce-facts > div:last-child { border-bottom: 0; }
+  .commerce-boundary { grid-template-columns: auto minmax(0, 1fr); }
+  .commerce-boundary a { grid-column: 2; }
+  .commerce-ledger-table { min-width: 820px; }
   .method-grid, .claim-register { grid-template-columns: 1fr; }
   .method-grid > div, .claim-register > div { border-right: 0; border-bottom: 1px solid var(--line); }
   .method-grid > div:last-child, .claim-register > div:last-child { border-bottom: 0; }

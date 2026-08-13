@@ -8,6 +8,7 @@ import type {
   AgentCaptureManifestResponse,
   BenchmarkRepeatabilityMatrixResponse,
   BenchmarkRepeatabilityResponse,
+  Erc8183TestnetLedger,
   FixtureJobResponse,
   MatrixResponse,
   ProviderCatalogResponse,
@@ -55,6 +56,7 @@ export default function App() {
   const [telemetry, setTelemetry] = useState<SystemTelemetry | null>(null);
   const [benchmarks, setBenchmarks] = useState<BenchmarkRepeatabilityResponse[]>([]);
   const [captureManifest, setCaptureManifest] = useState<AgentCaptureManifestResponse | null>(null);
+  const [commerceLedger, setCommerceLedger] = useState<Erc8183TestnetLedger | null>(null);
   const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
   const [loading, setLoading] = useState(false);
@@ -65,7 +67,7 @@ export default function App() {
   async function loadRegistry() {
     setError(null);
     try {
-      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload] = await Promise.all([
+      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, commercePayload] = await Promise.all([
         fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
         fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
         fetch("/api/status", { headers: { Accept: "application/json" } })
@@ -77,12 +79,16 @@ export default function App() {
         fetch("/api/benchmarks/captures", { headers: { Accept: "application/json" } })
           .then((response) => jsonResponse<AgentCaptureManifestResponse>(response))
           .catch(() => null),
+        fetch("/api/commerce/erc8183", { headers: { Accept: "application/json" } })
+          .then((response) => jsonResponse<Erc8183TestnetLedger>(response))
+          .catch(() => null),
       ]);
       setProviders(catalog.providers);
       setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
       setTelemetry(telemetryPayload);
       setBenchmarks(repeatabilityPayload?.records ?? []);
       setCaptureManifest(capturePayload);
+      setCommerceLedger(commercePayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
@@ -166,7 +172,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} commerceLedger={commerceLedger} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -177,7 +183,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest]);
+  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, commerceLedger]);
 
   return (
     <div className="app-shell">

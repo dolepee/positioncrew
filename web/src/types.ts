@@ -302,3 +302,59 @@ export interface AgentCaptureManifestResponse {
   boundary: string;
   manifestHash: string;
 }
+
+export interface Erc8183TestnetLedger {
+  schemaVersion: "positioncrew.erc8183-testnet-ledger.v1";
+  capturedAt: string;
+  network: { name: string; chainId: 97; explorer: string };
+  protocol: {
+    name: string;
+    commerce: string;
+    router: string;
+    policy: string;
+    paymentToken: string;
+    paymentTokenSymbol: "U";
+    paymentTokenDecimals: 18;
+    disputeWindowSeconds: 900;
+    voteQuorum: 1;
+    platformFeeBps: 0;
+    deploymentSource: string;
+    deploymentSourceCommit: string;
+  };
+  parties: {
+    client: string;
+    provider: string;
+    relationship: "SAME_DISCLOSED_OPERATOR_SEPARATE_WALLETS";
+  };
+  summary: {
+    completedLifecycles: number;
+    fundedCompletedJobs: number;
+    zeroPricePathProbes: number;
+    mandatoryCategoriesCovered: number;
+    totalEscrowBaseUnits: string;
+    totalEscrowDisplay: string;
+    externalBuyerJobs: 0;
+    externalRevenue: "0";
+  };
+  claimBoundary: string[];
+  jobs: Array<{
+    jobId: number;
+    service: ServiceId;
+    providerAgentId: number;
+    runType: "ZERO_PRICE_PATH_PROBE" | "FUNDED_CATEGORY_RECEIPT" | "FUNDED_REPEAT_RECEIPT";
+    budgetBaseUnits: string;
+    status: "COMPLETED";
+    manifestUrl: string;
+    manifestHash: string;
+    transactions: {
+      create: string;
+      setBudget: string;
+      register: string;
+      fund: string;
+      submit: string;
+      settle: string;
+    };
+    completedAt: string;
+    completionBlock: number;
+  }>;
+}

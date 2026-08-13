@@ -7,6 +7,7 @@ import {
 } from "../src/commerce/erc8183-evidence.js";
 
 const MANIFEST_PATH = new URL("../evidence/erc8183-job-489.deliverable.json", import.meta.url);
+const LEDGER_PATH = new URL("../evidence/erc8183-jobs.testnet.json", import.meta.url);
 
 function canonicalJson(value: unknown): string {
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -81,5 +82,49 @@ describe("ERC-8183 public evidence", () => {
 
     expect(hashes.size).toBe(ERC8183_TESTNET_JOBS.length);
     expect(await buildErc8183TestnetDeliverable(999_999)).toBeNull();
+  });
+
+  it("keeps the public ledger internally consistent without inflating external demand", async () => {
+    const ledger = JSON.parse(await readFile(LEDGER_PATH, "utf8")) as {
+      summary: {
+        completedLifecycles: number;
+        fundedCompletedJobs: number;
+        mandatoryCategoriesCovered: number;
+        totalEscrowBaseUnits: string;
+        externalBuyerJobs: number;
+        externalRevenue: string;
+      };
+      jobs: Array<{
+        jobId: number;
+        service: string;
+        runType: string;
+        budgetBaseUnits: string;
+        status: string;
+        manifestUrl: string;
+        manifestHash: string;
+        transactions: { settle: string };
+      }>;
+    };
+
+    expect(ledger.jobs).toHaveLength(ledger.summary.completedLifecycles);
+    expect(ledger.jobs.filter((job) => BigInt(job.budgetBaseUnits) > 0n)).toHaveLength(
+      ledger.summary.fundedCompletedJobs,
+    );
+    expect(
+      new Set(
+        ledger.jobs
+          .filter((job) => job.runType === "FUNDED_CATEGORY_RECEIPT")
+          .map((job) => job.service),
+      ).size,
+    ).toBe(ledger.summary.mandatoryCategoriesCovered);
+    expect(
+      ledger.jobs.reduce((total, job) => total + BigInt(job.budgetBaseUnits), 0n),
+    ).toBe(BigInt(ledger.summary.totalEscrowBaseUnits));
+    expect(ledger.jobs.every((job) => job.status === "COMPLETED")).toBe(true);
+    expect(ledger.jobs.every((job) => job.manifestUrl.startsWith("https://positioncrew.dolepee.com/"))).toBe(true);
+    expect(ledger.jobs.every((job) => /^0x[0-9a-f]{64}$/.test(job.manifestHash))).toBe(true);
+    expect(ledger.jobs.every((job) => /^0x[0-9a-f]{64}$/.test(job.transactions.settle))).toBe(true);
+    expect(ledger.summary.externalBuyerJobs).toBe(0);
+    expect(ledger.summary.externalRevenue).toBe("0");
   });
 });

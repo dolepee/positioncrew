@@ -19,7 +19,7 @@ The web application is the primary interface:
 
 - **Marketplace:** searchable provider registry with distinct provider endpoints, ERC-8004 identity, health routes, price, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and documented AACP testnet contracts directly from chain.
 - **Jobs:** provider selection, editable buyer constraints, a block-pinned Venus account probe, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history.
-- **Evidence:** live infrastructure register, public content-addressed receipts for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
+- **Evidence:** live infrastructure register, funded ERC-8183 testnet receipts, public content-addressed deliverables for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
 
 The flagship cold-buyer journey is **Rescue a lending position**. It returns exact token base units, projected health factor, execution preconditions, expiry, deterministic evaluation, and a fail-closed refusal when evidence is stale or constraints make the action unsafe.
 
@@ -35,6 +35,19 @@ Each first-party provider has a separate ERC-8004 identity on BSC Testnet. The i
 | Bounded Grid Builder | `1813` | [transaction](https://testnet.bscscan.com/tx/0x8466e273149a1178e15db544964de83767450450ec334abb61e9cd24df95bbb4) |
 
 The registry is [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://testnet.bscscan.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e). Public receipts and metadata are recorded in [`evidence/bsc-identities.testnet.json`](evidence/bsc-identities.testnet.json). [`scripts/register-bsc-identities.py`](scripts/register-bsc-identities.py) reproduces the official BNB Agent SDK registration path with the pinned [`bnbagent` dependency](scripts/requirements-bsc-identity.txt), while keeping the encrypted signing wallet outside Git.
+
+## BSC commerce receipts
+
+PositionCrew has completed seven ERC-8183/APEX lifecycles on BSC Testnet: one zero-price path probe and six funded jobs releasing `0.6 U` from a dedicated client wallet to a separate provider wallet. The four flagship jobs cover every required category and bind each public deliverable manifest to the onchain job.
+
+| Service | Job | Provider identity | Escrow | Settlement |
+| --- | ---: | ---: | ---: | --- |
+| Lending Rescue | `490` | `1810` | `0.1 U` | [transaction](https://testnet.bscscan.com/tx/0x731cb1f760ffb0c870458dc3db68d22d97d8b9c10f1bc192f9e3cc1ee018a76f) |
+| LP Range Operator | `491` | `1811` | `0.1 U` | [transaction](https://testnet.bscscan.com/tx/0x267b9b8293947e2f462857d87283f1db2ee8d2e60adc0dd0d4406a11b54dd78a) |
+| Yield Allocator | `492` | `1812` | `0.1 U` | [transaction](https://testnet.bscscan.com/tx/0x0fac752328aa325382ea28f92f939b8c0f76750631f5460ed0706100f0b51d58) |
+| Bounded Grid Builder | `493` | `1813` | `0.1 U` | [transaction](https://testnet.bscscan.com/tx/0xb9215bfa352d2626b49e5455fbb63a81cc018a1dcfb734eac6b75e192caba1e9) |
+
+The machine-readable [`evidence/erc8183-jobs.testnet.json`](evidence/erc8183-jobs.testnet.json) ledger records every transaction, policy parameter, manifest hash, completion block, and claim boundary. These are disclosed same-operator integration tests using separate wallets. They are not external purchases, revenue, or the pending blind Agent Advantage result.
 
 ## Run locally
 
@@ -56,6 +69,8 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 - `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
 - `GET /api/benchmarks/captures` for the source-bound, hash-only manifest of the six precommitted agent candidates;
 - `GET /api/benchmarks/:task/repeatability` for lending-rescue, lp-rebalance, or bounded-grid evidence;
+- `GET /api/commerce/erc8183` for the complete seven-job BSC Testnet ledger;
+- `GET /api/commerce/erc8183/jobs/:jobId/deliverable` for a canonical onchain-bound deliverable manifest;
 - `GET /api/matrix` for all frozen conformance runs;
 - `GET /api/providers/:provider/health` for a provider-specific liveness and conformance probe;
 - `GET|POST /api/providers/:provider/jobs` for the provider-specific job route;
@@ -94,8 +109,9 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - A replaceable `CommerceAdapter` owns exact funding and idempotent state transitions.
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
+- ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary
 
-The current commerce lifecycle is an in-memory conformance rail, not an AACP or mainnet settlement claim. The documented AACP BSC testnet contracts are verified by bytecode on every live telemetry refresh, but the documented backend host remains unreachable and terminal proof completion is therefore gated. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.
+The browser workspace remains an in-memory conformance rail and does not submit a buyer's wallet transaction. Separately, the public ERC-8183 ledger proves seven operator-controlled BSC Testnet lifecycles, including six funded completions; it does not prove external demand or revenue. TermiX AACP integration remains gated on the corrected Agent.family builder guide and is not represented as complete. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.

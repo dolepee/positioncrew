@@ -1,7 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { performance } from "node:perf_hooks";
-import { createPublicClient, defineChain, http, parseAbi } from "viem";
+import { createPublicClient, defineChain, http, keccak256, parseAbi, stringToHex } from "viem";
 
 const baseUrl = new URL(
   process.env.POSITIONCREW_BASE_URL ?? "https://positioncrew.dolepee.com",
@@ -29,6 +29,19 @@ const identityAbi = parseAbi([
   "function ownerOf(uint256 tokenId) view returns (address)",
   "function tokenURI(uint256 tokenId) view returns (string)",
 ]);
+const erc8183CommerceAbi = parseAbi([
+  "function getJob(uint256 jobId) view returns ((uint256 id,address client,address provider,address evaluator,string description,uint256 budget,uint256 expiredAt,uint8 status,address hook,uint256 submittedAt,bytes32 deliverable))",
+  "function paymentToken() view returns (address)",
+  "function platformFeeBP() view returns (uint256)",
+]);
+const erc8183RouterAbi = parseAbi([
+  "function jobPolicy(uint256 jobId) view returns (address)",
+  "function policyWhitelist(address policy) view returns (bool)",
+]);
+const erc8183PolicyAbi = parseAbi([
+  "function disputeWindow() view returns (uint256)",
+  "function voteQuorum() view returns (uint256)",
+]);
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -38,6 +51,15 @@ function localUrl(input) {
   const url = new URL(input, baseUrl);
   assert(url.origin === baseUrl.origin, `Refusing cross-origin discovery URL: ${url}`);
   return url;
+}
+
+function canonicalJson(value) {
+  if (value === null || typeof value !== "object") return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(",")}]`;
+  return `{${Object.entries(value)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([key, child]) => `${JSON.stringify(key)}:${canonicalJson(child)}`)
+    .join(",")}}`;
 }
 
 async function fetchJson(name, input) {
@@ -184,6 +206,102 @@ try {
     new Set(report.providers.map((provider) => provider.service)).size === 4,
     "Provider services are duplicated",
   );
+
+  const commerceLedger = await fetchJson("erc8183-ledger", "/api/commerce/erc8183");
+  assert(
+    commerceLedger.schemaVersion === "positioncrew.erc8183-testnet-ledger.v1",
+    "Unexpected ERC-8183 ledger schema",
+  );
+  assert(commerceLedger.summary.completedLifecycles === 7, "ERC-8183 lifecycle count changed");
+  assert(commerceLedger.summary.fundedCompletedJobs === 6, "ERC-8183 funded count changed");
+  assert(commerceLedger.summary.externalBuyerJobs === 0, "ERC-8183 operator boundary changed");
+  assert(commerceLedger.jobs.length === 7, "ERC-8183 ledger must contain seven jobs");
+  assert(
+    new Set(
+      commerceLedger.jobs
+        .filter((job) => job.runType === "FUNDED_CATEGORY_RECEIPT")
+        .map((job) => job.service),
+    ).size === 4,
+    "ERC-8183 flagship receipts do not cover all four services",
+  );
+
+  const commerceAddress = commerceLedger.protocol.commerce;
+  const routerAddress = commerceLedger.protocol.router;
+  const policyAddress = commerceLedger.protocol.policy;
+  const [paymentToken, platformFeeBps, policyWhitelisted, disputeWindow, voteQuorum] =
+    await Promise.all([
+      identityClient.readContract({ address: commerceAddress, abi: erc8183CommerceAbi, functionName: "paymentToken" }),
+      identityClient.readContract({ address: commerceAddress, abi: erc8183CommerceAbi, functionName: "platformFeeBP" }),
+      identityClient.readContract({ address: routerAddress, abi: erc8183RouterAbi, functionName: "policyWhitelist", args: [policyAddress] }),
+      identityClient.readContract({ address: policyAddress, abi: erc8183PolicyAbi, functionName: "disputeWindow" }),
+      identityClient.readContract({ address: policyAddress, abi: erc8183PolicyAbi, functionName: "voteQuorum" }),
+    ]);
+  assert(paymentToken.toLowerCase() === commerceLedger.protocol.paymentToken.toLowerCase(), "ERC-8183 payment token mismatch");
+  assert(platformFeeBps === 0n, "ERC-8183 platform fee changed");
+  assert(policyWhitelisted, "ERC-8183 policy is no longer whitelisted");
+  assert(disputeWindow === 900n, "ERC-8183 dispute window changed");
+  assert(voteQuorum === 1n, "ERC-8183 vote quorum changed");
+
+  report.commerce = [];
+  for (const ledgerJob of commerceLedger.jobs) {
+    const startedAt = performance.now();
+    const [onchainJob, jobPolicy, settleReceipt, manifest] = await Promise.all([
+      identityClient.readContract({
+        address: commerceAddress,
+        abi: erc8183CommerceAbi,
+        functionName: "getJob",
+        args: [BigInt(ledgerJob.jobId)],
+      }),
+      identityClient.readContract({
+        address: routerAddress,
+        abi: erc8183RouterAbi,
+        functionName: "jobPolicy",
+        args: [BigInt(ledgerJob.jobId)],
+      }),
+      identityClient.getTransactionReceipt({ hash: ledgerJob.transactions.settle }),
+      fetchJson(`erc8183-job-${ledgerJob.jobId}-manifest`, ledgerJob.manifestUrl),
+    ]);
+    checks.push({
+      name: `erc8183-job-${ledgerJob.jobId}-chain`,
+      url: bscTestnetRpc,
+      status: 200,
+      latencyMs: Math.max(1, Math.round(performance.now() - startedAt)),
+    });
+    assert(onchainJob.status === 3, `ERC-8183 job ${ledgerJob.jobId} is not completed`);
+    assert(
+      onchainJob.client.toLowerCase() === commerceLedger.parties.client.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} client mismatch`,
+    );
+    assert(
+      onchainJob.provider.toLowerCase() === commerceLedger.parties.provider.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} provider mismatch`,
+    );
+    assert(
+      onchainJob.budget === BigInt(ledgerJob.budgetBaseUnits),
+      `ERC-8183 job ${ledgerJob.jobId} budget mismatch`,
+    );
+    assert(
+      onchainJob.deliverable.toLowerCase() === ledgerJob.manifestHash.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} onchain manifest mismatch`,
+    );
+    assert(
+      jobPolicy.toLowerCase() === policyAddress.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} policy mismatch`,
+    );
+    assert(settleReceipt.status === "success", `ERC-8183 job ${ledgerJob.jobId} settlement failed`);
+    assert(
+      keccak256(stringToHex(canonicalJson(manifest))).toLowerCase() === ledgerJob.manifestHash.toLowerCase(),
+      `ERC-8183 job ${ledgerJob.jobId} public manifest hash mismatch`,
+    );
+    report.commerce.push({
+      jobId: ledgerJob.jobId,
+      service: ledgerJob.service,
+      status: "COMPLETED",
+      budgetBaseUnits: ledgerJob.budgetBaseUnits,
+      manifestHash: ledgerJob.manifestHash,
+      settlementTransaction: ledgerJob.transactions.settle,
+    });
+  }
   report.status = "OPERATIONAL";
 } catch (error) {
   report.error = error instanceof Error ? error.message : String(error);
