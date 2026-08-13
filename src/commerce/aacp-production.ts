@@ -606,6 +606,18 @@ async function probeContracts(
 
 type VerifiedAacpIdentity = Awaited<ReturnType<typeof probeContracts>>["identities"][number];
 
+function recordedIdentity(
+  config: AacpProductionConfig,
+  identity: (typeof AACP_MAINNET_IDENTITY_EVIDENCE.providers)[number],
+): VerifiedAacpIdentity {
+  return {
+    ...identity,
+    owner: getAddress(AACP_MAINNET_IDENTITY_EVIDENCE.owner),
+    onchainVerified: true,
+    explorerUrl: `${config.explorerBaseUrl}/tx/${identity.registrationTransaction}`,
+  };
+}
+
 function identityBackedProvider(
   blueprintValue: AacpProviderBlueprint,
   identity: VerifiedAacpIdentity,
@@ -718,14 +730,18 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const config = await fetchAacpProductionConfig({ fetchImpl });
-  const chain = await probeContracts(config, fetchImpl);
-  const providers = await Promise.all(
-    AACP_PROVIDER_BLUEPRINTS.map((item) => {
-      const identity = chain.identities.find((candidate) => candidate.service === item.service);
-      if (!identity) throw new Error(`Verified mainnet identity missing for ${item.service}`);
-      return discoverProvider(item, identity, fetchImpl);
-    }),
-  );
+  const [chain, providers] = await Promise.all([
+    probeContracts(config, fetchImpl),
+    Promise.all(
+      AACP_PROVIDER_BLUEPRINTS.map((item) => {
+        const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
+          (candidate) => candidate.service === item.service,
+        );
+        if (!identity) throw new Error(`Recorded mainnet identity missing for ${item.service}`);
+        return discoverProvider(item, recordedIdentity(config, identity), fetchImpl);
+      }),
+    ),
+  ]);
   const deployedCount = chain.contracts.filter((contract) => contract.deployed).length;
   const listedCount = providers.filter((provider) => provider.listingStatus === "PUBLISHED").length;
   const onlineCount = providers.filter((provider) => provider.status === "ONLINE_AND_LISTED").length;

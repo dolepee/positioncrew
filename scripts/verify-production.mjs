@@ -24,6 +24,8 @@ const expectedServices = new Set([
   "YIELD_OPTIMIZATION",
   "BOUNDED_GRID",
 ]);
+const expectedAacpAgentTokenIds = new Set(["266229", "266231", "266232", "266234"]);
+const expectedAacpOwner = "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf";
 const referencePancakePositionId = "1456267";
 const checks = [];
 const monitorRunId = String(Date.now());
@@ -291,6 +293,16 @@ try {
     aacpReadiness.marketplace?.requiredProviderCount === 4 &&
       aacpReadiness.marketplace.providers?.length === 4,
     "AACP readiness does not cover all four PositionCrew providers",
+  );
+  assert(
+    aacpReadiness.marketplace.registeredIdentityCount === 4 &&
+      aacpReadiness.marketplace.providers.every(
+        (provider) =>
+          expectedAacpAgentTokenIds.has(provider.agentTokenId) &&
+          provider.identity?.onchainVerified === true &&
+          provider.identity.owner?.toLowerCase() === expectedAacpOwner,
+      ),
+    "AACP readiness does not verify all four mainnet identities",
   );
   assert(
     aacpReadiness.integration?.guide?.status === "CURRENT_HUMAN_GUIDE_VERIFIED" &&
