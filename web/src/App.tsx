@@ -75,48 +75,46 @@ export default function App() {
 
   async function loadRegistry() {
     setError(null);
+
+    const contextualLoads = [
+      fetch("/api/matrix", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<MatrixResponse>(response))
+        .then((payload) => setMatrix(new Map(payload.results.map((item) => [item.result.request.service, item])))),
+      fetch("/api/status", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<SystemTelemetry>(response))
+        .then(setTelemetry),
+      fetch("/api/benchmarks/repeatability", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<BenchmarkRepeatabilityMatrixResponse>(response))
+        .then((payload) => setBenchmarks(payload.records)),
+      fetch("/api/benchmarks/captures", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<AgentCaptureManifestResponse>(response))
+        .then(setCaptureManifest),
+      fetch("/api/benchmarks/marketplace-provenance", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<MarketplaceInvocationEvidence>(response))
+        .then(setMarketplaceProvenance),
+      fetch("/api/commerce/erc8183", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<Erc8183TestnetLedger>(response))
+        .then(setCommerceLedger),
+      fetch("/api/commerce/aacp", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<AacpProductionReadiness>(response))
+        .then(setAacpReadiness),
+      fetch("/evidence/agent-advantage-status.json", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      })
+        .then((response) => jsonResponse<AgentAdvantagePublicationStatus>(response))
+        .then(setAdvantagePublication),
+      fetch("/api/operations/production", { headers: { Accept: "application/json" } })
+        .then((response) => jsonResponse<ProductionTrackRecord>(response))
+        .then(setProductionTrackRecord),
+    ];
+    void Promise.allSettled(contextualLoads);
+
     try {
-      const [catalog, matrixPayload, telemetryPayload, repeatabilityPayload, capturePayload, provenancePayload, commercePayload, aacpPayload, advantagePayload, productionRecordPayload] = await Promise.all([
-        fetch("/api/providers", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<ProviderCatalogResponse>(response)),
-        fetch("/api/matrix", { headers: { Accept: "application/json" } }).then((response) => jsonResponse<MatrixResponse>(response)),
-        fetch("/api/status", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<SystemTelemetry>(response))
-          .catch(() => null),
-        fetch("/api/benchmarks/repeatability", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<BenchmarkRepeatabilityMatrixResponse>(response))
-          .catch(() => null),
-        fetch("/api/benchmarks/captures", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<AgentCaptureManifestResponse>(response))
-          .catch(() => null),
-        fetch("/api/benchmarks/marketplace-provenance", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<MarketplaceInvocationEvidence>(response))
-          .catch(() => null),
-        fetch("/api/commerce/erc8183", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<Erc8183TestnetLedger>(response))
-          .catch(() => null),
-        fetch("/api/commerce/aacp", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<AacpProductionReadiness>(response))
-          .catch(() => null),
-        fetch("/evidence/agent-advantage-status.json", {
-          cache: "no-store",
-          headers: { Accept: "application/json" },
-        })
-          .then((response) => jsonResponse<AgentAdvantagePublicationStatus>(response))
-          .catch(() => null),
-        fetch("/api/operations/production", { headers: { Accept: "application/json" } })
-          .then((response) => jsonResponse<ProductionTrackRecord>(response))
-          .catch(() => null),
-      ]);
+      const catalog = await fetch("/api/providers", {
+        headers: { Accept: "application/json" },
+      }).then((response) => jsonResponse<ProviderCatalogResponse>(response));
       setProviders(catalog.providers);
-      setMatrix(new Map(matrixPayload.results.map((item) => [item.result.request.service, item])));
-      setTelemetry(telemetryPayload);
-      setBenchmarks(repeatabilityPayload?.records ?? []);
-      setCaptureManifest(capturePayload);
-      setMarketplaceProvenance(provenancePayload);
-      setCommerceLedger(commercePayload);
-      setAacpReadiness(aacpPayload);
-      setAdvantagePublication(advantagePayload);
-      setProductionTrackRecord(productionRecordPayload);
     } catch (loadError) {
       setError(loadError instanceof Error ? loadError.message : "Provider registry unavailable");
     }
