@@ -314,12 +314,12 @@ try {
       aacpReadiness.integration.orderGuard.minedTransactionBinding === true &&
       aacpReadiness.integration.orderGuard.indexerReconciliationRequired === true &&
       aacpReadiness.integration.orderGuard.guardedActions?.join(",") ===
-        "approveEscrow,createOrder,acceptOrder,submitDelivery,releaseEscrow,requestRedo,claimAfterTimeout,openChallenge",
+        "approveEscrow,createOrder,cancelPending,acceptOrder,submitDelivery,cancelExpired,releaseEscrow,requestRedo,claimAfterTimeout,openChallenge",
     "AACP order guard boundary changed",
   );
   assert(
     aacpReadiness.integration?.lifecycle?.join(",") ===
-      "WALLET_SESSION,AGENT_PREPARE_MINT_INDEX,LISTING_CREATE_PUBLISH,A2A_RUNTIME,CHECKOUT_APPROVE_CREATE,PROVIDER_ACCEPT,ARTIFACT_REGISTER_SUBMIT,BUYER_RELEASE_OR_TIMEOUT,INDEXER_RECONCILE",
+      "WALLET_SESSION,AGENT_PREPARE_MINT_INDEX,LISTING_CREATE_PUBLISH,A2A_RUNTIME,CHECKOUT_APPROVE_CREATE,PENDING_OR_EXPIRED_CANCELLATION,PROVIDER_ACCEPT,ARTIFACT_REGISTER_SUBMIT,BUYER_RELEASE_REDO_DISPUTE_OR_TIMEOUT,INDEXER_RECONCILE",
     "AACP documented lifecycle changed",
   );
   assert(
