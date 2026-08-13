@@ -1,13 +1,17 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   captureAgentBenchmarkRuns,
   captureManualBenchmarkRun,
+  EVALUATOR_INDEPENDENCE_ATTESTATION,
   finalizeBlindBenchmark,
+  loadCompletedBenchmarkEvidence,
+  MANUAL_INDEPENDENCE_ATTESTATION,
   prepareBenchmarkSession,
   revealBenchmarkResult,
+  SCORECARD_ATTESTATION,
   validateBlindScorecard,
 } from "../src/benchmark/evidence.js";
 import {
@@ -15,7 +19,10 @@ import {
   buildManualOperatorHandoff,
   captureManualHandoffBundle,
 } from "../src/benchmark/handoff.js";
-import { buildAgentAdvantageReport } from "../src/benchmark/report.js";
+import {
+  buildAgentAdvantageReport,
+  verifyAgentAdvantageReport,
+} from "../src/benchmark/report.js";
 import { canonicalHash } from "../src/core/canonical.js";
 
 const temporaryDirectories: string[] = [];
@@ -37,10 +44,9 @@ function fullScorecard(packet: ReturnType<typeof finalizeBlindBenchmark>["packet
       displayName: "Independent Evaluator",
       contactReference: "https://example.com/evaluator",
       relationshipDisclosure: "No financial or operating relationship with PositionCrew or the manual operator.",
-      independenceAttestation:
-        "I did not produce either candidate and could not see source identity, timing, or cost while scoring.",
+      independenceAttestation: EVALUATOR_INDEPENDENCE_ATTESTATION,
     },
-    scoredAt: "2026-08-13T01:00:00.000Z",
+    scoredAt: new Date(Date.parse(packet.createdAt) + 1_000).toISOString(),
     candidates: packet.candidates.map((candidate) => ({
       label: candidate.label,
       criteria: packet.rubric.criteria.map((criterion) => ({
@@ -51,8 +57,7 @@ function fullScorecard(packet: ReturnType<typeof finalizeBlindBenchmark>["packet
       })),
       overallNotes: "Complete, bounded, and immediately usable for the frozen task.",
     })),
-    attestation:
-      "I scored both candidates only against the attached frozen rubric and confirm this scorecard is complete.",
+    attestation: SCORECARD_ATTESTATION,
   };
 }
 
@@ -94,9 +99,9 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     });
     captureManualBenchmarkRun(prepared.directory, agents[0]!.output, {
       operatorId: "Manual Test Operator",
+      contactReference: "https://example.com/manual-test-operator",
       method: "Calculated every grid level, cost, and risk bound manually from the frozen fixture.",
-      independenceAttestation:
-        "I used no PositionCrew output, AI assistant, prior candidate output, or evaluator rubric during this test fixture run.",
+      independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
       elapsedMilliseconds: 60_000,
       directCostUsd: "0",
       capturedAt: "2026-08-12T22:03:00.000Z",
@@ -128,12 +133,14 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       artifactRoot: tempArtifacts(),
       sessionId: "lp-rebalance-test-session",
     });
-    const agents = await captureAgentBenchmarkRuns(prepared.directory);
+    const agents = await captureAgentBenchmarkRuns(prepared.directory, {
+      now: () => new Date("2026-08-12T22:01:00.000Z"),
+    });
     captureManualBenchmarkRun(prepared.directory, agents[0]!.output, {
       operatorId: "Manual Test Operator",
+      contactReference: "https://example.com/manual-test-operator",
       method: "Calculated ticks, inventory, costs, and break-even manually from the frozen fixture.",
-      independenceAttestation:
-        "I used no PositionCrew output, AI assistant, prior candidate output, or evaluator rubric during this test fixture run.",
+      independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
       elapsedMilliseconds: 60_000,
       directCostUsd: "0",
       capturedAt: "2026-08-12T22:03:00.000Z",
@@ -150,6 +157,46 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     const invalidScorecard = structuredClone(scorecard);
     invalidScorecard.candidates[0]!.criteria[0]!.score = 101;
     expect(() => validateBlindScorecard(packet, invalidScorecard)).toThrow();
+  });
+
+  it("rejects same-person evaluation and any edited completed result", async () => {
+    const prepared = prepareBenchmarkSession("lending-rescue", {
+      artifactRoot: tempArtifacts(),
+      sessionId: "lending-rescue-integrity-test-session",
+      now: new Date("2026-08-12T22:00:00.000Z"),
+    });
+    const agents = await captureAgentBenchmarkRuns(prepared.directory, {
+      now: () => new Date("2026-08-12T22:01:00.000Z"),
+    });
+    captureManualBenchmarkRun(prepared.directory, agents[0]!.output, {
+      operatorId: "Manual Integrity Operator",
+      contactReference: "https://example.com/manual-integrity-operator",
+      method: "Calculated the frozen lending task manually using a local calculator.",
+      independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
+      elapsedMilliseconds: 60_000,
+      directCostUsd: "0",
+      capturedAt: "2026-08-12T22:03:00.000Z",
+    });
+    const { packet } = finalizeBlindBenchmark(prepared.directory, {
+      now: new Date("2026-08-12T22:04:00.000Z"),
+      agentFirst: true,
+    });
+    const samePerson = fullScorecard(packet);
+    samePerson.evaluator.displayName = "Manual Integrity Operator";
+    samePerson.evaluator.contactReference = "https://example.com/manual-integrity-operator";
+    expect(() => revealBenchmarkResult(prepared.directory, samePerson)).toThrow(
+      "The blind evaluator must be a different person",
+    );
+
+    const result = revealBenchmarkResult(prepared.directory, fullScorecard(packet));
+    const resultPath = join(prepared.directory, "public", "agent-advantage-result.json");
+    writeFileSync(
+      resultPath,
+      `${JSON.stringify({ ...result, advantageSupported: !result.advantageSupported }, null, 2)}\n`,
+    );
+    expect(() => loadCompletedBenchmarkEvidence(prepared.directory)).toThrow(
+      "Completed Agent Advantage result does not match its source evidence",
+    );
   });
 
   it("generates offline role-separated handoff tools and validates the timed manual bundle", async () => {
@@ -181,9 +228,9 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
       output: manualOutput,
       metadata: {
         operatorId: "Independent Manual Operator",
+        contactReference: "https://example.com/independent-manual-operator",
         method: "Calculated the frozen lending task with a calculator and recorded the complete JSON result.",
-        independenceAttestation:
-          "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+        independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
         elapsedMilliseconds: 60_000,
         directCostUsd: "0",
         capturedAt: "2026-08-12T22:03:00.000Z",
@@ -223,12 +270,14 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
         artifactRoot,
         sessionId: `${slug}-report-test-session`,
       });
-      const agents = await captureAgentBenchmarkRuns(prepared.directory);
+      const agents = await captureAgentBenchmarkRuns(prepared.directory, {
+        now: () => new Date("2026-08-12T22:01:00.000Z"),
+      });
       captureManualBenchmarkRun(prepared.directory, agents[0]!.output, {
         operatorId: "Manual Report Test Operator",
+        contactReference: "https://example.com/manual-report-test-operator",
         method: "Calculated the complete frozen task manually and rendered the result in the neutral output contract.",
-        independenceAttestation:
-          "I used no PositionCrew output, AI assistant, prior candidate output, or evaluator rubric during this test fixture run.",
+        independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
         elapsedMilliseconds: 60_000,
         directCostUsd: "1",
         capturedAt: "2026-08-12T22:03:00.000Z",
@@ -260,6 +309,20 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     expect(existsSync(join(outputDirectory, "tasks", "bounded-grid", "manual-output.json"))).toBe(true);
     expect(readFileSync(join(outputDirectory, "agent-advantage-report.md"), "utf8")).toContain(
       "PositionCrew Agent Advantage Report",
+    );
+    expect(verifyAgentAdvantageReport(outputDirectory).reportHash).toBe(report.reportHash);
+
+    const agentOutputPath = join(
+      outputDirectory,
+      "tasks",
+      "bounded-grid",
+      "agent-output.json",
+    );
+    const changedOutput = JSON.parse(readFileSync(agentOutputPath, "utf8"));
+    changedOutput.summary = "Edited after the report commitment.";
+    writeFileSync(agentOutputPath, `${JSON.stringify(changedOutput, null, 2)}\n`);
+    expect(() => verifyAgentAdvantageReport(outputDirectory)).toThrow(
+      "bounded-grid/agent-output.json does not match its evidence commitment",
     );
   });
 });

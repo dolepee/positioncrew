@@ -37,6 +37,15 @@ const BenchmarkServiceSchema = z.enum([
   "LP_REBALANCE",
   "BOUNDED_GRID",
 ]);
+
+export const MANUAL_INDEPENDENCE_ATTESTATION =
+  "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.";
+export const EVALUATOR_INDEPENDENCE_ATTESTATION =
+  "I did not produce either candidate and could not see source identity, timing, or cost while scoring.";
+export const SCORECARD_ATTESTATION =
+  "I scored both candidates only against the attached frozen rubric and confirm this scorecard is complete.";
+
+const IdentityReferenceSchema = z.string().trim().min(3).max(240);
 const BenchmarkLockSchema = z
   .object({
     schemaVersion: z.literal("positioncrew.benchmark-lock.v1"),
@@ -71,8 +80,9 @@ const CandidateSourceSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("MANUAL"),
       operatorId: z.string().min(2).max(160),
+      contactReference: IdentityReferenceSchema,
       method: z.string().min(10).max(1_000),
-      independenceAttestation: z.string().min(20).max(1_000),
+      independenceAttestation: z.literal(MANUAL_INDEPENDENCE_ATTESTATION),
     })
     .strict(),
 ]);
@@ -80,8 +90,9 @@ const CandidateSourceSchema = z.discriminatedUnion("type", [
 export const ManualCaptureMetadataSchema = z
   .object({
     operatorId: z.string().min(2).max(160),
+    contactReference: IdentityReferenceSchema,
     method: z.string().min(10).max(1_000),
-    independenceAttestation: z.string().min(20).max(1_000),
+    independenceAttestation: z.literal(MANUAL_INDEPENDENCE_ATTESTATION),
     elapsedMilliseconds: z.number().int().min(1),
     directCostUsd: UnsignedDecimalSchema,
     capturedAt: TimestampSchema,
@@ -199,14 +210,14 @@ export const BlindScorecardSchema = z
     evaluator: z
       .object({
         displayName: z.string().min(2).max(160),
-        contactReference: z.string().min(3).max(240),
+        contactReference: IdentityReferenceSchema,
         relationshipDisclosure: z.string().min(10).max(1_000),
-        independenceAttestation: z.string().min(20).max(1_000),
+        independenceAttestation: z.literal(EVALUATOR_INDEPENDENCE_ATTESTATION),
       })
       .strict(),
     scoredAt: TimestampSchema,
     candidates: z.array(CandidateScoreSchema).length(2),
-    attestation: z.string().min(20).max(1_000),
+    attestation: z.literal(SCORECARD_ATTESTATION),
   })
   .strict();
 
@@ -224,8 +235,9 @@ export const AgentAdvantageResultSchema = z
         candidateLabel: z.string().min(1).max(80),
         outputHash: HashSchema,
         operatorId: z.string().min(2).max(160),
+        contactReference: IdentityReferenceSchema,
         method: z.string().min(10).max(1_000),
-        independenceAttestation: z.string().min(20).max(1_000),
+        independenceAttestation: z.literal(MANUAL_INDEPENDENCE_ATTESTATION),
         score: z.number().int().min(0).max(100),
         elapsedMilliseconds: z.number().int().min(1),
         directCostUsd: UnsignedDecimalSchema,
@@ -248,9 +260,9 @@ export const AgentAdvantageResultSchema = z
     evaluator: z
       .object({
         displayName: z.string().min(2).max(160),
-        contactReference: z.string().min(3).max(240),
+        contactReference: IdentityReferenceSchema,
         relationshipDisclosure: z.string().min(10).max(1_000),
-        independenceAttestation: z.string().min(20).max(1_000),
+        independenceAttestation: z.literal(EVALUATOR_INDEPENDENCE_ATTESTATION),
       })
       .strict(),
     advantageSupported: z.boolean(),
@@ -438,9 +450,9 @@ export function prepareBenchmarkSession(
   const manualMetadataTemplatePath = join(directory, "manual-metadata.template.json");
   writeJsonExclusive(manualMetadataTemplatePath, {
     operatorId: "REPLACE_WITH_MANUAL_OPERATOR_NAME",
+    contactReference: "REPLACE_WITH_MANUAL_OPERATOR_CONTACT_OR_PUBLIC_PROFILE",
     method: "REPLACE_WITH_THE_ACTUAL_MANUAL_METHOD_AND_TOOLS_USED",
-    independenceAttestation:
-      "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+    independenceAttestation: MANUAL_INDEPENDENCE_ATTESTATION,
     elapsedMilliseconds: 0,
     directCostUsd: "0",
     capturedAt: "REPLACE_WITH_ISO_8601_TIMESTAMP_WHEN_THE_OUTPUT_BECAME_IMMUTABLE",
@@ -505,11 +517,21 @@ export function captureManualBenchmarkRun(
 ): BenchmarkCandidateRecord {
   const directory = resolve(directoryInput);
   const session = loadSession(directory);
-  validateSessionAssets(session, loadBenchmarkAssets(session.benchmarkSlug));
-  const existing = loadCandidates(directory, session).filter((record) => record.source.type === "MANUAL");
+  const assets = loadBenchmarkAssets(session.benchmarkSlug);
+  validateSessionAssets(session, assets);
+  const records = loadCandidates(directory, session);
+  const existing = records.filter((record) => record.source.type === "MANUAL");
   if (existing.length > 0) throw new Error("A manual candidate already exists for this session");
+  const agents = records.filter((record) => record.source.type === "AGENT");
+  if (agents.length !== assets.protocol.runs.agent) {
+    throw new Error("The committed agent repeats must exist before the manual baseline starts");
+  }
   const output = PositionCrewDeliverableSchema.parse(outputInput);
   const metadata = ManualCaptureMetadataSchema.parse(metadataInput);
+  const latestAgentCapture = Math.max(...agents.map((record) => Date.parse(record.capturedAt)));
+  if (Date.parse(metadata.capturedAt) < latestAgentCapture) {
+    throw new Error("The manual baseline must be captured after the committed agent repeats");
+  }
   const record = buildCandidate({
     schemaVersion: "positioncrew.benchmark-candidate.v1",
     sessionId: session.sessionId,
@@ -519,6 +541,7 @@ export function captureManualBenchmarkRun(
     source: {
       type: "MANUAL",
       operatorId: metadata.operatorId,
+      contactReference: metadata.contactReference,
       method: metadata.method,
       independenceAttestation: metadata.independenceAttestation,
     },
@@ -557,7 +580,7 @@ function scorecardTemplate(packet: BenchmarkBlindPacket): unknown {
       displayName: "REPLACE_WITH_EVALUATOR_NAME",
       contactReference: "REPLACE_WITH_CONTACT_OR_PUBLIC_PROFILE",
       relationshipDisclosure: "REPLACE_WITH_RELATIONSHIP_DISCLOSURE",
-      independenceAttestation: "I did not produce either candidate and could not see source identity, timing, or cost while scoring.",
+      independenceAttestation: EVALUATOR_INDEPENDENCE_ATTESTATION,
     },
     scoredAt: "REPLACE_WITH_ISO_8601_TIMESTAMP",
     candidates: packet.candidates.map((candidate) => ({
@@ -570,7 +593,7 @@ function scorecardTemplate(packet: BenchmarkBlindPacket): unknown {
       })),
       overallNotes: "REPLACE_WITH_OVERALL_NOTES",
     })),
-    attestation: "I scored both candidates only against the attached frozen rubric and confirm this scorecard is complete.",
+    attestation: SCORECARD_ATTESTATION,
   };
 }
 
@@ -596,6 +619,11 @@ export function finalizeBlindBenchmark(
   const representative = agents[0]!;
   const repeat = agents[1]!;
   const manual = manuals[0]!;
+  const createdAt = options.now ?? new Date();
+  const latestCapture = Math.max(...records.map((record) => Date.parse(record.capturedAt)));
+  if (createdAt.getTime() < latestCapture) {
+    throw new Error("The blind packet cannot predate an included candidate capture");
+  }
   const labels = assets.protocol.blinding.candidateLabels;
   const agentFirst = options.agentFirst ?? randomInt(2) === 0;
   const ordered = agentFirst ? [representative, manual] : [manual, representative];
@@ -621,7 +649,7 @@ export function finalizeBlindBenchmark(
     sessionId: session.sessionId,
     benchmarkSlug: session.benchmarkSlug,
     taskId: session.taskId,
-    createdAt: (options.now ?? new Date()).toISOString(),
+    createdAt: createdAt.toISOString(),
     benchmarkLock: session.benchmarkLock,
     mappingCommitment: mapping.mappingCommitment,
     rubric: assets.rubric,
@@ -788,6 +816,9 @@ export function validateBlindScorecard(
   if (prettyJson(scorecard).includes("REPLACE_WITH_")) {
     throw new Error("Scorecard still contains template placeholders");
   }
+  if (Date.parse(scorecard.scoredAt) < Date.parse(packet.createdAt)) {
+    throw new Error("The blind scorecard cannot predate its evaluator packet");
+  }
   return {
     scorecard,
     totals: new Map(
@@ -810,29 +841,32 @@ function medianDecimal(values: string[]): string {
   return median(values.map(Number)).toFixed(6).replace(/(?:\.0+|(?<=\.[0-9]*?)0+)$/, "");
 }
 
-export function revealBenchmarkResult(
-  directoryInput: string,
-  scorecardInput: unknown,
+function normalizedIdentity(value: string): string {
+  return value.trim().toLowerCase().replace(/\/+$/, "");
+}
+
+function deriveBenchmarkResult(
+  session: BenchmarkSession,
+  decisionRule: string,
+  scorecard: BlindScorecard,
+  mapping: PrivateSourceMapping,
+  totals: Map<string, { total: number; criticalFailureCount: number }>,
+  records: BenchmarkCandidateRecord[],
+  resolved: ResolvedSourceMapping,
 ): BenchmarkResult {
-  const directory = resolve(directoryInput);
-  const session = loadSession(directory);
-  const assets = loadBenchmarkAssets(session.benchmarkSlug);
-  validateSessionAssets(session, assets);
-  const packet = BenchmarkBlindPacketSchema.parse(
-    readJson(join(directory, "public", "blind-evaluator-packet.json")),
-  );
-  const mapping = PrivateSourceMappingSchema.parse(
-    readJson(join(directory, "private", "source-mapping.json")),
-  );
-  verifyMapping(packet, mapping);
-  const { scorecard, totals } = validateBlindScorecard(packet, scorecardInput);
-  const records = loadCandidates(directory, session);
-  const { manualAssignment, agentAssignment, manual, representative, excludedRepeat } =
-    resolveSourceMapping(packet, mapping, records);
+  const { manualAssignment, agentAssignment, manual, representative, excludedRepeat } = resolved;
   const agents = records.filter((record) => record.source.type === "AGENT");
   const manualScore = totals.get(manualAssignment.label);
   const agentScore = totals.get(agentAssignment.label);
   if (!manualScore || !agentScore) throw new Error("Scorecard is missing a mapped candidate");
+  if (
+    normalizedIdentity(manual.source.contactReference) ===
+      normalizedIdentity(scorecard.evaluator.contactReference) ||
+    normalizedIdentity(manual.source.operatorId) ===
+      normalizedIdentity(scorecard.evaluator.displayName)
+  ) {
+    throw new Error("The blind evaluator must be a different person from the manual operator");
+  }
   const agentHashesMatch = new Set(agents.map((record) => record.outputHash)).size === 1;
   const conformanceCriticalFailureCount = agents.reduce(
     (total, record) => total + (record.conformance?.criticalFailureCount ?? 1),
@@ -844,7 +878,7 @@ export function revealBenchmarkResult(
     conformanceCriticalFailureCount === 0 &&
     agentScore.criticalFailureCount === 0 &&
     median(agents.map((record) => record.elapsedMilliseconds)) < manual.elapsedMilliseconds;
-  const result = AgentAdvantageResultSchema.parse({
+  return AgentAdvantageResultSchema.parse({
     schemaVersion: "positioncrew.agent-advantage-result.v1",
     sessionId: session.sessionId,
     benchmarkSlug: session.benchmarkSlug,
@@ -856,6 +890,7 @@ export function revealBenchmarkResult(
       candidateLabel: manualAssignment.label,
       outputHash: manual.outputHash,
       operatorId: manual.source.operatorId,
+      contactReference: manual.source.contactReference,
       method: manual.source.method,
       independenceAttestation: manual.source.independenceAttestation,
       score: manualScore.total,
@@ -881,10 +916,39 @@ export function revealBenchmarkResult(
       independenceAttestation: scorecard.evaluator.independenceAttestation,
     },
     advantageSupported,
-    decisionRule: assets.protocol.decisionRule,
+    decisionRule,
     boundary:
       "This result opens the committed source mapping only after independent blind scoring. It applies to the frozen benchmark task and does not establish live investment performance.",
   });
+}
+
+export function revealBenchmarkResult(
+  directoryInput: string,
+  scorecardInput: unknown,
+): BenchmarkResult {
+  const directory = resolve(directoryInput);
+  const session = loadSession(directory);
+  const assets = loadBenchmarkAssets(session.benchmarkSlug);
+  validateSessionAssets(session, assets);
+  const packet = BenchmarkBlindPacketSchema.parse(
+    readJson(join(directory, "public", "blind-evaluator-packet.json")),
+  );
+  const mapping = PrivateSourceMappingSchema.parse(
+    readJson(join(directory, "private", "source-mapping.json")),
+  );
+  verifyMapping(packet, mapping);
+  const { scorecard, totals } = validateBlindScorecard(packet, scorecardInput);
+  const records = loadCandidates(directory, session);
+  const resolved = resolveSourceMapping(packet, mapping, records);
+  const result = deriveBenchmarkResult(
+    session,
+    assets.protocol.decisionRule,
+    scorecard,
+    mapping,
+    totals,
+    records,
+    resolved,
+  );
   writeJsonExclusive(join(directory, "public", "completed-scorecard.json"), scorecard);
   writeJsonExclusive(join(directory, "public", "agent-advantage-result.json"), result);
   return result;
@@ -907,7 +971,8 @@ export function loadCompletedBenchmarkEvidence(
 ): CompletedBenchmarkEvidence {
   const directory = resolve(directoryInput);
   const session = loadSession(directory);
-  validateSessionAssets(session, loadBenchmarkAssets(session.benchmarkSlug));
+  const assets = loadBenchmarkAssets(session.benchmarkSlug);
+  validateSessionAssets(session, assets);
   const packet = BenchmarkBlindPacketSchema.parse(
     readJson(join(directory, "public", "blind-evaluator-packet.json")),
   );
@@ -922,26 +987,16 @@ export function loadCompletedBenchmarkEvidence(
   );
   const records = loadCandidates(directory, session);
   const resolved = resolveSourceMapping(packet, mapping, records);
-  const manualScore = totals.get(resolved.manualAssignment.label);
-  const agentScore = totals.get(resolved.agentAssignment.label);
-  if (!manualScore || !agentScore) throw new Error("Completed scorecard is missing a mapped score");
-  if (
-    result.sessionId !== session.sessionId ||
-    result.benchmarkSlug !== session.benchmarkSlug ||
-    result.taskId !== session.taskId ||
-    result.scorecardHash !== canonicalHash(scorecard) ||
-    result.mappingCommitment !== mapping.mappingCommitment ||
-    result.manual.candidateLabel !== resolved.manualAssignment.label ||
-    result.manual.outputHash !== resolved.manual.outputHash ||
-    result.manual.operatorId !== resolved.manual.source.operatorId ||
-    result.manual.score !== manualScore.total ||
-    result.agent.candidateLabel !== resolved.agentAssignment.label ||
-    result.agent.outputHash !== resolved.representative.outputHash ||
-    result.agent.repeatOutputHash !== resolved.excludedRepeat.outputHash ||
-    result.agent.providerId !== resolved.representative.source.providerId ||
-    result.agent.score !== agentScore.total ||
-    result.evaluator.displayName !== scorecard.evaluator.displayName
-  ) {
+  const expectedResult = deriveBenchmarkResult(
+    session,
+    assets.protocol.decisionRule,
+    scorecard,
+    mapping,
+    totals,
+    records,
+    resolved,
+  );
+  if (canonicalHash(result) !== canonicalHash(expectedResult)) {
     throw new Error("Completed Agent Advantage result does not match its source evidence");
   }
   return {

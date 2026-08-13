@@ -87,7 +87,9 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 
 ```bash
 npm run benchmark:verify-lock
+npm run benchmark:verify-captures
 npm run benchmark:session -- prepare lending-rescue
+npm run benchmark:verify-report -- <completed-report-directory>
 npm run verify:gate2a
 npm run verify:all
 npm run typecheck
@@ -100,7 +102,7 @@ The lending result is written to `artifacts/gate2a/lending-rescue-result.json`; 
 
 Deterministic `100/100` results establish provider conformance against frozen fixtures. They do **not** establish agent advantage over a human baseline. Lending rescue, LP rebalancing, and bounded-grid task packets, rubrics, timing rules, and blinding protocols are pre-registered under [`benchmarks`](benchmarks); independent comparisons remain pending and the UI says so.
 
-The executable [Agent Advantage evidence workflow](benchmarks/EVIDENCE_WORKFLOW.md) captures immutable agent and manual candidates, withholds answer-bearing rubric text from the manual operator, keeps duplicate agent repeats out of the blind packet, validates the independent scorecard, and reveals the committed source mapping only after scoring.
+The executable [Agent Advantage evidence workflow](benchmarks/EVIDENCE_WORKFLOW.md) captures immutable agent and manual candidates, withholds answer-bearing rubric text from the manual operator, keeps duplicate agent repeats out of the blind packet, enforces one manual operator and a different blind evaluator across all three tasks, recomputes every completed result from source evidence, and reveals the committed source mapping only after scoring. The final verifier binds every JSON attachment into task and report commitments.
 
 Offline role-specific handoff tools reduce procedural errors without weakening the blind: the manual tool auto-times and hashes one answer-free task bundle, while the evaluator tool exposes only anonymized candidates and the frozen rubric. Both are generated from the committed session and make no network requests.
 

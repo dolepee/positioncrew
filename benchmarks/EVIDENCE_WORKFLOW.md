@@ -20,7 +20,7 @@ This runs the committed Provider twice and writes immutable candidate records wi
 
 ## 3. Capture the real manual baseline
 
-Give the independent manual operator only `manual-task-packet.json`. They must not use PositionCrew, an AI assistant, a prior candidate output, or the hidden scoring rubric. When the output becomes immutable, complete `manual-metadata.template.json` with the actual operator, method, time, cost, timestamp, and attestation.
+Give the independent manual operator only `manual-task-packet.json`. The same real operator must complete all three tasks, disclose the same public contact reference each time, and must not use PositionCrew, an AI assistant, a prior candidate output, or the hidden scoring rubric. When the output becomes immutable, complete `manual-metadata.template.json` with the actual operator, contact reference, method, time, cost, timestamp, and exact attestation.
 
 The preferred handoff is a self-contained offline HTML tool. It starts the timer when the fixture is revealed, validates the neutral JSON shape, hashes the immutable result in the browser, and downloads one importable bundle without making network requests:
 
@@ -55,7 +55,7 @@ The tool renders both anonymous candidates, enforces every rubric score and note
 
 ## 5. Validate and reveal
 
-The evaluator completes the scorecard without access to the session directory or private mapping. After the scorecard is returned:
+One different independent evaluator completes all three scorecards without access to the session directories or private mappings. The workflow rejects an evaluator whose name or contact reference matches the manual operator. After each scorecard is returned:
 
 ```bash
 npm run benchmark:session -- reveal <session-directory> <completed-scorecard.json>
@@ -80,3 +80,11 @@ npm run benchmark:session -- report <output-directory> <lending-session> <lp-ses
 ```
 
 The assembler refuses missing or duplicate categories and revalidates every completed evidence chain before writing the report.
+
+It also requires one consistent manual-operator identity, one consistent blind-evaluator identity, and distinct people in those two roles. Every published JSON attachment is bound into a task evidence manifest, and all three task manifests are bound into the report commitment. Verify the finished bundle independently with:
+
+```bash
+npm run benchmark:verify-report -- <output-directory>
+```
+
+The verifier rejects a changed report, attachment, task manifest, participant summary, aggregate summary, or result attachment.
