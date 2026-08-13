@@ -35,6 +35,7 @@ const expectedAacpOwner = "0xbad35fa6e368e90fc4faf63507f2d0a2fdf94baf";
 const referencePancakePositionId = "1456267";
 const checks = [];
 const monitorRunId = String(Date.now());
+const monitorRequestTimeoutMs = 15_000;
 const bscTestnetRpc =
   process.env.BSC_TESTNET_RPC_URL ?? "https://data-seed-prebsc-1-s1.bnbchain.org:8545";
 const bscTestnet = defineChain({
@@ -85,22 +86,48 @@ function canonicalSha256(value) {
   return `sha256:${createHash("sha256").update(canonicalJson(value)).digest("hex")}`;
 }
 
+function sleep(milliseconds) {
+  return new Promise((resolvePromise) => setTimeout(resolvePromise, milliseconds));
+}
+
+async function fetchReadOnly(url, init) {
+  let lastError;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: AbortSignal.timeout(monitorRequestTimeoutMs),
+      });
+      if (attempt === 1 && (response.status === 429 || response.status >= 500)) {
+        await response.body?.cancel();
+        await sleep(250);
+        continue;
+      }
+      return { response, attempts: attempt };
+    } catch (error) {
+      lastError = error;
+      if (attempt === 2) throw error;
+      await sleep(250);
+    }
+  }
+  throw lastError;
+}
+
 async function fetchText(name, input) {
   const url = localUrl(input);
   url.searchParams.set("positioncrew_monitor", monitorRunId);
   const startedAt = performance.now();
-  const response = await fetch(url, {
+  const { response, attempts } = await fetchReadOnly(url, {
     headers: {
       Accept: "text/html",
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
       "User-Agent": "PositionCrew-Production-Monitor/1.0",
     },
-    signal: AbortSignal.timeout(15_000),
   });
   const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
   const body = await response.text();
-  checks.push({ name, url: url.toString(), status: response.status, latencyMs });
+  checks.push({ name, url: url.toString(), status: response.status, latencyMs, attempts });
   assert(response.ok, `${name} returned HTTP ${response.status}`);
   return body;
 }
@@ -109,18 +136,17 @@ async function fetchJson(name, input) {
   const url = localUrl(input);
   url.searchParams.set("positioncrew_monitor", monitorRunId);
   const startedAt = performance.now();
-  const response = await fetch(url, {
+  const { response, attempts } = await fetchReadOnly(url, {
     headers: {
       Accept: "application/json",
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
       "User-Agent": "PositionCrew-Production-Monitor/1.0",
     },
-    signal: AbortSignal.timeout(15_000),
   });
   const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
   const body = await response.json().catch(() => null);
-  checks.push({ name, url: url.toString(), status: response.status, latencyMs });
+  checks.push({ name, url: url.toString(), status: response.status, latencyMs, attempts });
   const failureDetail = body && typeof body === "object"
     ? `: ${JSON.stringify(body).slice(0, 500)}`
     : "";
