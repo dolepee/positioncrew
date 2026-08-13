@@ -195,6 +195,9 @@ export default function App() {
             setActiveJob(null);
           }}
           telemetry={telemetry}
+          benchmarks={benchmarks}
+          marketplaceProvenance={marketplaceProvenance}
+          advantagePublication={advantagePublication}
           onClearJobs={() => {
             setSessionJobs([]);
             setActiveJob(null);

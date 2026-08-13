@@ -84,6 +84,10 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await expect(page.getByRole("heading", { name: "Repay 152 USDT" })).toBeVisible();
   await expect(page.getByText(/inputs were not fetched live/)).toBeVisible();
   await expect(page.getByText("100/100", { exact: true }).first()).toBeVisible();
+  const advantageStatus = page.getByRole("region", { name: "Agent Advantage status" });
+  await expect(advantageStatus.getByText("Independent comparison pending", { exact: true })).toBeVisible();
+  await expect(advantageStatus).toContainText("no Agent Advantage result is claimed");
+  await expect(advantageStatus.getByRole("link", { name: "Inspect evidence" })).toHaveAttribute("href", "#evidence");
   await page.getByRole("button", { name: "JSON" }).click();
   await expect(page.getByText("application/json", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Receipt", exact: true }).click();
@@ -525,6 +529,16 @@ test("a published Agent Advantage status exposes the committed report without ch
     "/evidence/agent-advantage/",
   );
   await expect(page.getByText(/scope remains limited to the published report/)).toBeVisible();
+
+  await page.goto("/#jobs");
+  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  const resultStatus = page.getByRole("region", { name: "Agent Advantage status" });
+  await expect(resultStatus.getByText("Independent report published", { exact: true })).toBeVisible();
+  await expect(resultStatus).toContainText("2/3 frozen tasks support the pre-registered advantage rule");
+  await expect(resultStatus.getByRole("link", { name: "Open report" })).toHaveAttribute(
+    "href",
+    "/evidence/agent-advantage/",
+  );
 });
 
 test("the evidence page exposes every scheduled production outcome after the fixed epoch", async ({ page }) => {

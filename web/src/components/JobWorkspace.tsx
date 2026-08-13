@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   ArrowRight,
+  BadgeCheck,
   Check,
   CheckCircle2,
   Clipboard,
@@ -30,14 +31,18 @@ import {
 } from "../presentation";
 import { TASKS } from "../task-config";
 import type {
+  AgentAdvantagePublicationStatus,
+  BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
   JobRequestMode,
+  MarketplaceInvocationEvidence,
   PancakeGridProbe,
   PancakePositionProbe,
   ProviderListing,
   ServiceId,
   SessionJob,
   SystemTelemetry,
+  TermixBenchmarkService,
   VenusAccountProbe,
   VenusYieldProbe,
 } from "../types";
@@ -372,7 +377,92 @@ function LendingPositionBar({ request }: { request: JobRequest | null }) {
   );
 }
 
-function SummaryResult({ response }: { response: FixtureJobResponse }) {
+const BENCHMARK_SERVICES = new Set<TermixBenchmarkService>([
+  "LENDING_RESCUE",
+  "LP_REBALANCE",
+  "BOUNDED_GRID",
+]);
+
+function ResultAdvantageBand({
+  service,
+  conformanceScore,
+  benchmarks,
+  marketplaceProvenance,
+  advantagePublication,
+}: {
+  service: ServiceId;
+  conformanceScore: number;
+  benchmarks: BenchmarkRepeatabilityResponse[];
+  marketplaceProvenance: MarketplaceInvocationEvidence | null;
+  advantagePublication: AgentAdvantagePublicationStatus | null;
+}) {
+  const benchmarked = BENCHMARK_SERVICES.has(service as TermixBenchmarkService);
+  const repeatability = benchmarks.find((record) => record.service === service);
+  const delivery = marketplaceProvenance?.summaries.find((summary) => summary.service === service);
+  const published = advantagePublication?.status === "PUBLISHED" ? advantagePublication : null;
+
+  if (!benchmarked) {
+    return (
+      <section className="result-advantage-band neutral" aria-label="Evidence status">
+        <div className="result-advantage-copy">
+          <span className="result-advantage-state"><ShieldCheck size={13} /> Conformance only</span>
+          <strong>Verified output contract, outside the three-task comparison.</strong>
+          <small>Yield optimisation is not one of the pre-registered Agent Advantage tasks. Its {conformanceScore}/100 receipt is a deterministic conformance result, not an advantage claim.</small>
+        </div>
+        <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
+      </section>
+    );
+  }
+
+  if (!advantagePublication) {
+    return (
+      <section className="result-advantage-band neutral" aria-label="Agent Advantage status">
+        <div className="result-advantage-copy">
+          <span className="result-advantage-state"><Clock3 size={13} /> Evidence status loading</span>
+          <strong>The useful result remains available while its comparison record loads.</strong>
+          <small>The {conformanceScore}/100 receipt is deterministic conformance. PositionCrew does not infer an Agent Advantage result when the independent publication record is unavailable.</small>
+        </div>
+        <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
+      </section>
+    );
+  }
+
+  if (published) {
+    return (
+      <section className="result-advantage-band published" aria-label="Agent Advantage status">
+        <div className="result-advantage-copy">
+          <span className="result-advantage-state"><BadgeCheck size={13} /> Independent report published</span>
+          <strong>{published.supportedAdvantageCount}/3 frozen tasks support the pre-registered advantage rule.</strong>
+          <small>{published.agentBlindQualityScore}/300 blind agent quality score. Scope is limited to the published report and does not establish live investment performance.</small>
+        </div>
+        <a href={published.reportUrl}>Open report <ArrowRight size={13} /></a>
+      </section>
+    );
+  }
+
+  return (
+    <section className="result-advantage-band pending" aria-label="Agent Advantage status">
+      <div className="result-advantage-copy">
+        <span className="result-advantage-state"><Clock3 size={13} /> Independent comparison pending</span>
+        <strong>{delivery ? `${delivery.successCount}/2 public deliveries captured${delivery.medianElapsedMilliseconds != null ? ` at ${delivery.medianElapsedMilliseconds} ms median` : ""}.` : "Public delivery record is still loading."}</strong>
+        <small>{repeatability ? `${repeatability.runs.length} source-committed agent candidates are locked. ` : "The source-committed candidate record is still loading. "}The manual baseline and different blind evaluator remain pending; no Agent Advantage result is claimed.</small>
+      </div>
+      <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
+    </section>
+  );
+}
+
+function SummaryResult({
+  response,
+  benchmarks,
+  marketplaceProvenance,
+  advantagePublication,
+}: {
+  response: FixtureJobResponse;
+  benchmarks: BenchmarkRepeatabilityResponse[];
+  marketplaceProvenance: MarketplaceInvocationEvidence | null;
+  advantagePublication: AgentAdvantagePublicationStatus | null;
+}) {
   const deliverable = response.result.deliverable;
   const metrics = metricsFor(deliverable);
   const details = actionDetails(deliverable);
@@ -445,6 +535,13 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
           <span>Projected HF <strong>{deliverable.alternatives[0].projectedHealthFactor}</strong></span>
         </div>
       )}
+      <ResultAdvantageBand
+        service={deliverable.service}
+        conformanceScore={response.result.evaluation.score}
+        benchmarks={benchmarks}
+        marketplaceProvenance={marketplaceProvenance}
+        advantagePublication={advantagePublication}
+      />
     </div>
   );
 }
@@ -830,6 +927,9 @@ export function JobWorkspace({
   onSelectJob,
   onSelectService,
   telemetry,
+  benchmarks,
+  marketplaceProvenance,
+  advantagePublication,
   onClearJobs,
 }: {
   provider: ProviderListing | undefined;
@@ -842,6 +942,9 @@ export function JobWorkspace({
   onSelectJob: (job: SessionJob) => void;
   onSelectService: (service: ServiceId) => void;
   telemetry: SystemTelemetry | null;
+  benchmarks: BenchmarkRepeatabilityResponse[];
+  marketplaceProvenance: MarketplaceInvocationEvidence | null;
+  advantagePublication: AgentAdvantagePublicationStatus | null;
   onClearJobs: () => void;
 }) {
   const service = selectedService;
@@ -1069,7 +1172,14 @@ export function JobWorkspace({
             {activeJob && <span>{activeJob.responseTimeMs} ms API</span>}
           </div>
           {shownResponse ? (
-            resultView === "summary" ? <SummaryResult response={shownResponse} /> :
+            resultView === "summary" ? (
+              <SummaryResult
+                response={shownResponse}
+                benchmarks={benchmarks}
+                marketplaceProvenance={marketplaceProvenance}
+                advantagePublication={advantagePublication}
+              />
+            ) :
               resultView === "json" ? <MachineJson response={shownResponse} /> :
                 <ReceiptView response={shownResponse} />
           ) : (

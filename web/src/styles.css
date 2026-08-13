@@ -662,6 +662,18 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .alternative-action { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 13px; padding: 10px 11px; border: 1px solid #cbdbea; border-radius: 5px; color: #38566e; background: #f1f6fb; font-size: 11px; }
 .alternative-action span:first-child { display: flex; flex-direction: column; gap: 2px; }
 .alternative-action strong { font-size: 10px; }
+.result-advantage-band { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-top: 16px; padding: 13px 14px; border-top: 1px solid #dfe5e1; border-bottom: 1px solid #dfe5e1; background: #f7f9f7; }
+.result-advantage-band.pending { border-color: #e5d491; background: #fff9e8; }
+.result-advantage-band.published { border-color: #a8cbb7; background: #eef8f1; }
+.result-advantage-copy { display: flex; min-width: 0; flex-direction: column; }
+.result-advantage-state { display: inline-flex; align-items: center; gap: 5px; color: #6f5930; font-size: 9px; font-weight: 850; text-transform: uppercase; }
+.result-advantage-band.published .result-advantage-state { color: var(--green-dark); }
+.result-advantage-band.neutral .result-advantage-state { color: #4b5b54; }
+.result-advantage-copy strong { margin-top: 5px; color: var(--ink); font-size: 11px; line-height: 1.35; }
+.result-advantage-copy small { max-width: 690px; margin-top: 3px; color: var(--muted); font-size: 9px; line-height: 1.45; }
+.result-advantage-band > a { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; min-height: 30px; padding: 0 9px; border: 1px solid currentColor; border-radius: 4px; color: #67531f; background: rgb(255 255 255 / 70%); font-size: 9px; font-weight: 800; text-decoration: none; }
+.result-advantage-band.published > a { color: var(--green-dark); }
+.result-advantage-band.neutral > a { color: #42524a; }
 .json-view { min-width: 0; }
 .json-toolbar { display: flex; align-items: center; justify-content: space-between; min-height: 42px; padding: 0 13px; border-bottom: 1px solid #2b3531; color: #c0ccc7; background: #1b211f; font-size: 11px; }
 .json-toolbar span, .json-toolbar button { display: inline-flex; align-items: center; gap: 6px; }
@@ -940,6 +952,7 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .decision-header h2 { font-size: 22px; }
   .decision-detail-grid { grid-template-columns: 1fr; }
   .alternative-action { align-items: flex-start; flex-direction: column; }
+  .result-advantage-band { align-items: flex-start; flex-direction: column; }
   .receipt-view { padding: 15px; }
   .receipt-actions { align-items: flex-start; flex-direction: column; }
   .vertical-timeline li { grid-template-columns: 24px 1fr; }
