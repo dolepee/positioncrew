@@ -8,6 +8,7 @@ import {
   runFrozenFixture,
   runFrozenMatrix,
   runSuppliedLendingRequest,
+  runSuppliedProviderRequest,
   runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import type { TermixBenchmarkService } from "../src/benchmark/lock.js";
@@ -85,7 +86,16 @@ async function jobs(request: Request, url: URL): Promise<Response> {
     if (typeof body !== "object" || body === null || !("request" in body)) {
       return apiError(422, "INVALID_JOB_REQUEST", ["body.request is required"]);
     }
-    return json(await runFixtureRequest(PositionCrewRequestSchema.parse(body.request)));
+    const parsed = PositionCrewRequestSchema.parse(body.request);
+    if ("mode" in body && body.mode === "FROZEN_FIXTURE") {
+      return json(await runFixtureRequest(parsed));
+    }
+    if (!("mode" in body) || body.mode === "CALLER_SUPPLIED_OBSERVATIONS") {
+      return json(await runSuppliedProviderRequest(parsed));
+    }
+    return apiError(422, "INVALID_EVIDENCE_MODE", [
+      "mode must be FROZEN_FIXTURE or CALLER_SUPPLIED_OBSERVATIONS",
+    ]);
   }
 
   return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET or POST."]);
@@ -105,7 +115,15 @@ async function providerJobs(request: Request, service: ServiceId): Promise<Respo
       `This provider accepts ${service} requests, not ${parsed.service}.`,
     ]);
   }
-  return json(await runFixtureRequest(parsed));
+  if ("mode" in body && body.mode === "FROZEN_FIXTURE") {
+    return json(await runFixtureRequest(parsed));
+  }
+  if (!("mode" in body) || body.mode === "CALLER_SUPPLIED_OBSERVATIONS") {
+    return json(await runSuppliedProviderRequest(parsed));
+  }
+  return apiError(422, "INVALID_EVIDENCE_MODE", [
+    "mode must be FROZEN_FIXTURE or CALLER_SUPPLIED_OBSERVATIONS",
+  ]);
 }
 
 async function providerHealth(service: ServiceId): Promise<Response> {
@@ -167,6 +185,15 @@ async function rescue(request: Request): Promise<Response> {
       "request" in body
     ) {
       return json(await runFixtureRequest(body.request));
+    }
+    if (
+      typeof body === "object" &&
+      body !== null &&
+      "mode" in body &&
+      body.mode === "CALLER_SUPPLIED_OBSERVATIONS" &&
+      "request" in body
+    ) {
+      return json(await runSuppliedProviderRequest(body.request));
     }
     return json(await runSuppliedLendingRequest(body));
   }

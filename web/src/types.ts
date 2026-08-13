@@ -72,6 +72,8 @@ export interface JobHistoryEntry {
   reference: string;
 }
 
+export type JobRequestMode = "FROZEN_FIXTURE" | "CALLER_SUPPLIED_OBSERVATIONS";
+
 export interface FixtureJobResponse {
   schemaVersion: "positioncrew.fixture-job-response.v1";
   evidenceMode: "FROZEN_BSC_TEST_FIXTURE" | "CALLER_SUPPLIED_OBSERVATIONS";

@@ -10,6 +10,7 @@ import type {
   BenchmarkRepeatabilityResponse,
   Erc8183TestnetLedger,
   FixtureJobResponse,
+  JobRequestMode,
   MatrixResponse,
   ProviderCatalogResponse,
   ProviderListing,
@@ -116,7 +117,7 @@ export default function App() {
     navigate("jobs");
   }
 
-  async function runJob(request: Record<string, unknown>) {
+  async function runJob(request: Record<string, unknown>, mode: JobRequestMode) {
     setLoading(true);
     setError(null);
     const startedAt = performance.now();
@@ -125,7 +126,7 @@ export default function App() {
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
-        body: JSON.stringify({ mode: "FROZEN_FIXTURE", request }),
+        body: JSON.stringify({ mode, request }),
       });
       const payload = await jsonResponse<FixtureJobResponse>(response);
       const sessionJob: SessionJob = {

@@ -8,14 +8,23 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
 
   await page.getByRole("button", { name: "Open lending rescue workspace" }).click();
   await expect(page.getByRole("heading", { name: "Define the job. Inspect the action." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Interactive" })).toHaveAttribute("aria-pressed", "true");
   await page.getByRole("button", { name: "Run lending rescue" }).click();
 
   await expect(page.getByRole("heading", { name: "Repay 152 USDT" })).toBeVisible();
+  await expect(page.getByText(/inputs were not fetched live/)).toBeVisible();
   await expect(page.getByText("100/100", { exact: true }).first()).toBeVisible();
   await page.getByRole("button", { name: "JSON" }).click();
   await expect(page.getByText("application/json", { exact: true })).toBeVisible();
-  await page.getByRole("button", { name: "Receipt" }).click();
+  await page.getByRole("button", { name: "Receipt", exact: true }).click();
   await expect(page.getByText("Evaluation", { exact: true })).toBeVisible();
+  await expect(page.getByText("SESSION EMBEDDED", { exact: true })).toBeVisible();
+
+  await page.getByRole("button", { name: "Locked receipt" }).click();
+  await expect(page.getByText(/Historical August 12 fixture/)).toBeVisible();
+  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  await expect(page.getByText(/Locked historical fixture/)).toBeVisible();
+  await page.getByRole("button", { name: "Receipt", exact: true }).click();
   const receiptLink = page.getByRole("link", { name: "Public receipt" });
   await expect(receiptLink).toBeVisible();
   const receiptPath = await receiptLink.getAttribute("href");
@@ -95,13 +104,11 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
   for (const candidate of cases) {
     await provider.selectOption(candidate.service);
     await page.getByLabel(candidate.field).fill(candidate.value);
-    await expect(page.getByText("Custom bounds", { exact: true })).toBeVisible();
-    await expect(page.getByText("Custom parameters are evaluated but are not covered by the locked benchmark hash.", { exact: true })).toBeVisible();
+    await expect(page.getByText(/Current-clock scenario with custom bounds/)).toBeVisible();
     await page.getByRole("button", { name: candidate.button }).click();
     await expect(page.getByRole("heading", { name: candidate.decision })).toBeVisible();
-    await page.getByTitle("Reset to frozen fixture").click();
-    await expect(page.getByText("Frozen fixture", { exact: true })).toBeVisible();
-    await expect(page.getByText("Exact frozen input matches the committed fixture.", { exact: true })).toBeVisible();
+    await page.getByTitle("Reset interactive bounds").click();
+    await expect(page.getByText(/Current-clock simulation seeded from the August 12 fixture/)).toBeVisible();
   }
 });
 

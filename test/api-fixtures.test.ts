@@ -10,6 +10,7 @@ import {
   runFrozenMatrix,
   runLendingRepeatability,
   runSuppliedLendingRequest,
+  runSuppliedProviderRequest,
   runTermixBenchmarkRepeatability,
 } from "../src/api/fixture-jobs.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
@@ -153,6 +154,15 @@ describe("public fixture job boundary", () => {
       schemaVersion: "positioncrew.provider-manifest.v1",
       provider: { providerId: provider.providerId, relationship: "FIRST_PARTY" },
       identity: { protocol: "ERC-8004", agentId: provider.identity.agentId },
+      transport: {
+        job: {
+          bodyEnvelope: { mode: "CALLER_SUPPLIED_OBSERVATIONS" },
+          evidenceModes: {
+            default: "CALLER_SUPPLIED_OBSERVATIONS",
+            lockedReceipt: "FROZEN_FIXTURE",
+          },
+        },
+      },
       commerce: { settlement: "IN_MEMORY_CONFORMANCE" },
     });
     expect(JSON.stringify(manifest)).toContain(`${origin}${provider.endpoint}`);
@@ -165,6 +175,10 @@ describe("public fixture job boundary", () => {
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
     expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(4);
+    expect(
+      ((openApi.paths as Record<string, { post: { requestBody: { content: { "application/json": { schema: { properties: { mode: { default: string } } } } } } } }>)[provider.endpoint]
+        ?.post.requestBody.content["application/json"].schema.properties.mode.default),
+    ).toBe("CALLER_SUPPLIED_OBSERVATIONS");
     expect(requestSchema).toMatchObject({ $id: requestSchemaId, type: "object" });
     expect(deliverableSchema).toMatchObject({ $id: deliverableSchemaId, type: "object" });
   });
@@ -178,6 +192,33 @@ describe("public fixture job boundary", () => {
     expect(response.receipt.mode).toBe("SESSION_EMBEDDED");
     expect(response.receipt.path).toBeNull();
     expect(response.result.deliverable.status).toBe("REFUSED_CONSTRAINTS");
+  });
+
+  it("evaluates fresh caller-supplied observations at the current request clock", async () => {
+    const now = new Date("2026-08-13T01:45:00.000Z");
+    const sourceObservedAt = new Date(now.getTime() - 1_000).toISOString();
+    const matrix = await runFrozenMatrix();
+
+    for (const item of matrix) {
+      const request = JSON.parse(
+        JSON.stringify(item.result.request).replaceAll(
+          "2026-08-12T15:59:00.000Z",
+          sourceObservedAt,
+        ),
+      );
+      request.requestId = `interactive-${request.service.toLowerCase()}-test`;
+      request.requestedAt = now.toISOString();
+      request.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+
+      const response = await runSuppliedProviderRequest(request, now);
+      expect(response.evidenceMode).toBe("CALLER_SUPPLIED_OBSERVATIONS");
+      expect(response.generatedAt).toBe(now.toISOString());
+      expect(response.benchmarkLock).toBeNull();
+      expect(response.receipt).toMatchObject({ mode: "SESSION_EMBEDDED", path: null });
+      expect(response.result.job.state).toBe("COMPLETED");
+      expect(response.result.deliverable.status).toBe("ACTIONABLE");
+      expect(new Date(response.result.deliverable.expiresAt).getTime()).toBeGreaterThan(now.getTime());
+    }
   });
 
   it("fails closed when a supplied request is stale", async () => {

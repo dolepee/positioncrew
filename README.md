@@ -18,7 +18,7 @@ The product covers all four Build the Era categories with equal depth:
 The web application is the primary interface:
 
 - **Marketplace:** searchable provider registry with distinct provider endpoints, ERC-8004 identity, health routes, price, schema version, category coverage, and conformance status. The system panel reads the latest BSC block, PancakeSwap V3 WBNB/USDT pool, Venus vUSDT market, and documented AACP testnet contracts directly from chain.
-- **Jobs:** provider selection, editable buyer constraints, a block-pinned Venus account probe, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history.
+- **Jobs:** provider selection, editable buyer constraints, a block-pinned Venus account probe, create/fund/assign/submit/evaluate/complete conformance lifecycle, human result, machine JSON, downloadable receipts, and persistent local history. The default interactive mode rebases the caller-controlled scenario clock without representing its values as live data; a separate locked mode reproduces the historical public fixture receipt and labels it non-executable.
 - **Evidence:** live infrastructure register, funded ERC-8183 testnet receipts, public content-addressed deliverables for all four categories, frozen benchmark hashes, Agent Advantage progress, and explicit claim boundaries.
 
 The flagship cold-buyer journey is **Rescue a lending position**. It returns exact token base units, projected health factor, execution preconditions, expiry, deterministic evaluation, and a fail-closed refusal when evidence is stale or constraints make the action unsafe.
@@ -73,7 +73,7 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 - `GET /api/commerce/erc8183/jobs/:jobId/deliverable` for a canonical onchain-bound deliverable manifest;
 - `GET /api/matrix` for all frozen conformance runs;
 - `GET /api/providers/:provider/health` for a provider-specific liveness and conformance probe;
-- `GET|POST /api/providers/:provider/jobs` for the provider-specific job route;
+- `GET|POST /api/providers/:provider/jobs` for the provider-specific job route (`POST` defaults to caller-supplied observations; `mode: FROZEN_FIXTURE` is required for the locked receipt);
 - `GET /api/receipts/:evaluationHash` for a public reproducible fixture receipt;
 - `GET /api/wallets/:address/venus` for a block-pinned Venus account-liquidity observation;
 - `GET /api/jobs?service=LENDING_RESCUE` for a frozen job;
@@ -114,4 +114,4 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 
 ## Claim boundary
 
-The browser workspace remains an in-memory conformance rail and does not submit a buyer's wallet transaction. Separately, the public ERC-8183 ledger proves seven operator-controlled BSC Testnet lifecycles, including six funded completions; it does not prove external demand or revenue. TermiX AACP integration remains gated on the corrected Agent.family builder guide and is not represented as complete. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.
+The browser workspace remains an in-memory conformance rail and does not submit a buyer's wallet transaction. Interactive jobs validate caller-supplied scenario observations against the current request clock and must be revalidated against live protocol state before execution. Locked jobs reproduce historical fixtures and public receipts but are not presented as current instructions. Separately, the public ERC-8183 ledger proves seven operator-controlled BSC Testnet lifecycles, including six funded completions; it does not prove external demand or revenue. TermiX AACP integration remains gated on the corrected Agent.family builder guide and is not represented as complete. No provisional ABI, undocumented backend route, external-provider track record, or incomplete blind benchmark is represented as production evidence.

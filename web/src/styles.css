@@ -499,6 +499,10 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .mode-label { color: #735700; border-color: #e7d18b; background: #fff9e9; }
 .mode-label.custom { color: #315d91; border-color: #bfd1e5; background: #f1f7fd; }
 .composer-mode-actions { display: flex; align-items: center; gap: 7px; }
+.input-mode-switch { display: inline-grid; grid-template-columns: repeat(2, auto); padding: 2px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface-soft); }
+.input-mode-switch button { min-height: 25px; padding: 0 8px; border: 0; border-radius: 3px; color: var(--muted); background: transparent; font-size: 9px; font-weight: 800; cursor: pointer; }
+.input-mode-switch button[aria-pressed="true"] { color: var(--ink); background: white; box-shadow: 0 1px 3px rgba(25, 33, 29, 0.1); }
+.input-mode-switch button:disabled { cursor: not-allowed; opacity: 0.5; }
 .composer-mode-actions > button {
   display: inline-flex;
   align-items: center;
@@ -609,6 +613,9 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
 .decision-header h2 { margin: 9px 0 0; font-size: 26px; line-height: 1.1; }
 .decision-header p { max-width: 600px; margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 .expires-label { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 5px; margin-top: 3px; color: var(--muted); font-size: 10px; }
+.result-boundary { display: flex; align-items: flex-start; gap: 7px; margin-top: 13px; padding: 9px 10px; border-left: 3px solid #315d91; color: #315d91; background: #f1f7fd; font-size: 10px; line-height: 1.45; }
+.result-boundary.locked { border-left-color: var(--yellow-dark); color: #665326; background: #fff9e8; }
+.result-boundary svg { flex: 0 0 14px; }
 .decision-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 18px; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; }
 .decision-metrics > div { min-width: 0; min-height: 68px; padding: 12px; border-right: 1px solid var(--line); background: white; }
 .decision-metrics > div:last-child { border-right: 0; }
@@ -830,6 +837,8 @@ code, pre, .mono-value { font-family: "SFMono-Regular", Consolas, "Liberation Mo
   .composer-footer { align-items: stretch; flex-direction: column; }
   .composer-footer .primary-action { width: 100%; }
   .job-composer { padding: 15px; }
+  .section-bar { align-items: stretch; flex-direction: column; }
+  .composer-mode-actions { justify-content: space-between; }
   .job-result { min-height: 480px; }
   .result-nav { padding: 0 8px; }
   .result-nav button { padding: 0 8px; }

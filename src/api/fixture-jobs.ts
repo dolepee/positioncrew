@@ -225,6 +225,14 @@ export async function runSuppliedLendingRequest(
   now = new Date(),
 ): Promise<FixtureJobResponse> {
   const request = LendingRescueRequestSchema.parse(input);
+  return runSuppliedProviderRequest(request, now);
+}
+
+export async function runSuppliedProviderRequest(
+  input: unknown,
+  now = new Date(),
+): Promise<FixtureJobResponse> {
+  const request = PositionCrewRequestSchema.parse(input);
   const result = await runProviderJob(new MemoryCommerceAdapter(), request, now);
   return {
     schemaVersion: "positioncrew.fixture-job-response.v1",
@@ -233,7 +241,7 @@ export async function runSuppliedLendingRequest(
     advantageStatus: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     generatedAt: now.toISOString(),
     claimBoundary: [
-      "Caller-supplied observations are validated but are not independently fetched from BSC.",
+      "Observation values and timestamps are supplied by the caller; the provider validates them but does not independently fetch them from BSC.",
       "The lifecycle is an in-memory conformance rail, not an AACP or mainnet settlement.",
       "The output must be revalidated against fresh protocol state before execution.",
     ],

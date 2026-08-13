@@ -31,6 +31,7 @@ import {
 import { TASKS } from "../task-config";
 import type {
   FixtureJobResponse,
+  JobRequestMode,
   ProviderListing,
   ServiceId,
   SessionJob,
@@ -39,6 +40,7 @@ import type {
 } from "../types";
 
 type ResultView = "summary" | "json" | "receipt";
+type WorkspaceInputMode = "interactive" | "locked";
 
 interface JobDraft {
   targetHealth: string;
@@ -219,6 +221,28 @@ function applyDraft(request: JobRequest, draft: JobDraft): JobRequest {
   return next;
 }
 
+function rebaseObservationTimes(value: unknown, observedAt: string): unknown {
+  if (Array.isArray(value)) {
+    return value.map((item) => rebaseObservationTimes(item, observedAt));
+  }
+  if (typeof value !== "object" || value === null) return value;
+  return Object.fromEntries(
+    Object.entries(value).map(([key, child]) => [
+      key,
+      key === "observedAt" ? observedAt : rebaseObservationTimes(child, observedAt),
+    ]),
+  );
+}
+
+function freshInteractiveRequest(request: JobRequest, now = new Date()): JobRequest {
+  const nowIso = now.toISOString();
+  const next = rebaseObservationTimes(structuredClone(request), nowIso) as JobRequest;
+  next.requestId = `interactive-${request.service.toLowerCase()}-${now.getTime()}`;
+  next.requestedAt = nowIso;
+  next.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+  return next;
+}
+
 function NumberField({
   label,
   value,
@@ -289,6 +313,12 @@ function SummaryResult({ response }: { response: FixtureJobResponse }) {
           <p>{deliverable.summary}</p>
         </div>
         <span className="expires-label"><Clock3 size={13} /> Expires {formatTimestamp(deliverable.expiresAt)} UTC</span>
+      </div>
+      <div className={`result-boundary ${response.evidenceMode === "FROZEN_BSC_TEST_FIXTURE" ? "locked" : "interactive"}`}>
+        {response.evidenceMode === "FROZEN_BSC_TEST_FIXTURE" ? <ShieldCheck size={14} /> : <AlertTriangle size={14} />}
+        <span>{response.evidenceMode === "FROZEN_BSC_TEST_FIXTURE"
+          ? "Locked historical fixture. This is a reproducible receipt, not a currently executable instruction."
+          : "Interactive scenario only. Its inputs were not fetched live and must be revalidated against current protocol state before execution."}</span>
       </div>
       <div className="decision-metrics">
         {metrics.map((metric) => (
@@ -474,7 +504,7 @@ export function JobWorkspace({
   activeJob: SessionJob | null;
   sessionJobs: SessionJob[];
   loading: boolean;
-  onRun: (request: Record<string, unknown>) => Promise<void>;
+  onRun: (request: Record<string, unknown>, mode: JobRequestMode) => Promise<void>;
   onSelectJob: (job: SessionJob) => void;
   onSelectService: (service: ServiceId) => void;
   telemetry: SystemTelemetry | null;
@@ -484,11 +514,13 @@ export function JobWorkspace({
   const task = TASKS.find((candidate) => candidate.id === service) ?? TASKS[0];
   const [draft, setDraft] = useState<JobDraft>(EMPTY_DRAFT);
   const [resultView, setResultView] = useState<ResultView>("summary");
+  const [inputMode, setInputMode] = useState<WorkspaceInputMode>("interactive");
   const shownResponse = activeJob?.response ?? null;
   const inputRequest = fixture?.result.request;
 
   useEffect(() => {
     setResultView("summary");
+    setInputMode("interactive");
     setDraft(draftFromRequest(inputRequest));
   }, [service, inputRequest]);
 
@@ -497,9 +529,10 @@ export function JobWorkspace({
     [inputRequest, draft],
   );
   const customRequest = useMemo(
-    () => Boolean(inputRequest && draftRequest && JSON.stringify(inputRequest) !== JSON.stringify(draftRequest)),
-    [inputRequest, draftRequest],
+    () => inputMode === "interactive" && Boolean(inputRequest && draftRequest && JSON.stringify(inputRequest) !== JSON.stringify(draftRequest)),
+    [inputMode, inputRequest, draftRequest],
   );
+  const inputsDisabled = !fixture || loading || inputMode === "locked";
 
   function updateDraft<K extends keyof JobDraft>(key: K, value: JobDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
@@ -507,9 +540,19 @@ export function JobWorkspace({
 
   async function submitJob() {
     if (!inputRequest || !draftRequest) return;
-    const next = structuredClone(draftRequest) as Record<string, unknown>;
-    if (customRequest) next.requestId = `${String(inputRequest.requestId)}-custom`;
-    await onRun(next);
+    const next = inputMode === "locked"
+      ? structuredClone(inputRequest)
+      : freshInteractiveRequest(draftRequest);
+    const mode: JobRequestMode = inputMode === "locked"
+      ? "FROZEN_FIXTURE"
+      : "CALLER_SUPPLIED_OBSERVATIONS";
+    await onRun(next as Record<string, unknown>, mode);
+  }
+
+  function selectInputMode(mode: WorkspaceInputMode) {
+    setInputMode(mode);
+    setDraft(draftFromRequest(inputRequest));
+    setResultView("summary");
   }
 
   return (
@@ -533,9 +576,12 @@ export function JobWorkspace({
           <div className="section-bar">
             <div><span className="section-kicker">Request</span><h2 id="composer-title">{provider?.name ?? task.title}</h2></div>
             <div className="composer-mode-actions">
-              <span className={`mode-label ${customRequest ? "custom" : ""}`}>{customRequest ? "Custom bounds" : "Frozen fixture"}</span>
+              <div className="input-mode-switch" role="group" aria-label="Request evidence mode">
+                <button type="button" aria-pressed={inputMode === "interactive"} onClick={() => selectInputMode("interactive")} disabled={loading}>Interactive</button>
+                <button type="button" aria-pressed={inputMode === "locked"} onClick={() => selectInputMode("locked")} disabled={loading}>Locked receipt</button>
+              </div>
               {customRequest && (
-                <button type="button" onClick={() => setDraft(draftFromRequest(inputRequest))} disabled={loading} title="Reset to frozen fixture">
+                <button type="button" onClick={() => setDraft(draftFromRequest(inputRequest))} disabled={loading} title="Reset interactive bounds">
                   <RefreshCw size={13} aria-hidden="true" /> Reset
                 </button>
               )}
@@ -547,64 +593,68 @@ export function JobWorkspace({
               <WalletRiskProbe telemetry={telemetry} />
               <LendingPositionBar response={fixture ?? null} />
               <div className="form-grid">
-                <NumberField label="Target health factor" value={draft.targetHealth} onChange={(value) => updateDraft("targetHealth", value)} disabled={!fixture || loading} min="1.01" max="3" step="0.01" />
-                <NumberField label="Maximum action (USD)" value={draft.maxAction} onChange={(value) => updateDraft("maxAction", value)} disabled={!fixture || loading} min="1" max="10000" step="1" />
-                <NumberField label="Stress price drop (bps)" value={draft.stressDrop} onChange={(value) => updateDraft("stressDrop", value)} disabled={!fixture || loading} min="0" max="5000" step="100" />
-                <NumberField label="Maximum slippage (bps)" value={draft.maxSlippage} onChange={(value) => updateDraft("maxSlippage", value)} disabled={!fixture || loading} min="0" max="2000" step="1" />
+                <NumberField label="Target health factor" value={draft.targetHealth} onChange={(value) => updateDraft("targetHealth", value)} disabled={inputsDisabled} min="1.01" max="3" step="0.01" />
+                <NumberField label="Maximum action (USD)" value={draft.maxAction} onChange={(value) => updateDraft("maxAction", value)} disabled={inputsDisabled} min="1" max="10000" step="1" />
+                <NumberField label="Stress price drop (bps)" value={draft.stressDrop} onChange={(value) => updateDraft("stressDrop", value)} disabled={inputsDisabled} min="0" max="5000" step="100" />
+                <NumberField label="Maximum slippage (bps)" value={draft.maxSlippage} onChange={(value) => updateDraft("maxSlippage", value)} disabled={inputsDisabled} min="0" max="2000" step="1" />
               </div>
               <fieldset className="action-options">
                 <legend>Allowed actions</legend>
-                <label><input disabled={!fixture || loading} type="checkbox" checked={draft.allowRepay} onChange={(event) => updateDraft("allowRepay", event.target.checked)} /> Repay debt</label>
-                <label><input disabled={!fixture || loading} type="checkbox" checked={draft.allowCollateral} onChange={(event) => updateDraft("allowCollateral", event.target.checked)} /> Add collateral</label>
+                <label><input disabled={inputsDisabled} type="checkbox" checked={draft.allowRepay} onChange={(event) => updateDraft("allowRepay", event.target.checked)} /> Repay debt</label>
+                <label><input disabled={inputsDisabled} type="checkbox" checked={draft.allowCollateral} onChange={(event) => updateDraft("allowCollateral", event.target.checked)} /> Add collateral</label>
               </fieldset>
             </>
           ) : service === "LP_REBALANCE" ? (
             <>
               <div className="request-context"><span>PancakeSwap V3</span><strong>Current range -120 to 120</strong><small>$10,000 position</small></div>
               <div className="form-grid">
-                <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={!fixture || loading} min="-887272" max="887272" step="1" />
-                <NumberField label="Minimum net benefit (USD)" value={draft.lpMinimumBenefit} onChange={(value) => updateDraft("lpMinimumBenefit", value)} disabled={!fixture || loading} min="0" max="100000" step="0.01" />
-                <NumberField label="Estimated gas (USD)" value={draft.lpGas} onChange={(value) => updateDraft("lpGas", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
-                <NumberField label="Estimated swap cost (USD)" value={draft.lpSwapCost} onChange={(value) => updateDraft("lpSwapCost", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
-                <NumberField label="Evaluation horizon (hours)" value={draft.lpHorizon} onChange={(value) => updateDraft("lpHorizon", value)} disabled={!fixture || loading} min="1" max="720" step="1" />
-                <NumberField label="Maximum gas (USD)" value={draft.lpMaximumGas} onChange={(value) => updateDraft("lpMaximumGas", value)} disabled={!fixture || loading} min="0" max="10000" step="0.01" />
+                <NumberField label="Current tick" value={draft.lpCurrentTick} onChange={(value) => updateDraft("lpCurrentTick", value)} disabled={inputsDisabled} min="-887272" max="887272" step="1" />
+                <NumberField label="Minimum net benefit (USD)" value={draft.lpMinimumBenefit} onChange={(value) => updateDraft("lpMinimumBenefit", value)} disabled={inputsDisabled} min="0" max="100000" step="0.01" />
+                <NumberField label="Estimated gas (USD)" value={draft.lpGas} onChange={(value) => updateDraft("lpGas", value)} disabled={inputsDisabled} min="0" max="10000" step="0.01" />
+                <NumberField label="Estimated swap cost (USD)" value={draft.lpSwapCost} onChange={(value) => updateDraft("lpSwapCost", value)} disabled={inputsDisabled} min="0" max="10000" step="0.01" />
+                <NumberField label="Evaluation horizon (hours)" value={draft.lpHorizon} onChange={(value) => updateDraft("lpHorizon", value)} disabled={inputsDisabled} min="1" max="720" step="1" />
+                <NumberField label="Maximum gas (USD)" value={draft.lpMaximumGas} onChange={(value) => updateDraft("lpMaximumGas", value)} disabled={inputsDisabled} min="0" max="10000" step="0.01" />
               </div>
             </>
           ) : service === "YIELD_OPTIMIZATION" ? (
             <>
               <div className="request-context"><span>Venus to Beefy</span><strong>Current APY 4.00%</strong><small>Allowlisted BSC venues</small></div>
               <div className="form-grid">
-                <NumberField label="Capital (USD)" value={draft.yieldCapital} onChange={(value) => updateDraft("yieldCapital", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
-                <NumberField label="Candidate APY (bps)" value={draft.yieldCandidateApy} onChange={(value) => updateDraft("yieldCandidateApy", value)} disabled={!fixture || loading} min="0" max="1000000" step="1" />
-                <NumberField label="Minimum liquidity (USD)" value={draft.yieldMinimumLiquidity} onChange={(value) => updateDraft("yieldMinimumLiquidity", value)} disabled={!fixture || loading} min="0" max="10000000000" step="1" />
-                <NumberField label="Minimum net benefit (USD)" value={draft.yieldMinimumBenefit} onChange={(value) => updateDraft("yieldMinimumBenefit", value)} disabled={!fixture || loading} min="0" max="1000000" step="0.01" />
-                <NumberField label="Evaluation horizon (days)" value={draft.yieldHorizon} onChange={(value) => updateDraft("yieldHorizon", value)} disabled={!fixture || loading} min="1" max="365" step="1" />
-                <label><span>Maximum risk tier</span><select disabled={!fixture || loading} value={draft.yieldRisk} onChange={(event) => updateDraft("yieldRisk", event.target.value as JobDraft["yieldRisk"])}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
+                <NumberField label="Capital (USD)" value={draft.yieldCapital} onChange={(value) => updateDraft("yieldCapital", value)} disabled={inputsDisabled} min="1" max="10000000" step="1" />
+                <NumberField label="Candidate APY (bps)" value={draft.yieldCandidateApy} onChange={(value) => updateDraft("yieldCandidateApy", value)} disabled={inputsDisabled} min="0" max="1000000" step="1" />
+                <NumberField label="Minimum liquidity (USD)" value={draft.yieldMinimumLiquidity} onChange={(value) => updateDraft("yieldMinimumLiquidity", value)} disabled={inputsDisabled} min="0" max="10000000000" step="1" />
+                <NumberField label="Minimum net benefit (USD)" value={draft.yieldMinimumBenefit} onChange={(value) => updateDraft("yieldMinimumBenefit", value)} disabled={inputsDisabled} min="0" max="1000000" step="0.01" />
+                <NumberField label="Evaluation horizon (days)" value={draft.yieldHorizon} onChange={(value) => updateDraft("yieldHorizon", value)} disabled={inputsDisabled} min="1" max="365" step="1" />
+                <label><span>Maximum risk tier</span><select disabled={inputsDisabled} value={draft.yieldRisk} onChange={(event) => updateDraft("yieldRisk", event.target.value as JobDraft["yieldRisk"])}><option value="LOW">Low</option><option value="MEDIUM">Medium</option><option value="HIGH">High</option></select></label>
               </div>
             </>
           ) : (
             <>
               <div className="request-context"><span>WBNB / USDT</span><strong>PancakeSwap execution policy</strong><small>Both sides required</small></div>
               <div className="form-grid dense">
-                <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
-                <NumberField label="Lower price" value={draft.gridLowerPrice} onChange={(value) => updateDraft("gridLowerPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
-                <NumberField label="Upper price" value={draft.gridUpperPrice} onChange={(value) => updateDraft("gridUpperPrice", value)} disabled={!fixture || loading} min="0.000001" max="10000000" step="0.01" />
-                <NumberField label="Capital (USD)" value={draft.gridCapital} onChange={(value) => updateDraft("gridCapital", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
-                <NumberField label="Grid levels" value={draft.gridLevels} onChange={(value) => updateDraft("gridLevels", value)} disabled={!fixture || loading} min="2" max="100" step="1" />
-                <NumberField label="Maximum inventory (USD)" value={draft.gridMaximumInventory} onChange={(value) => updateDraft("gridMaximumInventory", value)} disabled={!fixture || loading} min="1" max="10000000" step="1" />
-                <NumberField label="Maximum loss (USD)" value={draft.gridMaximumLoss} onChange={(value) => updateDraft("gridMaximumLoss", value)} disabled={!fixture || loading} min="0.01" max="10000000" step="0.01" />
-                <NumberField label="Minimum expected profit (USD)" value={draft.gridMinimumProfit} onChange={(value) => updateDraft("gridMinimumProfit", value)} disabled={!fixture || loading} min="0" max="10000000" step="0.01" />
-                <NumberField label="Maximum volatility (bps)" value={draft.gridMaximumVolatility} onChange={(value) => updateDraft("gridMaximumVolatility", value)} disabled={!fixture || loading} min="1" max="100000" step="1" />
-                <NumberField label="Expected completed cycles" value={draft.gridExpectedCycles} onChange={(value) => updateDraft("gridExpectedCycles", value)} disabled={!fixture || loading} min="1" max="1000" step="1" />
+                <NumberField label="Mid price" value={draft.gridMidPrice} onChange={(value) => updateDraft("gridMidPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Lower price" value={draft.gridLowerPrice} onChange={(value) => updateDraft("gridLowerPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Upper price" value={draft.gridUpperPrice} onChange={(value) => updateDraft("gridUpperPrice", value)} disabled={inputsDisabled} min="0.000001" max="10000000" step="0.01" />
+                <NumberField label="Capital (USD)" value={draft.gridCapital} onChange={(value) => updateDraft("gridCapital", value)} disabled={inputsDisabled} min="1" max="10000000" step="1" />
+                <NumberField label="Grid levels" value={draft.gridLevels} onChange={(value) => updateDraft("gridLevels", value)} disabled={inputsDisabled} min="2" max="100" step="1" />
+                <NumberField label="Maximum inventory (USD)" value={draft.gridMaximumInventory} onChange={(value) => updateDraft("gridMaximumInventory", value)} disabled={inputsDisabled} min="1" max="10000000" step="1" />
+                <NumberField label="Maximum loss (USD)" value={draft.gridMaximumLoss} onChange={(value) => updateDraft("gridMaximumLoss", value)} disabled={inputsDisabled} min="0.01" max="10000000" step="0.01" />
+                <NumberField label="Minimum expected profit (USD)" value={draft.gridMinimumProfit} onChange={(value) => updateDraft("gridMinimumProfit", value)} disabled={inputsDisabled} min="0" max="10000000" step="0.01" />
+                <NumberField label="Maximum volatility (bps)" value={draft.gridMaximumVolatility} onChange={(value) => updateDraft("gridMaximumVolatility", value)} disabled={inputsDisabled} min="1" max="100000" step="1" />
+                <NumberField label="Expected completed cycles" value={draft.gridExpectedCycles} onChange={(value) => updateDraft("gridExpectedCycles", value)} disabled={inputsDisabled} min="1" max="1000" step="1" />
               </div>
             </>
           )}
           <div className="request-boundary" id="request-boundary">
             <AlertTriangle size={15} aria-hidden="true" />
-            <span>{customRequest ? "Custom parameters are evaluated but are not covered by the locked benchmark hash." : "Exact frozen input matches the committed fixture."}</span>
+            <span>{inputMode === "locked"
+              ? "Historical August 12 fixture. The public receipt is reproducible, but the instruction is no longer executable."
+              : customRequest
+                ? "Current-clock scenario with custom bounds. Inputs and timestamps are caller-controlled; this is not benchmark evidence or live wallet execution."
+                : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>
           </div>
           <div className="composer-footer">
-            <span><strong>5 TEST_USDC</strong><small>In-memory conformance rail</small></span>
+            <span><strong>5 TEST_USDC</strong><small>{inputMode === "locked" ? "Public locked receipt" : "Current-clock scenario · in-memory rail"}</small></span>
             <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
               {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}

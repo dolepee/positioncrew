@@ -79,7 +79,14 @@ export function buildProviderManifest(
         method: provider.method,
         url: absolute(origin, provider.endpoint),
         contentType: "application/json",
-        bodyEnvelope: { request: `<${provider.requestSchema}>` },
+        bodyEnvelope: {
+          mode: "CALLER_SUPPLIED_OBSERVATIONS",
+          request: `<${provider.requestSchema}>`,
+        },
+        evidenceModes: {
+          default: "CALLER_SUPPLIED_OBSERVATIONS",
+          lockedReceipt: "FROZEN_FIXTURE",
+        },
       },
       health: {
         method: "GET",
@@ -167,6 +174,13 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
                   additionalProperties: false,
                   required: ["request"],
                   properties: {
+                    mode: {
+                      type: "string",
+                      enum: ["CALLER_SUPPLIED_OBSERVATIONS", "FROZEN_FIXTURE"],
+                      default: "CALLER_SUPPLIED_OBSERVATIONS",
+                      description:
+                        "Use caller-supplied observations and timestamps for an interactive scenario. FROZEN_FIXTURE reproduces the historical public receipt and is not a current execution instruction.",
+                    },
                     request: {
                       $ref: `#/components/schemas/${componentName(provider.requestSchema)}`,
                     },
