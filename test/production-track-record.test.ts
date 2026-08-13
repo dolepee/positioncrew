@@ -1,48 +1,52 @@
 import { describe, expect, it } from "vitest";
 import epoch from "../evidence/production-monitor-epoch.json" with { type: "json" };
+import snapshot from "../evidence/production-track-record.json" with { type: "json" };
 import {
-  buildProductionTrackRecord,
-  githubWorkflowRunsApiUrl,
+  appendProductionTrackRecordRun,
+  parseProductionTrackRecordSnapshot,
   unavailableProductionTrackRecord,
   type ProductionMonitorEpoch,
+  type ProductionTrackRecordRun,
 } from "../src/operations/production-track-record.js";
 
 const monitorEpoch = epoch as ProductionMonitorEpoch;
 
 function run(
-  id: number,
+  runId: number,
   createdAt: string,
   conclusion: string | null,
-  event = "schedule",
   status = "completed",
-) {
+): ProductionTrackRecordRun {
   return {
-    id,
-    event,
+    runId,
     status,
     conclusion,
-    created_at: createdAt,
-    updated_at: createdAt,
-    head_sha: String(id).padStart(40, "0"),
-    html_url: `https://github.com/dolepee/positioncrew/actions/runs/${id}`,
+    createdAt,
+    completedAt: status === "completed" ? createdAt : null,
+    headSha: String(runId).padStart(40, "0"),
+    url: `https://github.com/dolepee/positioncrew/actions/runs/${runId}`,
   };
 }
 
 describe("production track record", () => {
-  it("includes every observed scheduled run after the fixed epoch", () => {
-    const record = buildProductionTrackRecord(
-      {
-        total_count: 3,
-        workflow_runs: [
-          run(4, "2026-08-13T05:00:00.000Z", "failure"),
-          run(3, "2026-08-13T04:30:00.000Z", null, "schedule", "in_progress"),
-          run(2, "2026-08-13T04:00:00.000Z", "success"),
-          run(1, "2026-08-13T03:59:59.000Z", "failure"),
-          run(5, "2026-08-13T07:17:00.000Z", "success", "push"),
-        ],
-      },
+  it("appends every scheduled outcome after the fixed epoch and retains failures", () => {
+    const first = appendProductionTrackRecordRun(
+      snapshot,
       monitorEpoch,
-      "2026-08-13T07:30:00.000Z",
+      run(2, "2026-08-13T04:00:00.000Z", "success"),
+      "2026-08-13T04:05:00.000Z",
+    );
+    const pending = appendProductionTrackRecordRun(
+      first,
+      monitorEpoch,
+      run(3, "2026-08-13T04:30:00.000Z", null, "in_progress"),
+      "2026-08-13T04:31:00.000Z",
+    );
+    const record = appendProductionTrackRecordRun(
+      pending,
+      monitorEpoch,
+      run(4, "2026-08-13T05:00:00.000Z", "failure"),
+      "2026-08-13T05:05:00.000Z",
     );
 
     expect(record.status).toBe("DEGRADED");
@@ -60,21 +64,42 @@ describe("production track record", () => {
     });
   });
 
-  it("reports a collecting state before the first scheduled sample", () => {
-    const record = buildProductionTrackRecord(
-      { total_count: 0, workflow_runs: [] },
-      monitorEpoch,
-      "2026-08-13T05:00:00.000Z",
-    );
+  it("recomputes the public summary instead of trusting snapshot claims", () => {
+    const tampered = structuredClone(snapshot) as Record<string, unknown>;
+    tampered.status = "OPERATIONAL";
+    tampered.summary = {
+      ...(tampered.summary as Record<string, unknown>),
+      successfulRuns: 999,
+      rollingPassRatePct: 100,
+    };
+    const record = parseProductionTrackRecordSnapshot(tampered, monitorEpoch);
     expect(record.status).toBe("COLLECTING");
+    expect(record.summary.successfulRuns).toBe(0);
     expect(record.summary.rollingPassRatePct).toBeNull();
-    expect(githubWorkflowRunsApiUrl(monitorEpoch)).toContain("event=schedule");
-    expect(githubWorkflowRunsApiUrl(monitorEpoch)).toContain("per_page=100");
+    expect(record.source.provider).toBe("GITHUB_ACTIONS_SNAPSHOT");
   });
 
-  it("fails closed on a malformed source and exposes a bounded unavailable record", () => {
-    expect(() => buildProductionTrackRecord({}, monitorEpoch)).toThrow(
-      "GitHub workflow total count is invalid",
+  it("deduplicates a rerun without inflating the lifetime count", () => {
+    const first = appendProductionTrackRecordRun(
+      snapshot,
+      monitorEpoch,
+      run(9, "2026-08-13T04:10:00.000Z", "failure"),
+    );
+    const rerun = appendProductionTrackRecordRun(
+      first,
+      monitorEpoch,
+      run(9, "2026-08-13T04:10:00.000Z", "success"),
+    );
+    expect(rerun.summary.totalScheduledRunsSinceEpoch).toBe(1);
+    expect(rerun.summary.successfulRuns).toBe(1);
+    expect(rerun.summary.unsuccessfulRuns).toBe(0);
+  });
+
+  it("rejects an invalid epoch and exposes a bounded unavailable record", () => {
+    const invalid = structuredClone(snapshot) as Record<string, unknown>;
+    invalid.epoch = { schemaVersion: monitorEpoch.schemaVersion, startedAt: "2026-08-14T00:00:00.000Z" };
+    expect(() => parseProductionTrackRecordSnapshot(invalid, monitorEpoch)).toThrow(
+      "does not match the committed epoch",
     );
     const record = unavailableProductionTrackRecord(monitorEpoch);
     expect(record.status).toBe("SOURCE_UNAVAILABLE");

@@ -1,0 +1,56 @@
+{
+  "schemaVersion": "positioncrew.production-track-record.v1",
+  "generatedAt": "2026-08-13T04:00:00.000Z",
+  "status": "COLLECTING",
+  "epoch": {
+    "schemaVersion": "positioncrew.production-monitor-epoch.v1",
+    "startedAt": "2026-08-13T04:00:00.000Z",
+    "baseUrl": "https://positioncrew.dolepee.com",
+    "workflow": {
+      "owner": "dolepee",
+      "repository": "positioncrew",
+      "file": "production-smoke.yml",
+      "url": "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
+      "snapshotUrl": "https://raw.githubusercontent.com/dolepee/positioncrew/production-monitor/evidence/production-track-record.json",
+      "event": "schedule",
+      "cadenceMinutes": 30
+    },
+    "verification": {
+      "expectedCheckCountAtEpoch": 57,
+      "scope": [
+        "Four ERC-8004 provider identity and endpoint bindings",
+        "Four locked and four current-clock Provider job paths",
+        "Seven settled ERC-8183 manifests and their BSC testnet state",
+        "Block-pinned Venus and PancakeSwap input builders",
+        "The public Agent Advantage publication boundary"
+      ]
+    },
+    "aggregation": {
+      "coverage": "LATEST_100_SCHEDULED_RUNS",
+      "excludeEvents": [
+        "push",
+        "workflow_dispatch"
+      ]
+    },
+    "boundary": "This record measures scheduled production verification outcomes after the fixed epoch. It is not external demand, investment performance, mainnet execution, or an Agent Advantage result."
+  },
+  "source": {
+    "provider": "GITHUB_ACTIONS_SNAPSHOT",
+    "snapshotUrl": "https://raw.githubusercontent.com/dolepee/positioncrew/production-monitor/evidence/production-track-record.json",
+    "workflowUrl": "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
+    "sourceStatus": "AVAILABLE"
+  },
+  "summary": {
+    "totalScheduledRunsSinceEpoch": 0,
+    "observedRunCount": 0,
+    "completedRuns": 0,
+    "successfulRuns": 0,
+    "unsuccessfulRuns": 0,
+    "pendingRuns": 0,
+    "rollingPassRatePct": null,
+    "rollingWindowStartedAt": null,
+    "rollingWindowEndedAt": null
+  },
+  "runs": [],
+  "boundary": "This record measures scheduled production verification outcomes after the fixed epoch. It is not external demand, investment performance, mainnet execution, or an Agent Advantage result."
+}

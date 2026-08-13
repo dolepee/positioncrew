@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: positioncrew-production-smoke
@@ -27,6 +27,8 @@ jobs:
       - name: Install monitor dependencies
         run: npm ci --ignore-scripts
       - name: Verify marketplace and all four providers
+        id: verify
+        continue-on-error: true
         env:
           POSITIONCREW_BASE_URL: https://positioncrew.dolepee.com
           POSITIONCREW_HEALTH_OUTPUT: /tmp/positioncrew-production-health.json
@@ -39,3 +41,28 @@ jobs:
           path: /tmp/positioncrew-production-health.json
           if-no-files-found: error
           retention-days: 30
+      - name: Record scheduled outcome
+        if: always() && github.event_name == 'schedule'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: |
+          git fetch origin production-monitor:refs/remotes/origin/production-monitor
+          git show origin/production-monitor:evidence/production-track-record.json > /tmp/current-production-track-record.json
+          npx tsx scripts/update-production-track-record.ts /tmp/current-production-track-record.json /tmp/next-production-track-record.json
+          git config user.name "positioncrew-monitor[bot]"
+          git config user.email "positioncrew-monitor[bot]@users.noreply.github.com"
+          git checkout -B production-monitor origin/production-monitor
+          cp /tmp/next-production-track-record.json evidence/production-track-record.json
+          git add evidence/production-track-record.json
+          if git diff --cached --quiet; then
+            echo "Scheduled run ${GITHUB_RUN_ID} is already recorded."
+          else
+            git commit -m "Record production run ${GITHUB_RUN_ID}"
+            git push origin HEAD:production-monitor
+          fi
+      - name: Enforce production verification
+        if: always()
+        env:
+          VERIFY_OUTCOME: ${{ steps.verify.outcome }}
+        run: test "$VERIFY_OUTCOME" = "success"

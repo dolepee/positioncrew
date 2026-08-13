@@ -231,6 +231,7 @@ export interface ProductionMonitorEpoch {
     repository: string;
     file: string;
     url: string;
+    snapshotUrl: string;
     event: "schedule";
     cadenceMinutes: number;
   };
@@ -251,8 +252,8 @@ export interface ProductionTrackRecord {
   status: "COLLECTING" | "OPERATIONAL" | "DEGRADED" | "SOURCE_UNAVAILABLE";
   epoch: ProductionMonitorEpoch;
   source: {
-    provider: "GITHUB_ACTIONS";
-    apiUrl: string;
+    provider: "GITHUB_ACTIONS_SNAPSHOT";
+    snapshotUrl: string;
     workflowUrl: string;
     sourceStatus: "AVAILABLE" | "UNAVAILABLE";
   };

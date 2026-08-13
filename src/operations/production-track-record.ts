@@ -7,6 +7,7 @@ export interface ProductionMonitorEpoch {
     repository: string;
     file: string;
     url: string;
+    snapshotUrl: string;
     event: "schedule";
     cadenceMinutes: number;
   };
@@ -37,8 +38,8 @@ export interface ProductionTrackRecord {
   status: "COLLECTING" | "OPERATIONAL" | "DEGRADED" | "SOURCE_UNAVAILABLE";
   epoch: ProductionMonitorEpoch;
   source: {
-    provider: "GITHUB_ACTIONS";
-    apiUrl: string;
+    provider: "GITHUB_ACTIONS_SNAPSHOT";
+    snapshotUrl: string;
     workflowUrl: string;
     sourceStatus: "AVAILABLE" | "UNAVAILABLE";
   };
@@ -57,29 +58,22 @@ export interface ProductionTrackRecord {
   boundary: string;
 }
 
-interface GitHubWorkflowRun {
-  id: number;
-  event: string;
-  status: string;
-  conclusion: string | null;
-  created_at: string;
-  updated_at: string;
-  head_sha: string;
-  html_url: string;
-}
-
-function objectValue(value: unknown): Record<string, unknown> {
+function objectValue(value: unknown, label: string): Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    throw new Error("GitHub workflow response is not an object");
+    throw new Error(`${label} is not an object`);
   }
   return value as Record<string, unknown>;
 }
 
 function stringValue(value: unknown, label: string): string {
-  if (typeof value !== "string" || value.length === 0) {
-    throw new Error(`${label} is missing`);
-  }
+  if (typeof value !== "string" || value.length === 0) throw new Error(`${label} is missing`);
   return value;
+}
+
+function isoValue(value: unknown, label: string): string {
+  const candidate = stringValue(value, label);
+  if (!Number.isFinite(Date.parse(candidate))) throw new Error(`${label} is invalid`);
+  return candidate;
 }
 
 function nullableString(value: unknown, label: string): string | null {
@@ -87,67 +81,65 @@ function nullableString(value: unknown, label: string): string | null {
   return stringValue(value, label);
 }
 
-function parseRun(value: unknown): GitHubWorkflowRun {
-  const run = objectValue(value);
-  if (!Number.isInteger(run.id) || Number(run.id) <= 0) {
-    throw new Error("GitHub workflow run ID is invalid");
+function parseRun(value: unknown): ProductionTrackRecordRun {
+  const run = objectValue(value, "Production workflow run");
+  if (!Number.isInteger(run.runId) || Number(run.runId) <= 0) {
+    throw new Error("Production workflow run ID is invalid");
+  }
+  const status = stringValue(run.status, "Production workflow status");
+  const completedAt = run.completedAt === null
+    ? null
+    : isoValue(run.completedAt, "Production workflow completion time");
+  if (status === "completed" && completedAt === null) {
+    throw new Error("Completed production workflow run has no completion time");
   }
   return {
-    id: Number(run.id),
-    event: stringValue(run.event, "GitHub workflow event"),
-    status: stringValue(run.status, "GitHub workflow status"),
-    conclusion: nullableString(run.conclusion, "GitHub workflow conclusion"),
-    created_at: stringValue(run.created_at, "GitHub workflow creation time"),
-    updated_at: stringValue(run.updated_at, "GitHub workflow update time"),
-    head_sha: stringValue(run.head_sha, "GitHub workflow revision"),
-    html_url: stringValue(run.html_url, "GitHub workflow URL"),
+    runId: Number(run.runId),
+    status,
+    conclusion: nullableString(run.conclusion, "Production workflow conclusion"),
+    createdAt: isoValue(run.createdAt, "Production workflow creation time"),
+    completedAt,
+    headSha: stringValue(run.headSha, "Production workflow revision"),
+    url: stringValue(run.url, "Production workflow URL"),
   };
 }
 
-export function githubWorkflowRunsApiUrl(epoch: ProductionMonitorEpoch): string {
-  const url = new URL(
-    `https://api.github.com/repos/${epoch.workflow.owner}/${epoch.workflow.repository}/actions/workflows/${epoch.workflow.file}/runs`,
-  );
-  url.searchParams.set("event", epoch.workflow.event);
-  url.searchParams.set("created", `>=${epoch.startedAt}`);
-  url.searchParams.set("per_page", "100");
-  return url.toString();
+function source(epoch: ProductionMonitorEpoch, sourceStatus: "AVAILABLE" | "UNAVAILABLE") {
+  return {
+    provider: "GITHUB_ACTIONS_SNAPSHOT" as const,
+    snapshotUrl: epoch.workflow.snapshotUrl,
+    workflowUrl: epoch.workflow.url,
+    sourceStatus,
+  };
 }
 
-export function buildProductionTrackRecord(
-  payload: unknown,
+function assembleProductionTrackRecord(
   epoch: ProductionMonitorEpoch,
-  generatedAt = new Date().toISOString(),
+  runs: ProductionTrackRecordRun[],
+  totalScheduledRunsSinceEpoch: number,
+  generatedAt: string,
 ): ProductionTrackRecord {
-  const source = objectValue(payload);
-  if (!Number.isInteger(source.total_count) || Number(source.total_count) < 0) {
-    throw new Error("GitHub workflow total count is invalid");
-  }
-  if (!Array.isArray(source.workflow_runs)) {
-    throw new Error("GitHub workflow runs are missing");
-  }
-
   const epochTime = Date.parse(epoch.startedAt);
   if (!Number.isFinite(epochTime)) throw new Error("Production monitor epoch is invalid");
-  const runs = source.workflow_runs
-    .map(parseRun)
-    .filter((run) => run.event === epoch.workflow.event && Date.parse(run.created_at) >= epochTime)
-    .sort((left, right) => Date.parse(right.created_at) - Date.parse(left.created_at))
-    .map<ProductionTrackRecordRun>((run) => ({
-      runId: run.id,
-      status: run.status,
-      conclusion: run.conclusion,
-      createdAt: run.created_at,
-      completedAt: run.status === "completed" ? run.updated_at : null,
-      headSha: run.head_sha,
-      url: run.html_url,
-    }));
-
-  const completed = runs.filter((run) => run.status === "completed");
+  if (!Number.isInteger(totalScheduledRunsSinceEpoch) || totalScheduledRunsSinceEpoch < runs.length) {
+    throw new Error("Production workflow total count is invalid");
+  }
+  const uniqueRunIds = new Set<number>();
+  const normalized = runs.map(parseRun).filter((run) => {
+    if (Date.parse(run.createdAt) < epochTime) {
+      throw new Error(`Production workflow run ${run.runId} predates the epoch`);
+    }
+    if (uniqueRunIds.has(run.runId)) {
+      throw new Error(`Production workflow run ${run.runId} is duplicated`);
+    }
+    uniqueRunIds.add(run.runId);
+    return true;
+  }).sort((left, right) => Date.parse(right.createdAt) - Date.parse(left.createdAt)).slice(0, 100);
+  const completed = normalized.filter((run) => run.status === "completed");
   const successful = completed.filter((run) => run.conclusion === "success");
   const unsuccessful = completed.filter((run) => run.conclusion !== "success");
-  const pending = runs.filter((run) => run.status !== "completed");
-  const chronological = [...runs].sort(
+  const pending = normalized.filter((run) => run.status !== "completed");
+  const chronological = [...normalized].sort(
     (left, right) => Date.parse(left.createdAt) - Date.parse(right.createdAt),
   );
   const status = completed.length === 0
@@ -158,18 +150,13 @@ export function buildProductionTrackRecord(
 
   return {
     schemaVersion: "positioncrew.production-track-record.v1",
-    generatedAt,
+    generatedAt: isoValue(generatedAt, "Production track-record generation time"),
     status,
     epoch,
-    source: {
-      provider: "GITHUB_ACTIONS",
-      apiUrl: githubWorkflowRunsApiUrl(epoch),
-      workflowUrl: epoch.workflow.url,
-      sourceStatus: "AVAILABLE",
-    },
+    source: source(epoch, "AVAILABLE"),
     summary: {
-      totalScheduledRunsSinceEpoch: Number(source.total_count),
-      observedRunCount: runs.length,
+      totalScheduledRunsSinceEpoch,
+      observedRunCount: normalized.length,
       completedRuns: completed.length,
       successfulRuns: successful.length,
       unsuccessfulRuns: unsuccessful.length,
@@ -180,9 +167,65 @@ export function buildProductionTrackRecord(
       rollingWindowStartedAt: chronological[0]?.createdAt ?? null,
       rollingWindowEndedAt: chronological.at(-1)?.createdAt ?? null,
     },
-    runs,
+    runs: normalized,
     boundary: epoch.boundary,
   };
+}
+
+export function emptyProductionTrackRecord(
+  epoch: ProductionMonitorEpoch,
+  generatedAt = epoch.startedAt,
+): ProductionTrackRecord {
+  return assembleProductionTrackRecord(epoch, [], 0, generatedAt);
+}
+
+export function parseProductionTrackRecordSnapshot(
+  payload: unknown,
+  epoch: ProductionMonitorEpoch,
+): ProductionTrackRecord {
+  const record = objectValue(payload, "Production track-record snapshot");
+  if (record.schemaVersion !== "positioncrew.production-track-record.v1") {
+    throw new Error("Production track-record snapshot schema is invalid");
+  }
+  const embeddedEpoch = objectValue(record.epoch, "Production track-record epoch");
+  if (
+    embeddedEpoch.schemaVersion !== epoch.schemaVersion ||
+    embeddedEpoch.startedAt !== epoch.startedAt
+  ) {
+    throw new Error("Production track-record snapshot epoch does not match the committed epoch");
+  }
+  const summary = objectValue(record.summary, "Production track-record summary");
+  if (!Array.isArray(record.runs)) throw new Error("Production track-record runs are missing");
+  if (
+    !Number.isInteger(summary.totalScheduledRunsSinceEpoch) ||
+    Number(summary.totalScheduledRunsSinceEpoch) < 0
+  ) {
+    throw new Error("Production track-record total count is invalid");
+  }
+  return assembleProductionTrackRecord(
+    epoch,
+    record.runs.map(parseRun),
+    Number(summary.totalScheduledRunsSinceEpoch),
+    isoValue(record.generatedAt, "Production track-record generation time"),
+  );
+}
+
+export function appendProductionTrackRecordRun(
+  current: unknown,
+  epoch: ProductionMonitorEpoch,
+  run: ProductionTrackRecordRun,
+  generatedAt = new Date().toISOString(),
+): ProductionTrackRecord {
+  const record = parseProductionTrackRecordSnapshot(current, epoch);
+  const parsedRun = parseRun(run);
+  const alreadyRecorded = record.runs.some((candidate) => candidate.runId === parsedRun.runId);
+  const runs = [parsedRun, ...record.runs.filter((candidate) => candidate.runId !== parsedRun.runId)];
+  return assembleProductionTrackRecord(
+    epoch,
+    runs,
+    (record.summary.totalScheduledRunsSinceEpoch ?? record.runs.length) + (alreadyRecorded ? 0 : 1),
+    generatedAt,
+  );
 }
 
 export function unavailableProductionTrackRecord(
@@ -190,16 +233,9 @@ export function unavailableProductionTrackRecord(
   generatedAt = new Date().toISOString(),
 ): ProductionTrackRecord {
   return {
-    schemaVersion: "positioncrew.production-track-record.v1",
-    generatedAt,
+    ...emptyProductionTrackRecord(epoch, generatedAt),
     status: "SOURCE_UNAVAILABLE",
-    epoch,
-    source: {
-      provider: "GITHUB_ACTIONS",
-      apiUrl: githubWorkflowRunsApiUrl(epoch),
-      workflowUrl: epoch.workflow.url,
-      sourceStatus: "UNAVAILABLE",
-    },
+    source: source(epoch, "UNAVAILABLE"),
     summary: {
       totalScheduledRunsSinceEpoch: null,
       observedRunCount: 0,
@@ -211,7 +247,5 @@ export function unavailableProductionTrackRecord(
       rollingWindowStartedAt: null,
       rollingWindowEndedAt: null,
     },
-    runs: [],
-    boundary: epoch.boundary,
   };
 }

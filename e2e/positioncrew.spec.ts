@@ -485,6 +485,8 @@ test("the evidence page exposes every scheduled production outcome after the fix
             repository: "positioncrew",
             file: "production-smoke.yml",
             url: "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
+            snapshotUrl:
+              "https://raw.githubusercontent.com/dolepee/positioncrew/production-monitor/evidence/production-track-record.json",
             event: "schedule",
             cadenceMinutes: 30,
           },
@@ -499,8 +501,9 @@ test("the evidence page exposes every scheduled production outcome after the fix
           boundary: "Production verification only.",
         },
         source: {
-          provider: "GITHUB_ACTIONS",
-          apiUrl: "https://api.github.com/repos/dolepee/positioncrew/actions/workflows/production-smoke.yml/runs",
+          provider: "GITHUB_ACTIONS_SNAPSHOT",
+          snapshotUrl:
+            "https://raw.githubusercontent.com/dolepee/positioncrew/production-monitor/evidence/production-track-record.json",
           workflowUrl: "https://github.com/dolepee/positioncrew/actions/workflows/production-smoke.yml",
           sourceStatus: "AVAILABLE",
         },

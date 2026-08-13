@@ -66,7 +66,7 @@ The local Cloudflare-compatible worker serves the application on `http://127.0.0
 - `GET /api/providers/:provider/manifest` for a self-contained provider transport and claim boundary;
 - `GET /api/schemas/:schemaVersion` for exact request or deliverable JSON Schema;
 - `GET /api/status` for block-pinned BSC, PancakeSwap, Venus, and integration-boundary telemetry;
-- `GET /api/operations/production` for every observed scheduled production verification run after the fixed monitoring epoch, including unsuccessful outcomes;
+- `GET /api/operations/production` for every observed scheduled production verification run after the fixed monitoring epoch, including unsuccessful outcomes, recomputed from the durable public snapshot on the dedicated `production-monitor` branch;
 - `GET /api/benchmarks/repeatability` for the three locked TermiX tasks and six reproducible provider repeats;
 - `GET /api/benchmarks/captures` for the source-bound, hash-only manifest of the six precommitted agent candidates;
 - `GET /api/benchmarks/:task/repeatability` for lending-rescue, lp-rebalance, or bounded-grid evidence;
@@ -118,7 +118,7 @@ Offline role-specific handoff tools reduce procedural errors without weakening t
 - A Cloudflare-compatible worker exposes the same typed core used by the CLI and tests, plus direct BSC JSON-RPC reads through `viem`.
 - ERC-8004 identities bind each live provider endpoint on BSC Testnet; production checks fail if ownership, registration, or endpoint binding changes.
 - ERC-8183/APEX jobs bind funded escrow, a provider, a canonical deliverable hash, an approved policy, and terminal settlement; the production monitor re-verifies all seven jobs directly from BSC Testnet. It also posts one current-clock scenario and one locked-receipt request to every Provider, rejecting expired scenario output, public evidence leakage, or any locked evaluation-hash drift.
-- The public operating record aggregates the latest 100 scheduled monitor runs after the committed epoch, excludes push and manual events, and keeps failures in the denominator. GitHub source unavailability produces an explicit unavailable state rather than an inferred pass rate.
+- The public operating record aggregates the latest 100 scheduled monitor runs after the committed epoch, excludes push and manual events, and keeps failures in the denominator. Each scheduled workflow writes its outcome to a durable snapshot on the dedicated `production-monitor` branch before enforcing the check result. The application validates the fixed epoch and recomputes every count and rate from the recorded runs instead of trusting snapshot summary claims. Snapshot unavailability produces an explicit unavailable state rather than an inferred pass rate.
 - React provides the buyer marketplace and job workspace without duplicating decision logic in the browser.
 
 ## Claim boundary

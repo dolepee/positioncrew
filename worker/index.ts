@@ -24,8 +24,7 @@ import {
   getSchemaDocument,
 } from "../src/marketplace/discovery.js";
 import {
-  buildProductionTrackRecord,
-  githubWorkflowRunsApiUrl,
+  parseProductionTrackRecordSnapshot,
   unavailableProductionTrackRecord,
   type ProductionMonitorEpoch,
   type ProductionTrackRecord,
@@ -199,16 +198,18 @@ async function loadProductionTrackRecord(): Promise<ProductionTrackRecord> {
     let record: ProductionTrackRecord;
     let ttlMs: number;
     try {
-      const response = await fetch(githubWorkflowRunsApiUrl(MONITOR_EPOCH), {
+      const snapshotUrl = new URL(MONITOR_EPOCH.workflow.snapshotUrl);
+      snapshotUrl.searchParams.set("epoch_window", String(Math.floor(Date.now() / 300_000)));
+      const response = await fetch(snapshotUrl, {
         headers: {
-          Accept: "application/vnd.github+json",
+          Accept: "application/json",
           "User-Agent": "PositionCrew-Production-Record/1.0",
-          "X-GitHub-Api-Version": "2022-11-28",
         },
+        cache: "no-store",
         signal: AbortSignal.timeout(10_000),
       });
-      if (!response.ok) throw new Error(`GitHub Actions returned HTTP ${response.status}`);
-      record = buildProductionTrackRecord(await response.json(), MONITOR_EPOCH);
+      if (!response.ok) throw new Error(`Production record snapshot returned HTTP ${response.status}`);
+      record = parseProductionTrackRecordSnapshot(await response.json(), MONITOR_EPOCH);
       ttlMs = 5 * 60_000;
     } catch {
       record = unavailableProductionTrackRecord(MONITOR_EPOCH);
