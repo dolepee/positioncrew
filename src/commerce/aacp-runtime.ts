@@ -268,7 +268,9 @@ export function resolveRuntimeTokenExpiry(
 ): Date | null {
   if (explicitExpiry) {
     const parsed = Date.parse(explicitExpiry);
-    if (!Number.isFinite(parsed)) throw new Error("TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT is invalid");
+    if (!Number.isFinite(parsed)) {
+      throw new TermixRuntimeTokenError("TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT is invalid");
+    }
     return new Date(parsed);
   }
   const exp = decodeJwtPayload(token)?.exp;
@@ -283,10 +285,12 @@ export function assertRuntimeTokenFresh(
     minimumRemainingSeconds?: number;
   } = {},
 ): Date {
-  if (token.trim().length < 16) throw new Error("TERMIX_A2A_RUNTIME_TOKEN is missing or malformed");
+  if (token.trim().length < 16) {
+    throw new TermixRuntimeTokenError("TERMIX_A2A_RUNTIME_TOKEN is missing or malformed");
+  }
   const expiresAt = resolveRuntimeTokenExpiry(token, options.explicitExpiry);
   if (!expiresAt) {
-    throw new Error(
+    throw new TermixRuntimeTokenError(
       "Runtime token expiry is unknown; provide TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT",
     );
   }
@@ -294,9 +298,18 @@ export function assertRuntimeTokenFresh(
   const minimumRemainingSeconds =
     options.minimumRemainingSeconds ?? TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS;
   if (expiresAt.getTime() - now.getTime() <= minimumRemainingSeconds * 1_000) {
-    throw new Error("TermiX runtime token is expired or inside the fail-closed refresh window");
+    throw new TermixRuntimeTokenError(
+      "TermiX runtime token is expired or inside the fail-closed refresh window",
+    );
   }
   return expiresAt;
+}
+
+export class TermixRuntimeTokenError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "TermixRuntimeTokenError";
+  }
 }
 
 export class TermixRuntimeHttpError extends Error {

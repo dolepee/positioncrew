@@ -10,7 +10,12 @@ import {
   runtimePollSince,
   type TermixRuntimeMessage,
 } from "../src/commerce/aacp-runtime.js";
-import { parseRuntimeEnvironment, runRuntimeCycle } from "../src/cli/run-termix-runtime.js";
+import {
+  TERMIX_RUNTIME_CREDENTIAL_EXIT_CODE,
+  parseRuntimeEnvironment,
+  runRuntimeCycle,
+  runtimeExitCode,
+} from "../src/cli/run-termix-runtime.js";
 
 const NOW = new Date("2026-08-13T12:00:00.000Z");
 
@@ -116,6 +121,19 @@ describe("PositionCrew TermiX A2A runtime", () => {
     expect(() => assertRuntimeTokenFresh("opaque-runtime-token", { now: NOW })).toThrow(
       "expiry is unknown",
     );
+  });
+
+  it("marks token expiry as a non-retryable service exit", () => {
+    const nearExpiry = jwt(Math.floor(NOW.getTime() / 1_000) + 60);
+    let expiryError: unknown;
+    try {
+      assertRuntimeTokenFresh(nearExpiry, { now: NOW });
+    } catch (error) {
+      expiryError = error;
+    }
+
+    expect(runtimeExitCode(expiryError)).toBe(TERMIX_RUNTIME_CREDENTIAL_EXIT_CODE);
+    expect(runtimeExitCode(new Error("temporary network failure"))).toBe(1);
   });
 
   it("refuses a host environment containing wallet signing material", () => {

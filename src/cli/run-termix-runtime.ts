@@ -7,6 +7,7 @@ import {
   TERMIX_RUNTIME_MIN_POLL_SECONDS,
   TermixRuntimeClient,
   TermixRuntimeHttpError,
+  TermixRuntimeTokenError,
   TermixRuntimeStateSchema,
   assertRuntimeTokenFresh,
   buildTermixRuntimeDecision,
@@ -31,6 +32,14 @@ interface RuntimeEnvironment {
   statePath: string;
   pollSeconds: number;
   once: boolean;
+}
+
+export const TERMIX_RUNTIME_CREDENTIAL_EXIT_CODE = 78;
+
+export function runtimeExitCode(error: unknown): number {
+  return error instanceof TermixRuntimeTokenError
+    ? TERMIX_RUNTIME_CREDENTIAL_EXIT_CODE
+    : 1;
 }
 
 export function parseRuntimeEnvironment(
@@ -186,6 +195,6 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         error: error instanceof Error ? error.message : "Unknown runtime error",
       })}\n`,
     );
-    process.exitCode = 1;
+    process.exitCode = runtimeExitCode(error);
   });
 }

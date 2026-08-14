@@ -60,6 +60,8 @@ npm run runtime:termix
 
 Opaque tokens must also set `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT` to an ISO-8601 timestamp. Runtime state is written atomically under `.state/`, excluded from Git, and contains message IDs and operator-attention metadata but no token or message text.
 
+The production systemd template is tracked at `deploy/systemd/positioncrew-runtime@.service`. Credential expiry exits with status `78`, which systemd treats as terminal rather than restarting. Rotate the scoped token first, then explicitly enable and start that provider instance; an expired provider remains offline without entering a restart loop.
+
 ## BSC commerce receipts
 
 PositionCrew has completed seven ERC-8183/APEX lifecycles on BSC Testnet: one zero-price path probe and six funded jobs releasing `0.6 U` from a dedicated client wallet to a separate provider wallet. The four flagship jobs cover every required category and bind each public deliverable manifest to the onchain job.
