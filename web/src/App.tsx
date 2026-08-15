@@ -100,7 +100,7 @@ export default function App() {
         .then(setCommerceLedger),
       fetch("/api/commerce/aacp", { headers: { Accept: "application/json" } })
         .then((response) => jsonResponse<AacpProductionReadiness>(response))
-        .then(setAacpReadiness),
+        .then((payload) => setAacpReadiness(payload.state === "SOURCE_UNAVAILABLE" ? null : payload)),
       fetch("/evidence/agent-advantage-status.json", {
         cache: "no-store",
         headers: { Accept: "application/json" },

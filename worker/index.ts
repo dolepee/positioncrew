@@ -71,6 +71,7 @@ let productionRecordCache: { expiresAt: number; record: ProductionTrackRecord } 
 let productionRecordRequest: Promise<ProductionTrackRecord> | null = null;
 let aacpReadinessCache: { expiresAt: number; record: AacpProductionReadiness } | null = null;
 let aacpReadinessRequest: Promise<AacpProductionReadiness> | null = null;
+const AACP_READINESS_RESPONSE_BUDGET_MS = 8_000;
 
 const API_HEADERS = {
   "Access-Control-Allow-Headers": "Accept, Content-Type",
@@ -249,12 +250,23 @@ async function loadAacpReadiness(): Promise<AacpProductionReadiness> {
   aacpReadinessRequest = (async () => {
     let record: AacpProductionReadiness;
     let ttlMs: number;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
-      record = await getAacpProductionReadiness();
+      record = await Promise.race([
+        getAacpProductionReadiness(),
+        new Promise<never>((_, reject) => {
+          timeoutId = setTimeout(
+            () => reject(new Error("AACP readiness exceeded its response budget")),
+            AACP_READINESS_RESPONSE_BUDGET_MS,
+          );
+        }),
+      ]);
       ttlMs = record.state.includes("DEGRADED") ? 60_000 : 5 * 60_000;
     } catch {
       record = unavailableAacpProductionReadiness();
       ttlMs = 60_000;
+    } finally {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
     }
     aacpReadinessCache = { expiresAt: Date.now() + ttlMs, record };
     return record;
