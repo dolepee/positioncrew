@@ -10,6 +10,8 @@ import {
   Radio,
   ShieldCheck,
 } from "lucide-react";
+import termixIdentityEvidence from "../../../evidence/termix-identities.mainnet.json" with { type: "json" };
+import termixListingEvidence from "../../../evidence/termix-listings.mainnet.json" with { type: "json" };
 import { shortHash } from "../presentation";
 import type {
   AacpProductionReadiness,
@@ -130,6 +132,8 @@ export function EvidenceView({
     LISTING_DISCOVERY_UNAVAILABLE: "Listing check unavailable",
     UPSTREAM_UNAVAILABLE: "Unavailable",
   })[status];
+  const committedIdentityCount = termixIdentityEvidence.providers.length;
+  const committedListingCount = termixListingEvidence.listings.length;
   return (
     <main className="page-shell evidence-page">
       <div className="page-title-row">
@@ -143,7 +147,7 @@ export function EvidenceView({
           <span><BadgeCheck size={16} /><strong>{providers.length}/4</strong> BSC identities</span>
           <span><BadgeCheck size={16} /><strong>{matrix.size}/4</strong> public receipts</span>
           <span><Coins size={16} /><strong>{commerceLedger?.summary.fundedCompletedJobs ?? "-"}</strong> funded test jobs</span>
-          <span><Radio size={16} /><strong>{aacpReadiness?.marketplace.publishedListingCount ?? "-"}/4</strong> AACP listings</span>
+          <span><Radio size={16} /><strong>{aacpReadiness?.marketplace.publishedListingCount ?? committedListingCount}/4</strong> AACP listings</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
           <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> marketplace deliveries</span>
         </div>
@@ -177,15 +181,15 @@ export function EvidenceView({
           <div><span className="section-kicker">TermiX production rail</span><h2 id="aacp-title">AACP deployment and provider onboarding</h2></div>
           <span className={`state-label ${aacpStatus.tone}`}><Radio size={13} /> {aacpStatus.label}</span>
         </div>
+        <div className="aacp-facts">
+          <div><strong>{aacpReadiness?.protocol.contractCount ? `${aacpReadiness.protocol.deployedCount}/${aacpReadiness.protocol.contractCount}` : "-"}</strong><span>production contracts</span><small>{aacpReadiness ? "Bytecode checked independently on chain 56" : "Live protocol check pending"}</small></div>
+          <div><strong>{aacpReadiness?.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness?.protocol.protocolFeeBps == null ? "Live fee check pending" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
+          <div><strong>{aacpReadiness?.marketplace.registeredIdentityCount ?? committedIdentityCount}/4</strong><span>mainnet identities</span><small>Committed ERC-8004 mint receipts remain available during live-source delays</small></div>
+          <div><strong>{aacpReadiness?.marketplace.publishedListingCount ?? committedListingCount}/4</strong><span>public listings</span><small>Committed Agent.family listing records remain directly inspectable</small></div>
+          <div><strong>{aacpReadiness ? `${aacpReadiness.marketplace.onlineProviderCount}/${aacpReadiness.marketplace.requiredProviderCount}` : "-"}</strong><span>online providers</span><small>Expiring A2A presence; reported separately from core health</small></div>
+        </div>
         {aacpReadiness ? (
           <>
-            <div className="aacp-facts">
-              <div><strong>{aacpReadiness.protocol.contractCount ? `${aacpReadiness.protocol.deployedCount}/${aacpReadiness.protocol.contractCount}` : "-"}</strong><span>production contracts</span><small>Bytecode checked independently on chain 56</small></div>
-              <div><strong>{aacpReadiness.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness.protocol.protocolFeeBps === null ? "Fee unavailable" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
-              <div><strong>{aacpReadiness.marketplace.registeredIdentityCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>mainnet identities</span><small>Owner and metadata URI read directly from ERC-8004</small></div>
-              <div><strong>{aacpReadiness.marketplace.publishedListingCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>public listings</span><small>Direct public listing records verified</small></div>
-              <div><strong>{aacpReadiness.marketplace.onlineProviderCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>online providers</span><small>Expiring A2A presence; reported separately from core health</small></div>
-            </div>
             <div className="aacp-provider-grid" aria-label="TermiX production provider onboarding state">
               {aacpReadiness.marketplace.providers.map((provider) => (
                 <div key={provider.service}>
@@ -210,7 +214,13 @@ export function EvidenceView({
               <span className="delivery-links"><a href="/api/commerce/aacp" target="_blank" rel="noreferrer">Readiness record <ExternalLink size={12} /></a><a href={aacpReadiness.source.docsUrl} target="_blank" rel="noreferrer">TermiX guide <ExternalLink size={12} /></a></span>
             </div>
           </>
-        ) : <div className="infrastructure-loading">The TermiX production readiness record is loading.</div>}
+        ) : (
+          <div className="operations-boundary">
+            <Clock3 size={16} aria-hidden="true" />
+            <span><strong>Live TermiX status is loading.</strong> Durable identity and listing counts above come from committed public receipts; no runtime availability is inferred.</span>
+            <span className="delivery-links"><a href="/api/commerce/aacp" target="_blank" rel="noreferrer">Live readiness <ExternalLink size={12} /></a>{termixListingEvidence.listings.slice(0, 1).map((listing) => <a key={listing.listingId} href={listing.listingUrl} target="_blank" rel="noreferrer">Inspect listing <ExternalLink size={12} /></a>)}</span>
+          </div>
+        )}
       </section>
 
       <section className="evidence-section delivery-evidence-section" aria-labelledby="delivery-title">

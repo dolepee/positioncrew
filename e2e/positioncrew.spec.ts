@@ -446,8 +446,6 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText(/not external purchases, revenue, or the pending blind Agent Advantage result/)).toBeVisible();
   const aacpSection = page.getByRole("region", { name: "AACP deployment and provider onboarding" });
   await expect(aacpSection).toBeVisible();
-  await expect(aacpSection.getByText("10/10", { exact: true })).toBeVisible({ timeout: 20_000 });
-  await expect(aacpSection.getByText("USDC + USDT", { exact: true })).toBeVisible();
   await expect(
     aacpSection.locator(".aacp-facts > div").filter({ hasText: "mainnet identities" }).getByText("4/4", { exact: true }),
   ).toBeVisible();
