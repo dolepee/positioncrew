@@ -217,6 +217,8 @@ describe("tamper-evident Agent Advantage evidence workflow", () => {
     const manualHtml = readFileSync(manualTool.path, "utf8");
 
     expect(manualHtml).toContain("Offline evidence capture");
+    expect(manualHtml).toContain("Neutral format guide");
+    expect(manualHtml).toContain("Replace every blank scaffold value with your own result");
     expect(manualHtml).not.toContain("fullCredit");
     expect(manualHtml).not.toContain('"sourceType"');
     expect(manualHtml).not.toContain('"candidateHash"');

@@ -454,10 +454,10 @@ test("the evidence page separates conformance from advantage claims", async ({ p
     aacpSection.locator(".aacp-facts > div").filter({ hasText: "public listings" }).getByText("4/4", { exact: true }),
   ).toBeVisible();
   await expect(
-    aacpSection.locator(".aacp-facts > div").filter({ hasText: "online providers" }).getByText("4/4", { exact: true }),
+    aacpSection.locator(".aacp-facts > div").filter({ hasText: "online providers" }).locator("strong"),
   ).toBeVisible();
   await expect(
-    aacpSection.getByText(/reported an online A2A runtime.*not a durable uptime claim/),
+    aacpSection.getByText(/Expiring A2A presence; reported separately from core health/),
   ).toBeVisible();
 
   const aacpResponse = await getWithTransportRetry(page.request, "/api/commerce/aacp");
@@ -465,16 +465,18 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   const aacp = await aacpResponse.json();
   expect(aacp).toMatchObject({
     schemaVersion: "positioncrew.aacp-production-readiness.v1",
-    state: "PROVIDERS_ONLINE",
     network: { chainId: 56 },
     protocol: { deployedCount: 10, contractCount: 10, currencyCount: 2 },
     marketplace: {
       requiredProviderCount: 4,
       registeredIdentityCount: 4,
       publishedListingCount: 4,
-      onlineProviderCount: 4,
     },
   });
+  expect(["LISTINGS_PUBLISHED_RUNTIME_PENDING", "PROVIDERS_ONLINE"]).toContain(aacp.state);
+  expect(aacp.marketplace.onlineProviderCount).toBeGreaterThanOrEqual(0);
+  expect(aacp.marketplace.onlineProviderCount).toBeLessThanOrEqual(4);
+  expect(aacp.state === "PROVIDERS_ONLINE").toBe(aacp.marketplace.onlineProviderCount === 4);
   expect(aacp.marketplace.providers).toHaveLength(4);
   expect(aacp.marketplace.providers.every((provider: { identity: { onchainVerified: boolean } }) => provider.identity.onchainVerified)).toBe(true);
   expect(
@@ -484,7 +486,8 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   ).toBe(true);
   expect(
     aacp.marketplace.providers.every(
-      (provider: { status: string }) => provider.status === "ONLINE_AND_LISTED",
+      (provider: { status: string }) =>
+        ["ONLINE_AND_LISTED", "LISTED_OFFLINE"].includes(provider.status),
     ),
   ).toBe(true);
 

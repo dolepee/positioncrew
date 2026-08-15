@@ -60,7 +60,7 @@ npm run runtime:termix
 
 Opaque tokens must also set `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT` to an ISO-8601 timestamp. Runtime state is written atomically under `.state/`, excluded from Git, and contains message IDs and operator-attention metadata but no token or message text.
 
-The production systemd template is tracked at `deploy/systemd/positioncrew-runtime@.service`. Credential expiry exits with status `78`, which systemd treats as terminal rather than restarting. Rotate the scoped token first, then explicitly enable and start that provider instance; an expired provider remains offline without entering a restart loop.
+The production systemd template is tracked at `deploy/systemd/positioncrew-runtime@.service`. Credential expiry exits with status `78`, which systemd treats as terminal rather than restarting. Rotate the scoped token first, then explicitly enable and start that provider instance; an expired provider remains offline without entering a restart loop. The scheduled production monitor treats the four public PositionCrew provider endpoints, identities, listings, schemas, current BSC inputs, and retained commerce receipts as the core health surface. It reports optional A2A runtime presence separately, because the official TermiX challenge does not require TermiX integration and a 12-hour runtime token cannot support an honest continuous-uptime claim.
 
 ## BSC commerce receipts
 

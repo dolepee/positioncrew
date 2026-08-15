@@ -184,7 +184,7 @@ export function EvidenceView({
               <div><strong>{aacpReadiness.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness.protocol.protocolFeeBps === null ? "Fee unavailable" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
               <div><strong>{aacpReadiness.marketplace.registeredIdentityCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>mainnet identities</span><small>Owner and metadata URI read directly from ERC-8004</small></div>
               <div><strong>{aacpReadiness.marketplace.publishedListingCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>public listings</span><small>Direct public listing records verified</small></div>
-              <div><strong>{aacpReadiness.marketplace.onlineProviderCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>online providers</span><small>A2A presence must remain live through judging</small></div>
+              <div><strong>{aacpReadiness.marketplace.onlineProviderCount}/{aacpReadiness.marketplace.requiredProviderCount}</strong><span>online providers</span><small>Expiring A2A presence; reported separately from core health</small></div>
             </div>
             <div className="aacp-provider-grid" aria-label="TermiX production provider onboarding state">
               {aacpReadiness.marketplace.providers.map((provider) => (

@@ -105,6 +105,8 @@ function manualOperatorHtml(packetInput: unknown): string {
   .workspace > section { min-width:0; padding:18px; } .workspace > section + section { border-left:1px solid var(--line); }
   .code-panel { max-height:440px; margin-top:12px; padding:13px; overflow:auto; border:1px solid var(--line); background:var(--soft); }
   .output { min-height:420px; } .operator-fields { margin-top:15px; }
+  .format-guide { margin:12px 0; padding:10px 12px; border:1px solid var(--line); background:var(--soft); color:#46534d; font-size:12px; }
+  .format-guide strong { color:var(--ink); }
   @media (max-width:900px) { .workspace { grid-template-columns:1fr; } .workspace > section + section { border-top:1px solid var(--line); border-left:0; } }
 </style></head><body>
 <header><strong>PositionCrew manual benchmark</strong><span>Offline evidence capture · no network calls</span></header>
@@ -129,6 +131,7 @@ function manualOperatorHtml(packetInput: unknown): string {
   <div class="panel workspace" id="workspace" hidden>
     <section><span class="kicker">Frozen input</span><h2>Task fixture</h2><div class="code-panel"><pre id="fixture"></pre></div><details style="margin-top:12px"><summary>Neutral output contract</summary><div class="code-panel"><pre id="contract"></pre></div></details></section>
     <section><div class="toolbar" style="margin:0;padding:0 0 12px;border-top:0;border-bottom:1px solid var(--line)"><div><span class="kicker">Manual answer</span><h2>Final JSON deliverable</h2></div><span class="timer" id="timer">00:00.000</span></div>
+      <div class="format-guide"><strong>Neutral format guide.</strong> Copy identifiers from the fixture. Use ISO-8601 strings for timestamps. Enter decimal quantities as quoted plain strings such as <code>"0"</code> or <code>"123.45"</code>, without currency symbols, commas, spaces, or scientific notation. A nullable field may use <code>null</code>. Replace every blank scaffold value with your own result.</div>
       <textarea class="output" id="output" spellcheck="false"></textarea>
       <div class="notice" id="validation">The JSON must satisfy the neutral output contract before it can be finalized.</div>
       <div class="toolbar"><button class="secondary" id="validate">Validate JSON</button><button id="finish">Finalize and download</button></div>

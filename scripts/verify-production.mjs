@@ -337,12 +337,13 @@ try {
     "AACP readiness does not verify all four mainnet identities",
   );
   assert(
-    aacpReadiness.state === "PROVIDERS_ONLINE" &&
+    ["LISTINGS_PUBLISHED_RUNTIME_PENDING", "PROVIDERS_ONLINE"].includes(
+      aacpReadiness.state,
+    ) &&
       aacpReadiness.marketplace.indexedProviderCount === 4 &&
       aacpReadiness.marketplace.publishedListingCount === 4 &&
-      aacpReadiness.marketplace.onlineProviderCount === 4 &&
       aacpReadiness.marketplace.discoveryDegraded === false,
-    "AACP readiness does not report four published and online providers",
+    "AACP readiness does not report four published providers",
   );
   assert(
     aacpReadiness.marketplace.providers.every(
@@ -350,13 +351,26 @@ try {
         expectedAacpListings.get(provider.agentTokenId) === provider.listingId &&
         provider.listingStatus === "PUBLISHED" &&
         provider.liveListingVerified === true &&
-        provider.a2aStatus === "ONLINE" &&
-        provider.presence === "online" &&
-        provider.status === "ONLINE_AND_LISTED" &&
         typeof provider.listingUrl === "string" &&
         new URL(provider.listingUrl).hostname === "www.agent.family",
     ),
-    "AACP public listing identity, status, or runtime boundary changed",
+    "AACP public listing identity or status changed",
+  );
+  const onlineAacpProviders = aacpReadiness.marketplace.providers.filter(
+    (provider) =>
+      provider.a2aStatus === "ONLINE" &&
+      provider.presence === "online" &&
+      provider.status === "ONLINE_AND_LISTED",
+  );
+  assert(
+    onlineAacpProviders.length === aacpReadiness.marketplace.onlineProviderCount,
+    "AACP runtime count is inconsistent with provider state",
+  );
+  assert(
+    (onlineAacpProviders.length === 4 && aacpReadiness.state === "PROVIDERS_ONLINE") ||
+      (onlineAacpProviders.length < 4 &&
+        aacpReadiness.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING"),
+    "AACP readiness state is inconsistent with live runtime presence",
   );
   assert(
     aacpReadiness.integration?.guide?.status === "CURRENT_HUMAN_GUIDE_VERIFIED" &&
@@ -400,6 +414,14 @@ try {
     "AACP readiness overstates paid production activity",
   );
   report.aacpReadiness = aacpReadiness;
+  report.aacpRuntime = {
+    requiredForCoreHealth: false,
+    status: onlineAacpProviders.length === 4 ? "ONLINE" : "RUNTIME_PENDING",
+    onlineProviderCount: onlineAacpProviders.length,
+    requiredProviderCount: 4,
+    boundary:
+      "TermiX integration is optional for the challenge. Expiring A2A presence is reported separately and never converted into continuous-uptime evidence.",
+  };
 
   const marketplaceDelivery = await fetchJson(
     "marketplace-delivery-evidence",

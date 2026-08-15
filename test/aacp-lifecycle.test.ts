@@ -353,17 +353,21 @@ describe("PositionCrew AACP order lifecycle guard", () => {
 
   it("pins every reviewed tx-intent to chain 56, zero BNB, and the correct contract", async () => {
     const binding = await freshBinding();
-    expect(assertAacpOrderIntent(binding, intent("approveEscrow"), "approveEscrow").contract).toBe(USDT);
-    expect(assertAacpOrderIntent(binding, intent("createOrder"), "createOrder").contract).toBe(ESCROW);
+    expect(assertAacpOrderIntent(binding, intent("approveEscrow"), "approveEscrow", {}, NOW).contract).toBe(USDT);
+    expect(assertAacpOrderIntent(binding, intent("createOrder"), "createOrder", {}, NOW).contract).toBe(ESCROW);
     expect(() => assertAacpOrderIntent(
       binding,
       { ...intent("createOrder"), contract: USDT },
       "createOrder",
+      {},
+      NOW,
     )).toThrow("unexpected contract");
     expect(() => assertAacpOrderIntent(
       binding,
       { ...intent("createOrder"), value: "1" },
       "createOrder",
+      {},
+      NOW,
     )).toThrow("must not transfer native BNB");
     expect(() => assertAacpOrderIntent(
       binding,
@@ -376,11 +380,15 @@ describe("PositionCrew AACP order lifecycle guard", () => {
         }),
       },
       "approveEscrow",
+      {},
+      NOW,
     )).toThrow("exact checkout budget");
     expect(() => assertAacpOrderIntent(
       binding,
       { ...intent("createOrder"), callData: calldata("releaseEscrow") },
       "createOrder",
+      {},
+      NOW,
     )).toThrow("instead of the reviewed action");
     expect(() => assertAacpOrderIntent(
       binding,
@@ -401,6 +409,8 @@ describe("PositionCrew AACP order lifecycle guard", () => {
         }),
       },
       "createOrder",
+      {},
+      NOW,
     )).toThrow("exact checkout amount");
   });
 
