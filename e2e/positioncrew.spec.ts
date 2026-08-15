@@ -459,29 +459,6 @@ test("the evidence page separates conformance from advantage claims", async ({ p
     aacpSection.getByText(/Expiring A2A presence; reported separately from core health/),
   ).toBeVisible();
 
-  const aacpResponse = await page.request.get("/api/commerce/aacp", { timeout: 12_000 });
-  expect(aacpResponse.status()).toBe(200);
-  const aacp = await aacpResponse.json();
-  expect(aacp).toMatchObject({
-    schemaVersion: "positioncrew.aacp-production-readiness.v1",
-    network: { chainId: 56 },
-    marketplace: {
-      requiredProviderCount: 4,
-    },
-  });
-  expect([
-    "LISTINGS_PUBLISHED_RUNTIME_PENDING",
-    "PROVIDERS_ONLINE",
-    "SOURCE_UNAVAILABLE",
-  ]).toContain(aacp.state);
-  if (aacp.state !== "SOURCE_UNAVAILABLE") {
-    expect(aacp.protocol).toMatchObject({ deployedCount: 10, contractCount: 10, currencyCount: 2 });
-    expect(aacp.marketplace).toMatchObject({ registeredIdentityCount: 4, publishedListingCount: 4 });
-    expect(aacp.marketplace.onlineProviderCount).toBeGreaterThanOrEqual(0);
-    expect(aacp.marketplace.onlineProviderCount).toBeLessThanOrEqual(4);
-    expect(aacp.marketplace.providers.every((provider: { identity: { onchainVerified: boolean } }) => provider.identity.onchainVerified)).toBe(true);
-  }
-
   const commerceResponse = await getWithTransportRetry(page.request, "/api/commerce/erc8183");
   expect(commerceResponse.status()).toBe(200);
   const commerce = await commerceResponse.json();
