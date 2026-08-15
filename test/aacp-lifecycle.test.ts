@@ -14,6 +14,9 @@ import {
 import { MemoryCommerceAdapter } from "../src/commerce/memory-adapter.js";
 
 const NOW = new Date("2026-08-13T12:00:00.000Z");
+const ACCEPT_DEADLINE = new Date(NOW.getTime() + 60 * 60 * 1_000).toISOString();
+const DELIVERY_DEADLINE = new Date(NOW.getTime() + 24 * 60 * 60 * 1_000).toISOString();
+const CHALLENGE_DEADLINE = new Date(NOW.getTime() + 48 * 60 * 60 * 1_000).toISOString();
 const USDT = "0x55d398326f99059fF775485246999027B3197955";
 const ESCROW = "0xCE02f987D8b8AF694E13C8a843Db9c77caBF544c";
 const STAKING = "0x1DcafFB7275fa2650d480a4F939A0C0D5874750B";
@@ -77,7 +80,7 @@ async function freshBinding(): Promise<AacpOrderBinding> {
       amount: "5",
     },
     createdAt: NOW.toISOString(),
-    deadline: "2026-08-14T12:00:00.000Z",
+    deadline: DELIVERY_DEADLINE,
   });
   const plan = createAacpCheckoutPlan(
     job,
@@ -120,7 +123,7 @@ function calldata(action: AacpOrderAction): `0x${string}` {
         BigInt(PROVIDER_AGENT_TOKEN_ID),
         AGREEMENT_HASH,
         5n * 10n ** 18n,
-        BigInt(Math.floor(Date.parse("2026-08-14T12:00:00.000Z") / 1_000)),
+        BigInt(Math.floor(Date.parse(DELIVERY_DEADLINE) / 1_000)),
         0,
         86_400n,
         BigInt(CLIENT_AGENT_TOKEN_ID),
@@ -206,9 +209,9 @@ function observation(
     currency: "USDT",
     clientAgentId: CLIENT_AGENT,
     providerAgentId: PROVIDER_AGENT,
-    acceptDeadline: "2026-08-13T13:00:00.000Z",
-    deliveryDueAt: "2026-08-14T12:00:00.000Z",
-    challengeWindowEndsAt: "2026-08-15T12:00:00.000Z",
+    acceptDeadline: ACCEPT_DEADLINE,
+    deliveryDueAt: DELIVERY_DEADLINE,
+    challengeWindowEndsAt: CHALLENGE_DEADLINE,
     redoUsed: false,
     availableActions: { canSubmitDelivery: status === "FUNDED" || status === "IN_PROGRESS" },
     observedAt,
@@ -293,7 +296,7 @@ describe("PositionCrew AACP order lifecycle guard", () => {
         amount: "5",
       },
       createdAt: NOW.toISOString(),
-      deadline: "2026-08-14T12:00:00.000Z",
+      deadline: DELIVERY_DEADLINE,
     });
     const refs = {
       offerId: "offer-1",
@@ -328,7 +331,7 @@ describe("PositionCrew AACP order lifecycle guard", () => {
         amount: "5",
       },
       createdAt: NOW.toISOString(),
-      deadline: "2026-08-14T12:00:00.000Z",
+      deadline: DELIVERY_DEADLINE,
     });
     expect(() => createAacpCheckoutPlan(wrongToken, CONFIG, refs, NOW)).toThrow(
       "token identity",
@@ -401,7 +404,7 @@ describe("PositionCrew AACP order lifecycle guard", () => {
             BigInt(PROVIDER_AGENT_TOKEN_ID),
             AGREEMENT_HASH,
             6n * 10n ** 18n,
-            BigInt(Math.floor(Date.parse("2026-08-14T12:00:00.000Z") / 1_000)),
+            BigInt(Math.floor(Date.parse(DELIVERY_DEADLINE) / 1_000)),
             0,
             86_400n,
             BigInt(CLIENT_AGENT_TOKEN_ID),

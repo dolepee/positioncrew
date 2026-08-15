@@ -540,6 +540,18 @@ export default {
       return api(request, url);
     }
 
+    const appView = new Map([
+      ["/marketplace", "marketplace"],
+      ["/jobs", "jobs"],
+      ["/evidence", "evidence"],
+    ]).get(url.pathname.replace(/\/$/, ""));
+    if (appView && (request.method === "GET" || request.method === "HEAD")) {
+      const destination = new URL("/", url);
+      destination.search = url.search;
+      destination.hash = appView;
+      return Response.redirect(destination, 308);
+    }
+
     return withSecurityHeaders(await env.ASSETS.fetch(request));
   },
 };

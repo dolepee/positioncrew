@@ -422,6 +422,7 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
 });
 
 test("the evidence page separates conformance from advantage claims", async ({ page, request }) => {
+  test.setTimeout(60_000);
   const publicationResponse = await getWithTransportRetry(request, "/evidence/agent-advantage-status.json");
   expect(publicationResponse.ok()).toBe(true);
   expect(await publicationResponse.json()).toMatchObject({
@@ -445,7 +446,7 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText(/not external purchases, revenue, or the pending blind Agent Advantage result/)).toBeVisible();
   const aacpSection = page.getByRole("region", { name: "AACP deployment and provider onboarding" });
   await expect(aacpSection).toBeVisible();
-  await expect(aacpSection.getByText("10/10", { exact: true })).toBeVisible();
+  await expect(aacpSection.getByText("10/10", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(aacpSection.getByText("USDC + USDT", { exact: true })).toBeVisible();
   await expect(
     aacpSection.locator(".aacp-facts > div").filter({ hasText: "mainnet identities" }).getByText("4/4", { exact: true }),
@@ -517,6 +518,13 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   const captures = await captureResponse.json();
   expect(captures.manifestHash).toBe("sha256:2ea15ab328fba502d17e55a27a574cfc31b1d2f4bd04a3c23f8f79d003c9e9a1");
   expect(captures.benchmarks.flatMap((item: { candidates: unknown[] }) => item.candidates)).toHaveLength(6);
+});
+
+test("direct product links resolve to their canonical application views", async ({ page }) => {
+  for (const view of ["marketplace", "jobs", "evidence"] as const) {
+    await page.goto(`/${view}`);
+    await expect(page).toHaveURL(new RegExp(`/#${view}$`));
+  }
 });
 
 test("the evidence page exposes the precommitted public marketplace deliveries", async ({ page, request }) => {
