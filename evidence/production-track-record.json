@@ -1,6 +1,6 @@
 {
   "schemaVersion": "positioncrew.production-track-record.v1",
-  "generatedAt": "2026-08-17T19:59:15.288Z",
+  "generatedAt": "2026-08-17T20:43:25.872Z",
   "status": "DEGRADED",
   "epoch": {
     "schemaVersion": "positioncrew.production-monitor-epoch.v1",
@@ -41,17 +41,26 @@
     "sourceStatus": "AVAILABLE"
   },
   "summary": {
-    "totalScheduledRunsSinceEpoch": 98,
-    "observedRunCount": 98,
-    "completedRuns": 98,
-    "successfulRuns": 89,
+    "totalScheduledRunsSinceEpoch": 99,
+    "observedRunCount": 99,
+    "completedRuns": 99,
+    "successfulRuns": 90,
     "unsuccessfulRuns": 9,
     "pendingRuns": 0,
-    "rollingPassRatePct": 90.82,
+    "rollingPassRatePct": 90.91,
     "rollingWindowStartedAt": "2026-08-13T05:06:16Z",
-    "rollingWindowEndedAt": "2026-08-17T19:58:51Z"
+    "rollingWindowEndedAt": "2026-08-17T20:42:57Z"
   },
   "runs": [
+    {
+      "runId": 32067274024,
+      "status": "completed",
+      "conclusion": "success",
+      "createdAt": "2026-08-17T20:42:57Z",
+      "completedAt": "2026-08-17T20:43:25.872Z",
+      "headSha": "8a8a6201f5f4a4037c98bcbf81df9adcb47a46bf",
+      "url": "https://github.com/dolepee/positioncrew/actions/runs/32067274024"
+    },
     {
       "runId": 32063310014,
       "status": "completed",
