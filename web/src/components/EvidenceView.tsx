@@ -150,6 +150,7 @@ export function EvidenceView({
           <span><Radio size={16} /><strong>{aacpReadiness?.marketplace.publishedListingCount ?? committedListingCount}/4</strong> AACP listings</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
           <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> marketplace deliveries</span>
+          <span><BadgeCheck size={16} /><strong>1</strong> merged upstream fix</span>
         </div>
       </div>
 
@@ -174,6 +175,22 @@ export function EvidenceView({
             </a>
           </div>
         ) : <div className="infrastructure-loading">Live BSC telemetry is temporarily unavailable. Deterministic receipts remain reproducible.</div>}
+      </section>
+
+      <section className="evidence-section" aria-labelledby="upstream-title">
+        <div className="section-bar">
+          <div><span className="section-kicker">Ecosystem contribution</span><h2 id="upstream-title">BNB Agent SDK correction</h2></div>
+          <span className="state-label good"><BadgeCheck size={13} /> Merged upstream</span>
+        </div>
+        <div className="operations-boundary">
+          <ShieldCheck size={16} aria-hidden="true" />
+          <span><strong>Integration failure fixed at the source.</strong>PositionCrew exposed a stale BSC Testnet APEX policy that made <code>registerJob()</code> revert with <code>PolicyNotWhitelisted</code>. BNB Chain merged our synchronized Python, TypeScript, documentation, and regression-test correction after 776 Python and 1,107 TypeScript tests passed.</span>
+          <a href="https://github.com/bnb-chain/bnbagent-sdk/pull/73" target="_blank" rel="noreferrer">Inspect merged PR <ExternalLink size={12} /></a>
+        </div>
+        <div className="claim-warning">
+          <AlertTriangle size={16} aria-hidden="true" />
+          <span><strong>Claim boundary.</strong>This proves a merged contribution to sponsor-maintained infrastructure. It does not prove PositionCrew adoption, revenue, or BNB Chain endorsement.</span>
+        </div>
       </section>
 
       <section className="evidence-section aacp-section" aria-labelledby="aacp-title">

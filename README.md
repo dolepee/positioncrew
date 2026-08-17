@@ -37,6 +37,12 @@ Each first-party provider has a separate ERC-8004 identity on BSC Testnet. The i
 
 The registry is [`0x8004A818BFB912233c491871b3d84c89A494BD9e`](https://testnet.bscscan.com/address/0x8004A818BFB912233c491871b3d84c89A494BD9e). Public receipts and metadata are recorded in [`evidence/bsc-identities.testnet.json`](evidence/bsc-identities.testnet.json). [`scripts/register-bsc-identities.py`](scripts/register-bsc-identities.py) reproduces the official BNB Agent SDK registration path with the pinned [`bnbagent` dependency](scripts/requirements-bsc-identity.txt), while keeping the encrypted signing wallet outside Git.
 
+## Upstream BNB SDK contribution
+
+PositionCrew's integration work exposed a stale APEX policy preset in the official BNB Agent SDK: the configured BSC Testnet policy was no longer whitelisted, so `registerJob()` reverted with `PolicyNotWhitelisted`. [BNB Chain merged our correction as `bnb-chain/bnbagent-sdk#73`](https://github.com/bnb-chain/bnbagent-sdk/pull/73) on August 17, 2026.
+
+The contribution updated the whitelisted policy and rotated implementation snapshots, kept Python, TypeScript, and deployment documentation in sync, and added exact registry regression coverage. Its upstream verification record reports 776 passing Python tests and 1,107 passing TypeScript tests. This is evidence that PositionCrew improved a sponsor-maintained integration path; it is not represented as product adoption, revenue, or endorsement.
+
 ## TermiX production readiness
 
 `GET /api/commerce/aacp` validates the current official TermiX production config, independently probes every unique BNB Chain contract for bytecode, and discovers the four exact PositionCrew provider handles and listings through the public Agent.family API. The adapter requires chain ID `56`, both documented settlement currencies, one default currency, explicit provider-lock data, the shared ERC-8004 identity registry, and non-zero configured contracts. It fails closed to `SOURCE_UNAVAILABLE` or `PROTOCOL_DEGRADED` instead of substituting cached deployment claims.
