@@ -659,7 +659,7 @@ try {
     );
     assert(
       founderAdvantageReport.schemaVersion ===
-        "positioncrew.founder-agent-advantage-report.v1",
+        "positioncrew.founder-agent-advantage-report.v2",
       "Unexpected founder Agent Advantage report schema",
     );
     assert(
