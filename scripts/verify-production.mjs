@@ -592,15 +592,204 @@ try {
       "Published Agent Advantage presentation is missing its title or commitment",
     );
   }
+  const advantagePublicationApi = await fetchJson(
+    "agent-advantage-publication-api",
+    "/api/benchmarks/status",
+  );
+  assert(
+    JSON.stringify(advantagePublicationApi) === JSON.stringify(advantagePublication),
+    "Benchmark status API differs from the tracked Agent Advantage publication status",
+  );
   report.agentAdvantagePublication = advantagePublication;
+
+  const founderAdvantagePublication = await fetchJson(
+    "founder-agent-advantage-publication",
+    "/evidence/founder-agent-advantage-status.json",
+  );
+  assert(
+    founderAdvantagePublication.schemaVersion ===
+      "positioncrew.founder-agent-advantage-publication.v1",
+    "Unexpected founder Agent Advantage publication schema",
+  );
+  assert(
+    founderAdvantagePublication.taskCount === 3,
+    "Founder Agent Advantage task count changed",
+  );
+  assert(
+    founderAdvantagePublication.qualityMethod === "CANONICAL_EXACT_OUTPUT_PARITY" &&
+      founderAdvantagePublication.qualityScore === null,
+    "Founder comparison inferred a quality score instead of exact-output parity",
+  );
+  assert(
+    founderAdvantagePublication.independent === false &&
+      founderAdvantagePublication.blind === false,
+    "Founder comparison changed its non-independent or non-blind boundary",
+  );
+  if (founderAdvantagePublication.status === "PENDING_FOUNDER_COMPARISON") {
+    assert(
+      founderAdvantagePublication.reportUrl === null &&
+        founderAdvantagePublication.reportHash === null &&
+        founderAdvantagePublication.evidenceManifestHash === null &&
+        founderAdvantagePublication.publishedAt === null &&
+        founderAdvantagePublication.exactOutputParityCount === null &&
+        founderAdvantagePublication.recordedSpeedAdvantageCount === null,
+      "Pending founder comparison exposes a report or result",
+    );
+  } else {
+    assert(
+      founderAdvantagePublication.status === "PUBLISHED",
+      "Unknown founder Agent Advantage publication state",
+    );
+    assert(
+      founderAdvantagePublication.reportUrl === "/evidence/agent-advantage-founder/",
+      "Published founder Agent Advantage report URL changed",
+    );
+    assert(
+      Number.isInteger(founderAdvantagePublication.exactOutputParityCount) &&
+        founderAdvantagePublication.exactOutputParityCount >= 0 &&
+        founderAdvantagePublication.exactOutputParityCount <= 3 &&
+        Number.isInteger(founderAdvantagePublication.recordedSpeedAdvantageCount) &&
+        founderAdvantagePublication.recordedSpeedAdvantageCount >= 0 &&
+        founderAdvantagePublication.recordedSpeedAdvantageCount <= 3,
+      "Published founder comparison counts are invalid",
+    );
+    const founderAdvantageReport = await fetchJson(
+      "founder-agent-advantage-report",
+      "/evidence/agent-advantage-founder/founder-agent-advantage-report.json",
+    );
+    assert(
+      founderAdvantageReport.schemaVersion ===
+        "positioncrew.founder-agent-advantage-report.v1",
+      "Unexpected founder Agent Advantage report schema",
+    );
+    assert(
+      founderAdvantageReport.reportHash === founderAdvantagePublication.reportHash,
+      "Published founder Agent Advantage report hash differs from its status record",
+    );
+    const { reportHash: _founderReportHash, ...founderReportBody } = founderAdvantageReport;
+    assert(
+      canonicalSha256(founderReportBody) === founderAdvantageReport.reportHash,
+      "Published founder Agent Advantage report commitment is invalid",
+    );
+    const founderAdvantageHtml = await fetchText(
+      "founder-agent-advantage-report-html",
+      founderAdvantagePublication.reportUrl,
+    );
+    assert(
+      founderAdvantageHtml.includes("Founder-operated") &&
+        founderAdvantageHtml.includes(founderAdvantageReport.reportHash),
+      "Published founder comparison presentation omits its method or commitment",
+    );
+  }
+  const founderAdvantagePublicationApi = await fetchJson(
+    "founder-agent-advantage-publication-api",
+    "/api/benchmarks/founder-comparison/status",
+  );
+  assert(
+    JSON.stringify(founderAdvantagePublicationApi) ===
+      JSON.stringify(founderAdvantagePublication),
+    "Founder comparison status API differs from its tracked static publication status",
+  );
+  report.founderAgentAdvantagePublication = founderAdvantagePublication;
 
   const openApi = await fetchJson("openapi", marketplace.openApiUrl);
   assert(openApi.openapi === "3.1.0", "OpenAPI version is not 3.1.0");
-  assert(Object.keys(openApi.paths ?? {}).length === 12, "OpenAPI does not expose all job and evidence paths");
+  const requiredOpenApiOperations = [
+    ["/api/status", "get", "getSystemTelemetry"],
+    ["/api/commerce/aacp", "get", "getAacpProductionReadiness"],
+    ["/api/operations/production", "get", "getProductionTrackRecord"],
+    ["/api/benchmarks/status", "get", "getBenchmarkPublicationStatus"],
+    [
+      "/api/benchmarks/founder-comparison/status",
+      "get",
+      "getFounderBenchmarkPublicationStatus",
+    ],
+    [
+      "/api/benchmarks/marketplace-provenance",
+      "get",
+      "getMarketplaceInvocationEvidence",
+    ],
+    ["/api/benchmark-hires", "post", "createFreshMarketplaceHire"],
+    ["/api/benchmark-hires/{hireId}", "get", "getFreshMarketplaceHire"],
+    [
+      "/api/benchmark-hires/{hireId}/jobs",
+      "post",
+      "runFreshMarketplaceHire",
+    ],
+    [
+      "/api/benchmark-receipts/{receiptId}",
+      "get",
+      "getFreshMarketplaceReceipt",
+    ],
+    [
+      "/api/providers/lending-rescue/jobs",
+      "get",
+      "getLendingRescueRequestFixture",
+    ],
+    [
+      "/api/providers/lending-rescue/jobs",
+      "post",
+      "runLendingRescueRequest",
+    ],
+    [
+      "/api/providers/lp-rebalance/jobs",
+      "get",
+      "getLpRebalanceRequestFixture",
+    ],
+    [
+      "/api/providers/lp-rebalance/jobs",
+      "post",
+      "runLpRebalanceRequest",
+    ],
+    [
+      "/api/providers/yield-optimization/jobs",
+      "get",
+      "getYieldOptimizationRequestFixture",
+    ],
+    [
+      "/api/providers/yield-optimization/jobs",
+      "post",
+      "runYieldOptimizationRequest",
+    ],
+    [
+      "/api/providers/bounded-grid/jobs",
+      "get",
+      "getBoundedGridRequestFixture",
+    ],
+    [
+      "/api/providers/bounded-grid/jobs",
+      "post",
+      "runBoundedGridRequest",
+    ],
+    ["/api/wallets/{account}/venus", "get", "inspectVenusAccount"],
+    ["/api/positions/pancake/{tokenId}", "get", "inspectPancakePosition"],
+    ["/api/markets/venus/stable-yields", "get", "inspectVenusStableYields"],
+    [
+      "/api/markets/pancake/wbnb-usdt/grid",
+      "get",
+      "inspectPancakeGridMarket",
+    ],
+  ];
+  for (const [path, method, operationId] of requiredOpenApiOperations) {
+    assert(
+      openApi.paths?.[path]?.[method]?.operationId === operationId,
+      `OpenAPI omits required operation ${operationId} at ${method.toUpperCase()} ${path}`,
+    );
+  }
   assert(
     openApi.paths?.["/api/operations/production"]?.get?.operationId ===
       "getProductionTrackRecord",
     "OpenAPI omits the production verification record",
+  );
+  assert(
+    openApi.paths?.["/api/benchmarks/status"]?.get?.operationId ===
+      "getBenchmarkPublicationStatus",
+    "OpenAPI omits the benchmark publication status",
+  );
+  assert(
+    openApi.paths?.["/api/benchmarks/founder-comparison/status"]?.get?.operationId ===
+      "getFounderBenchmarkPublicationStatus",
+    "OpenAPI omits the founder benchmark publication status",
   );
   assert(
     openApi.paths?.["/api/benchmarks/marketplace-provenance"]?.get?.operationId ===
