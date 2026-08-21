@@ -1,28 +1,84 @@
 [Unit]
-Description=PositionCrew Termix A2A runtime (%i)
+Description=PositionCrew isolated Termix A2A runtime (%i)
 After=network-online.target
 Wants=network-online.target
+ConditionFileNotEmpty=/etc/positioncrew-runtime/credentials/%i.token
+ConditionFileNotEmpty=/home/crosswind/.local/lib/positioncrew/positioncrew-runtime.mjs
 StartLimitIntervalSec=300
 StartLimitBurst=5
 
 [Service]
 Type=simple
-User=crosswind
-WorkingDirectory=/home/crosswind/apps/positioncrew
+DynamicUser=yes
+WorkingDirectory=-/opt/positioncrew-runtime
 EnvironmentFile=/home/crosswind/.config/positioncrew/runtimes/%i.env
-Environment=POSITIONCREW_ORIGIN=https://positioncrew.dolepee.com
-Environment=TERMIX_A2A_STATE_PATH=/home/crosswind/.local/state/positioncrew/%i.json
-ExecStart=/home/crosswind/apps/positioncrew/node_modules/.bin/tsx src/cli/run-termix-runtime.ts
+UnsetEnvironment=TERMIX_A2A_RUNTIME_TOKEN TERMIX_A2A_RUNTIME_TOKEN_FILE WALLET_KEY PRIVATE_KEY NODE_OPTIONS NODE_PATH LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT GLIBC_TUNABLES BASH_ENV ENV
+LoadCredential=runtime-token:/etc/positioncrew-runtime/credentials/%i.token
+BindReadOnlyPaths=-/home/crosswind/.local/state/positioncrew:/run/positioncrew-legacy-state
+# Before enabling the unit, build the pinned bundle as the deployment account:
+# cd /home/crosswind/apps/positioncrew && npm run build:core
+# /usr/bin/node /home/crosswind/apps/positioncrew/dist/cli/run-termix-runtime.js --bundle-runtime-artifact /home/crosswind/.local/lib/positioncrew/positioncrew-runtime.mjs
+ExecStartPre=+/usr/bin/env -i /usr/bin/install -d -o root -g root -m 0755 /opt/positioncrew-runtime
+ExecStartPre=+/usr/bin/env -i /usr/bin/install -T -o root -g root -m 0500 -- /home/crosswind/.local/lib/positioncrew/positioncrew-runtime.mjs /opt/positioncrew-runtime/.positioncrew-runtime.mjs.candidate
+ExecStartPre=+/usr/bin/env -i /bin/sh -ec 'echo "4f1f896db806874b2541e1ae8a58d965fb4f363796805f46333b424215dc2fa6  /opt/positioncrew-runtime/.positioncrew-runtime.mjs.candidate" | /usr/bin/sha256sum --check --status'
+ExecStartPre=+/usr/bin/env -i /usr/bin/chmod 0555 /opt/positioncrew-runtime/.positioncrew-runtime.mjs.candidate
+ExecStartPre=+/usr/bin/env -i /usr/bin/mv -fT -- /opt/positioncrew-runtime/.positioncrew-runtime.mjs.candidate /opt/positioncrew-runtime/positioncrew-runtime.mjs
+ExecStartPre=!/usr/bin/env -i /usr/bin/node /opt/positioncrew-runtime/positioncrew-runtime.mjs --validate-runtime-token-file /etc/positioncrew-runtime/credentials/%i.token
+ExecStartPre=!/usr/bin/env -i TERMIX_A2A_AGENT_ID=${TERMIX_A2A_AGENT_ID} POSITIONCREW_SERVICE=${POSITIONCREW_SERVICE} /usr/bin/node /opt/positioncrew-runtime/positioncrew-runtime.mjs --migrate-runtime-state /run/positioncrew-legacy-state/%i.json /var/lib/positioncrew-runtime-%i/runtime.json
+ExecStart=/usr/bin/env -i TERMIX_A2A_AGENT_ID=${TERMIX_A2A_AGENT_ID} POSITIONCREW_SERVICE=${POSITIONCREW_SERVICE} TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=${TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT} POSITIONCREW_ORIGIN=https://positioncrew.dolepee.com TERMIX_A2A_STATE_PATH=/var/lib/positioncrew-runtime-%i/runtime.json /usr/bin/node /opt/positioncrew-runtime/positioncrew-runtime.mjs --runtime-token-file %d/runtime-token
 Restart=on-failure
 RestartPreventExitStatus=78
-RestartSec=15
+RestartSec=30
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+StateDirectory=positioncrew-runtime-%i
+StateDirectoryMode=0700
+LogsDirectory=positioncrew-runtime-%i
+LogsDirectoryMode=0700
+UMask=0077
+
 NoNewPrivileges=true
+CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE
+AmbientCapabilities=
 PrivateTmp=true
+PrivateDevices=true
+PrivateIPC=true
+PrivateMounts=true
+ProtectHome=yes
 ProtectSystem=strict
-ProtectHome=read-only
-ReadWritePaths=/home/crosswind/.local/state/positioncrew
-StandardOutput=append:/home/crosswind/.local/log/positioncrew/%i.log
-StandardError=append:/home/crosswind/.local/log/positioncrew/%i.log
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+KeyringMode=private
+SystemCallArchitectures=native
+SystemCallFilter=~bind listen accept accept4
+SystemCallErrorNumber=EPERM
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+SocketBindDeny=any
+
+CPUQuota=20%
+CPUWeight=10
+MemoryMax=192M
+MemorySwapMax=0
+TasksMax=32
+LimitNOFILE=1024
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+StandardOutput=append:/var/log/positioncrew-runtime-%i/runtime.log
+StandardError=append:/var/log/positioncrew-runtime-%i/runtime.log
 
 [Install]
 WantedBy=multi-user.target

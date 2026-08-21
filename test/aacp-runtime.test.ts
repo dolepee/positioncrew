@@ -1,4 +1,18 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
+import {
+  chmodSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   TermixRuntimeClient,
   assertRuntimeTokenFresh,
@@ -12,9 +26,13 @@ import {
 } from "../src/commerce/aacp-runtime.js";
 import {
   TERMIX_RUNTIME_CREDENTIAL_EXIT_CODE,
+  TermixRuntimeCredentialFileError,
+  bundleRuntimeArtifact,
+  migrateLegacyRuntimeState,
   parseRuntimeEnvironment,
   runRuntimeCycle,
   runtimeExitCode,
+  validateProtectedRuntimeTokenFile,
 } from "../src/cli/run-termix-runtime.js";
 
 const NOW = new Date("2026-08-13T12:00:00.000Z");
@@ -148,6 +166,167 @@ describe("PositionCrew TermiX A2A runtime", () => {
     expect(() => parseRuntimeEnvironment({ ...base, PRIVATE_KEY: "secret" }, [])).toThrow(
       "must not receive an owner private key",
     );
+  });
+
+  it("loads only a protected, unambiguous runtime credential file", () => {
+    const directory = mkdtempSync(join(tmpdir(), "positioncrew-runtime-credential-"));
+    const tokenFile = join(directory, "runtime-token");
+    const token = jwt(Math.floor(NOW.getTime() / 1_000) + 3_600);
+    writeFileSync(tokenFile, `${token}\n`, { mode: 0o600 });
+    const base = {
+      TERMIX_A2A_AGENT_ID: "agent-1",
+      POSITIONCREW_SERVICE: "LENDING_RESCUE",
+      TERMIX_A2A_RUNTIME_TOKEN_FILE: tokenFile,
+    };
+
+    try {
+      expect(parseRuntimeEnvironment(base, []).token).toBe(token);
+      expect(parseRuntimeEnvironment(
+        {
+          TERMIX_A2A_AGENT_ID: "agent-1",
+          POSITIONCREW_SERVICE: "LENDING_RESCUE",
+        },
+        ["--runtime-token-file", tokenFile],
+      ).token).toBe(token);
+      expect(() => parseRuntimeEnvironment(
+        { ...base, TERMIX_A2A_RUNTIME_TOKEN_FILE: join(directory, "override") },
+        ["--runtime-token-file", tokenFile],
+      )).toThrow("conflicts with TERMIX_A2A_RUNTIME_TOKEN_FILE");
+      expect(() => parseRuntimeEnvironment(base, ["--runtime-token-file"])).toThrow(
+        "requires an absolute path",
+      );
+      expect(() =>
+        parseRuntimeEnvironment({ ...base, TERMIX_A2A_RUNTIME_TOKEN: token }, []),
+      ).toThrow("either TERMIX_A2A_RUNTIME_TOKEN or TERMIX_A2A_RUNTIME_TOKEN_FILE");
+
+      chmodSync(tokenFile, 0o644);
+      expect(() => parseRuntimeEnvironment(base, [])).toThrow(
+        "must not be accessible by group or others",
+      );
+      expect(() => validateProtectedRuntimeTokenFile(tokenFile)).toThrow(
+        TermixRuntimeCredentialFileError,
+      );
+
+      chmodSync(tokenFile, 0o600);
+      const tokenOwner = statSync(tokenFile).uid;
+      expect(() => validateProtectedRuntimeTokenFile(tokenFile, {
+        expectedOwnerUserId: tokenOwner,
+        trustedRoot: directory,
+      })).not.toThrow();
+      expect(() => validateProtectedRuntimeTokenFile(tokenFile, {
+        expectedOwnerUserId: tokenOwner + 1,
+        trustedRoot: directory,
+      })).toThrow(`must be owned by UID ${tokenOwner + 1}`);
+      chmodSync(directory, 0o770);
+      expect(() => validateProtectedRuntimeTokenFile(tokenFile, {
+        expectedOwnerUserId: tokenOwner,
+        trustedRoot: directory,
+      })).toThrow("trusted path must not be writable by group or others");
+      chmodSync(directory, 0o700);
+
+      const tokenLink = join(directory, "runtime-token-link");
+      symlinkSync(tokenFile, tokenLink);
+      expect(() => validateProtectedRuntimeTokenFile(tokenLink)).toThrow(
+        "must reference a regular file",
+      );
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("migrates a protected legacy cursor once without overwriting runtime state", () => {
+    const directory = mkdtempSync(join(tmpdir(), "positioncrew-runtime-state-"));
+    const legacyDirectory = join(directory, "legacy");
+    const targetDirectory = join(directory, "target");
+    const privateTargetDirectory = join(directory, "private", "target");
+    const legacyPath = join(legacyDirectory, "lending.json");
+    const targetPath = join(targetDirectory, "runtime.json");
+    const state = createTermixRuntimeState("agent-1", "LENDING_RESCUE", NOW);
+    mkdirSync(legacyDirectory, { mode: 0o700 });
+    mkdirSync(privateTargetDirectory, { recursive: true, mode: 0o700 });
+    symlinkSync(join("private", "target"), targetDirectory, "dir");
+    writeFileSync(legacyPath, `${JSON.stringify(state)}\n`, { mode: 0o600 });
+
+    try {
+      expect(migrateLegacyRuntimeState(
+        legacyPath,
+        targetPath,
+        "agent-1",
+        "LENDING_RESCUE",
+      )).toBe("MIGRATED");
+      expect(JSON.parse(readFileSync(targetPath, "utf8"))).toEqual(state);
+      expect(statSync(targetPath).mode & 0o077).toBe(0);
+      expect(readdirSync(privateTargetDirectory)).toEqual(["runtime.json"]);
+
+      writeFileSync(legacyPath, "{}\n", { mode: 0o600 });
+      expect(migrateLegacyRuntimeState(
+        legacyPath,
+        targetPath,
+        "agent-1",
+        "LENDING_RESCUE",
+      )).toBe("TARGET_PRESENT");
+      expect(JSON.parse(readFileSync(targetPath, "utf8"))).toEqual(state);
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("builds the reproducible runtime bundle pinned by the systemd unit", async () => {
+    const directory = mkdtempSync(join(tmpdir(), "positioncrew-runtime-bundle-"));
+    const firstPath = join(directory, "first.mjs");
+    const secondPath = join(directory, "second.mjs");
+    try {
+      await bundleRuntimeArtifact(firstPath);
+      await bundleRuntimeArtifact(secondPath);
+      const first = readFileSync(firstPath);
+      const second = readFileSync(secondPath);
+      expect(first).toEqual(second);
+      const unit = readFileSync(
+        new URL("../deploy/systemd/positioncrew-runtime@.service", import.meta.url),
+        "utf8",
+      );
+      const pinnedHash = unit.match(
+        /echo "([a-f0-9]{64})  \/opt\/positioncrew-runtime\/\.positioncrew-runtime\.mjs\.candidate"/,
+      )?.[1];
+      expect(pinnedHash).toBe(createHash("sha256").update(first).digest("hex"));
+    } finally {
+      rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it("binds the systemd unit to the built runtime and guarded migration preflights", () => {
+    const unit = readFileSync(
+      new URL("../deploy/systemd/positioncrew-runtime@.service", import.meta.url),
+      "utf8",
+    );
+    expect(unit).toContain("WorkingDirectory=-/opt/positioncrew-runtime");
+    expect(unit).toContain(
+      "ExecStart=/usr/bin/env -i TERMIX_A2A_AGENT_ID=${TERMIX_A2A_AGENT_ID} POSITIONCREW_SERVICE=${POSITIONCREW_SERVICE}",
+    );
+    expect(unit).toContain("/usr/bin/node /opt/positioncrew-runtime/positioncrew-runtime.mjs --runtime-token-file %d/runtime-token");
+    expect(unit).not.toContain("BindReadOnlyPaths=/home/crosswind/apps/positioncrew");
+    expect(unit).toContain(
+      "ConditionFileNotEmpty=/home/crosswind/.local/lib/positioncrew/positioncrew-runtime.mjs",
+    );
+    expect(unit).toContain("ExecStartPre=+/usr/bin/env -i /usr/bin/install -d -o root -g root -m 0755");
+    expect(unit).toContain("ExecStartPre=+/usr/bin/env -i /usr/bin/install -T -o root -g root -m 0500");
+    expect(unit).toContain("/usr/bin/sha256sum --check --status");
+    expect(unit).toContain("ExecStartPre=+/usr/bin/env -i /usr/bin/chmod 0555");
+    expect(unit).toContain("ExecStartPre=+/usr/bin/env -i /usr/bin/mv -fT");
+    expect(unit).toContain(
+      "EnvironmentFile=/home/crosswind/.config/positioncrew/runtimes/%i.env",
+    );
+    expect(unit).not.toContain("EnvironmentFile=/etc/positioncrew-runtime/%i.env");
+    expect(unit).toContain(
+      "UnsetEnvironment=TERMIX_A2A_RUNTIME_TOKEN TERMIX_A2A_RUNTIME_TOKEN_FILE WALLET_KEY PRIVATE_KEY NODE_OPTIONS NODE_PATH LD_PRELOAD LD_LIBRARY_PATH LD_AUDIT GLIBC_TUNABLES BASH_ENV ENV",
+    );
+    expect(unit).toContain("--validate-runtime-token-file /etc/positioncrew-runtime/credentials/%i.token");
+    expect(unit).toContain("--migrate-runtime-state /run/positioncrew-legacy-state/%i.json");
+    expect(unit).toContain("ExecStartPre=!/usr/bin/env -i");
+    expect(unit).not.toContain("ExecStartPre=+/usr/bin/node");
+    expect(unit).toContain("CapabilityBoundingSet=CAP_CHOWN CAP_DAC_OVERRIDE");
+    expect(unit).toContain("AmbientCapabilities=\n");
+    expect(unit).toContain("BindReadOnlyPaths=-/home/crosswind/.local/state/positioncrew");
   });
 
   it("uses only a bearer runtime token for inbox, signal, and reply calls", async () => {
