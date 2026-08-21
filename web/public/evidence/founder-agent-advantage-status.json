@@ -1,16 +1,16 @@
 {
   "schemaVersion": "positioncrew.founder-agent-advantage-publication.v1",
-  "status": "PENDING_FOUNDER_COMPARISON",
-  "reportUrl": null,
-  "reportHash": null,
-  "evidenceManifestHash": null,
-  "publishedAt": null,
+  "status": "PUBLISHED",
+  "reportUrl": "/evidence/agent-advantage-founder/",
+  "reportHash": "sha256:69fa9304758a2f76921e190ed28d1c6556dd98e4f0bc945cbb82d62739954853",
+  "evidenceManifestHash": "sha256:e6e425f289a458f6735f035cff255efa886b19087b5d984d976bdfb1c1db0377",
+  "publishedAt": "2026-08-20T21:00:03.190Z",
   "taskCount": 3,
-  "exactOutputParityCount": null,
-  "recordedSpeedAdvantageCount": null,
+  "exactOutputParityCount": 3,
+  "recordedSpeedAdvantageCount": 3,
   "qualityMethod": "CANONICAL_EXACT_OUTPUT_PARITY",
   "qualityScore": null,
   "independent": false,
   "blind": false,
-  "boundary": "This founder-operated comparison is non-independent and non-blind. Exact canonical output parity and recorded timing do not establish an independent quality score, external demand, payment, live execution, investment performance, or generalization beyond the three frozen fixtures."
+  "boundary": "This is a founder-operated, self-attested, non-independent, non-blind comparison on three frozen historical fixtures. Canonical exact-output parity proves only that the attached candidates serialize to identical committed outputs; no independent quality score is claimed. The selected agent arms are three qualified E3_SERVER_PERSISTED PositionCrew D1 records: completed $0.00, no-wallet historical-fixture hires with public receipts. E3_SERVER_PERSISTED proves fresh PositionCrew server-persisted $0.00, no-wallet historical-fixture hires only; the captured public GET observations occurred after completion and do not prove precommitment or observation of record creation. Unique server hire means only unique PositionCrew D1 hire, job, and receipt identifiers, not independent buyers or distinct sellers. This evidence does not establish paid commerce, payment, settlement, external demand, evaluator-originated hiring, revenue, or external customer activity. The fixtures and outputs are historical research evidence, not live executable advice, mainnet execution, investment performance, or a recommendation to trade. Founder wall-clock and D1 API duration measure different execution contexts and are reported only as recorded times."
 }

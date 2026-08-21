@@ -19,7 +19,7 @@ const validPublication = {
   independent: false,
   blind: false,
   boundary:
-    "This founder-operated comparison is non-independent and non-blind. It is partial E2 evidence and does not prove a marketplace hire, payment, external demand, fresh execution, or live performance.",
+    "This founder-operated comparison is non-independent and non-blind. E3_SERVER_PERSISTED records prove fresh PositionCrew server-persisted $0.00, no-wallet historical-fixture hires only. This does not establish paid commerce, an external buyer, external demand, fresh underlying analysis, or live advice.",
 } as const satisfies FounderAgentAdvantagePublicationStatus;
 
 const tamperedCases: Array<[string, Record<string, unknown>]> = [

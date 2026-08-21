@@ -1,0 +1,66 @@
+{
+  "schemaVersion": "positioncrew.founder-agent-advantage-evidence-manifest.v2",
+  "marketplaceHires": {
+    "sessionHash": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3",
+    "checksumsHash": "sha256:3650f721ae749b1038f8825ce449a3569be0d4ededa573d5ab24879760f8132c",
+    "verifiedFiles": [
+      {
+        "path": "bounded-grid.hire.json",
+        "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+      },
+      {
+        "path": "bounded-grid.receipt.json",
+        "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+      },
+      {
+        "path": "lending-rescue.hire.json",
+        "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+      },
+      {
+        "path": "lending-rescue.receipt.json",
+        "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+      },
+      {
+        "path": "lp-rebalance.hire.json",
+        "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+      },
+      {
+        "path": "lp-rebalance.receipt.json",
+        "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+      },
+      {
+        "path": "session.json",
+        "sha256": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3"
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "benchmarkSlug": "lending-rescue",
+      "sessionId": "lending-rescue-20260812215350546-bc4a1371",
+      "manualCandidateHash": "sha256:219cbe438be8958014ed65989543cd2072dc026b8427faeecead1fe976bee881",
+      "agentCandidateHashes": [
+        "sha256:1e21f704fb57f06c5a15f8ebe368ae28d8cf8d9834856cf36f5f7326ef1a06ee",
+        "sha256:8e8b060d5cd829cf26be0659f547d3374cf7d50591efa023d2245861a0bccf0a"
+      ]
+    },
+    {
+      "benchmarkSlug": "lp-rebalance",
+      "sessionId": "lp-rebalance-20260812215351113-a9d92c57",
+      "manualCandidateHash": "sha256:c1896f768b757cd67033ca86f13ed02a88b60be65c31ca8ec50aeea291ee4fdf",
+      "agentCandidateHashes": [
+        "sha256:f1f2af7ca0142ced1618b7759bc63ecc8819f6dbc827dfc9ec7451d86a6cf47b",
+        "sha256:67508c30edd9476e0587bdbee5c1b72f45182fa7ef98089eb66a2d17aebe92af"
+      ]
+    },
+    {
+      "benchmarkSlug": "bounded-grid",
+      "sessionId": "bounded-grid-20260812215351671-fc8afdab",
+      "manualCandidateHash": "sha256:2f4f8803347a28a0b1e29f930be0800e4d952ad5c991bc1d7ebef28d571a7e59",
+      "agentCandidateHashes": [
+        "sha256:07d7d6fd5aa70eced6fe66522aa64f0a5fe29d486acd9f104dd9b615b59662fb",
+        "sha256:181aebac92328d2cba852b6f18044de501ebe0f42f3af0d9fec6e27d8915a83e"
+      ]
+    }
+  ]
+}

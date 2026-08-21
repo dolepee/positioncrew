@@ -1,0 +1,755 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="positioncrew-report-hash" content="sha256:69fa9304758a2f76921e190ed28d1c6556dd98e4f0bc945cbb82d62739954853">
+  <title>TermiX Agent Advantage Report: Founder-Operated Comparison</title>
+  <style>body{max-width:980px;margin:0 auto;padding:40px 22px;background:#f4f0e8;color:#17211b;font:16px/1.55 Georgia,serif}h1,h2{font-family:ui-monospace,monospace}article{margin:26px 0;padding:22px;background:#fff;border:1px solid #c8c0af}pre{overflow:auto;padding:14px;background:#17211b;color:#f4f0e8}code{overflow-wrap:anywhere}.boundary{border-left:5px solid #a33;padding-left:18px}a{color:#075d52}</style>
+</head>
+<body>
+  <header><p>TermiX evidence</p><h1>TermiX Agent Advantage Report: Founder-Operated Comparison</h1><p>Founder-operated, non-independent, non-blind. Quality method: canonical exact-output parity; quality score: null.</p><p><a href="./founder-agent-advantage-report.json">Machine-readable report</a> · <a href="./evidence-manifest.json">Evidence manifest</a></p></header>
+  <article>
+        <h2>Bounded lending-position rescue</h2>
+        <p><strong>Exact output parity:</strong> yes. <strong>Quality score:</strong> not assigned.</p>
+        <p><strong>Recorded time:</strong> founder 356626 ms; D1 API 371 ms. These clocks measure different execution contexts.</p>
+        <p><strong>Marketplace evidence:</strong> E3_SERVER_PERSISTED. A completed $0.00, no-wallet historical-fixture hire is persisted under unique PositionCrew D1 hire, job, and receipt IDs. This does not establish an external buyer or paid commerce.</p>
+        <p><a href="https://positioncrew.dolepee.com/api/benchmark-receipts/7f0234d4-bc81-43d4-9624-31823b334c33">Public D1 receipt</a></p>
+        <details><summary>Attached manual output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lending-rescue.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LENDING_RESCUE&quot;,
+  &quot;requestId&quot;: &quot;venus-stressed-position-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;REPAY_DEBT&quot;,
+  &quot;summary&quot;: &quot;Repay 152 USDT to raise health factor from 1.04347826 to 1.25.&quot;,
+  &quot;position&quot;: {
+    &quot;collateralValueUsd&quot;: &quot;1200&quot;,
+    &quot;liquidationWeightedCollateralUsd&quot;: &quot;960&quot;,
+    &quot;debtValueUsd&quot;: &quot;920&quot;,
+    &quot;currentHealthFactor&quot;: &quot;1.04347826&quot;,
+    &quot;stressedHealthFactor&quot;: &quot;0.93913043&quot;,
+    &quot;targetHealthFactor&quot;: &quot;1.25&quot;
+  },
+  &quot;recommendation&quot;: {
+    &quot;actionId&quot;: &quot;action_abfd92fd8ee827ae6ec7d298&quot;,
+    &quot;kind&quot;: &quot;REPAY_DEBT&quot;,
+    &quot;chainId&quot;: 56,
+    &quot;protocol&quot;: &quot;Venus&quot;,
+    &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+    &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+    &quot;asset&quot;: {
+      &quot;symbol&quot;: &quot;USDT&quot;,
+      &quot;address&quot;: &quot;0x55d398326f99059fF775485246999027B3197955&quot;,
+      &quot;decimals&quot;: 18
+    },
+    &quot;amount&quot;: &quot;152&quot;,
+    &quot;amountBaseUnits&quot;: &quot;152000000000000000000&quot;,
+    &quot;amountUsd&quot;: &quot;152&quot;,
+    &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+    &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+    &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+    &quot;maxSlippageBps&quot;: 30,
+    &quot;preconditions&quot;: [
+      &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+      &quot;Oracle deviation remains within 100 bps&quot;,
+      &quot;Estimated gas remains at or below 0.10 USD&quot;
+    ]
+  },
+  &quot;alternatives&quot;: [
+    {
+      &quot;actionId&quot;: &quot;action_8a8a88ebc3801171ed9c7fe2&quot;,
+      &quot;kind&quot;: &quot;ADD_COLLATERAL&quot;,
+      &quot;chainId&quot;: 56,
+      &quot;protocol&quot;: &quot;Venus&quot;,
+      &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+      &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+      &quot;asset&quot;: {
+        &quot;symbol&quot;: &quot;WBNB&quot;,
+        &quot;address&quot;: &quot;0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c&quot;,
+        &quot;decimals&quot;: 18
+      },
+      &quot;amount&quot;: &quot;0.395833333333333334&quot;,
+      &quot;amountBaseUnits&quot;: &quot;395833333333333334&quot;,
+      &quot;amountUsd&quot;: &quot;237.5&quot;,
+      &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+      &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+      &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+      &quot;maxSlippageBps&quot;: 30,
+      &quot;preconditions&quot;: [
+        &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+        &quot;Oracle deviation remains within 100 bps&quot;,
+        &quot;Estimated gas remains at or below 0.10 USD&quot;
+      ]
+    }
+  ],
+  &quot;refusalReasons&quot;: [],
+  &quot;invalidationConditions&quot;: [
+    &quot;Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z&quot;,
+    &quot;Any source price moves more than 100 bps&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;This result is a bounded action plan, not custody or guaranteed execution.&quot;,
+    &quot;Projected health factor depends on the supplied protocol thresholds and fresh prices.&quot;,
+    &quot;Version 1 returns one single-asset rescue action; it does not split repayment across assets.&quot;
+  ],
+  &quot;sources&quot;: [
+    {
+      &quot;sourceId&quot;: &quot;venus-position-fixture-001&quot;,
+      &quot;label&quot;: &quot;Frozen Venus account and oracle snapshot&quot;,
+      &quot;uri&quot;: &quot;https://fixtures.positioncrew.invalid/venus-position-001.json&quot;,
+      &quot;observedAt&quot;: &quot;2026-08-12T15:59:00.000Z&quot;
+    }
+  ]
+}</pre></details>
+        <details><summary>Official D1 agent output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lending-rescue.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LENDING_RESCUE&quot;,
+  &quot;requestId&quot;: &quot;venus-stressed-position-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;REPAY_DEBT&quot;,
+  &quot;summary&quot;: &quot;Repay 152 USDT to raise health factor from 1.04347826 to 1.25.&quot;,
+  &quot;position&quot;: {
+    &quot;collateralValueUsd&quot;: &quot;1200&quot;,
+    &quot;liquidationWeightedCollateralUsd&quot;: &quot;960&quot;,
+    &quot;debtValueUsd&quot;: &quot;920&quot;,
+    &quot;currentHealthFactor&quot;: &quot;1.04347826&quot;,
+    &quot;stressedHealthFactor&quot;: &quot;0.93913043&quot;,
+    &quot;targetHealthFactor&quot;: &quot;1.25&quot;
+  },
+  &quot;recommendation&quot;: {
+    &quot;actionId&quot;: &quot;action_abfd92fd8ee827ae6ec7d298&quot;,
+    &quot;kind&quot;: &quot;REPAY_DEBT&quot;,
+    &quot;chainId&quot;: 56,
+    &quot;protocol&quot;: &quot;Venus&quot;,
+    &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+    &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+    &quot;asset&quot;: {
+      &quot;symbol&quot;: &quot;USDT&quot;,
+      &quot;address&quot;: &quot;0x55d398326f99059fF775485246999027B3197955&quot;,
+      &quot;decimals&quot;: 18
+    },
+    &quot;amount&quot;: &quot;152&quot;,
+    &quot;amountBaseUnits&quot;: &quot;152000000000000000000&quot;,
+    &quot;amountUsd&quot;: &quot;152&quot;,
+    &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+    &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+    &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+    &quot;maxSlippageBps&quot;: 30,
+    &quot;preconditions&quot;: [
+      &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+      &quot;Oracle deviation remains within 100 bps&quot;,
+      &quot;Estimated gas remains at or below 0.10 USD&quot;
+    ]
+  },
+  &quot;alternatives&quot;: [
+    {
+      &quot;actionId&quot;: &quot;action_8a8a88ebc3801171ed9c7fe2&quot;,
+      &quot;kind&quot;: &quot;ADD_COLLATERAL&quot;,
+      &quot;chainId&quot;: 56,
+      &quot;protocol&quot;: &quot;Venus&quot;,
+      &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+      &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+      &quot;asset&quot;: {
+        &quot;symbol&quot;: &quot;WBNB&quot;,
+        &quot;address&quot;: &quot;0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c&quot;,
+        &quot;decimals&quot;: 18
+      },
+      &quot;amount&quot;: &quot;0.395833333333333334&quot;,
+      &quot;amountBaseUnits&quot;: &quot;395833333333333334&quot;,
+      &quot;amountUsd&quot;: &quot;237.5&quot;,
+      &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+      &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+      &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+      &quot;maxSlippageBps&quot;: 30,
+      &quot;preconditions&quot;: [
+        &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+        &quot;Oracle deviation remains within 100 bps&quot;,
+        &quot;Estimated gas remains at or below 0.10 USD&quot;
+      ]
+    }
+  ],
+  &quot;refusalReasons&quot;: [],
+  &quot;invalidationConditions&quot;: [
+    &quot;Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z&quot;,
+    &quot;Any source price moves more than 100 bps&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;This result is a bounded action plan, not custody or guaranteed execution.&quot;,
+    &quot;Projected health factor depends on the supplied protocol thresholds and fresh prices.&quot;,
+    &quot;Version 1 returns one single-asset rescue action; it does not split repayment across assets.&quot;
+  ],
+  &quot;sources&quot;: [
+    {
+      &quot;sourceId&quot;: &quot;venus-position-fixture-001&quot;,
+      &quot;label&quot;: &quot;Frozen Venus account and oracle snapshot&quot;,
+      &quot;uri&quot;: &quot;https://fixtures.positioncrew.invalid/venus-position-001.json&quot;,
+      &quot;observedAt&quot;: &quot;2026-08-12T15:59:00.000Z&quot;
+    }
+  ]
+}</pre></details>
+        <details><summary>Attached agent output 1</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lending-rescue.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LENDING_RESCUE&quot;,
+  &quot;requestId&quot;: &quot;venus-stressed-position-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;REPAY_DEBT&quot;,
+  &quot;summary&quot;: &quot;Repay 152 USDT to raise health factor from 1.04347826 to 1.25.&quot;,
+  &quot;position&quot;: {
+    &quot;collateralValueUsd&quot;: &quot;1200&quot;,
+    &quot;liquidationWeightedCollateralUsd&quot;: &quot;960&quot;,
+    &quot;debtValueUsd&quot;: &quot;920&quot;,
+    &quot;currentHealthFactor&quot;: &quot;1.04347826&quot;,
+    &quot;stressedHealthFactor&quot;: &quot;0.93913043&quot;,
+    &quot;targetHealthFactor&quot;: &quot;1.25&quot;
+  },
+  &quot;recommendation&quot;: {
+    &quot;actionId&quot;: &quot;action_abfd92fd8ee827ae6ec7d298&quot;,
+    &quot;kind&quot;: &quot;REPAY_DEBT&quot;,
+    &quot;chainId&quot;: 56,
+    &quot;protocol&quot;: &quot;Venus&quot;,
+    &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+    &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+    &quot;asset&quot;: {
+      &quot;symbol&quot;: &quot;USDT&quot;,
+      &quot;address&quot;: &quot;0x55d398326f99059fF775485246999027B3197955&quot;,
+      &quot;decimals&quot;: 18
+    },
+    &quot;amount&quot;: &quot;152&quot;,
+    &quot;amountBaseUnits&quot;: &quot;152000000000000000000&quot;,
+    &quot;amountUsd&quot;: &quot;152&quot;,
+    &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+    &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+    &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+    &quot;maxSlippageBps&quot;: 30,
+    &quot;preconditions&quot;: [
+      &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+      &quot;Oracle deviation remains within 100 bps&quot;,
+      &quot;Estimated gas remains at or below 0.10 USD&quot;
+    ]
+  },
+  &quot;alternatives&quot;: [
+    {
+      &quot;actionId&quot;: &quot;action_8a8a88ebc3801171ed9c7fe2&quot;,
+      &quot;kind&quot;: &quot;ADD_COLLATERAL&quot;,
+      &quot;chainId&quot;: 56,
+      &quot;protocol&quot;: &quot;Venus&quot;,
+      &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+      &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+      &quot;asset&quot;: {
+        &quot;symbol&quot;: &quot;WBNB&quot;,
+        &quot;address&quot;: &quot;0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c&quot;,
+        &quot;decimals&quot;: 18
+      },
+      &quot;amount&quot;: &quot;0.395833333333333334&quot;,
+      &quot;amountBaseUnits&quot;: &quot;395833333333333334&quot;,
+      &quot;amountUsd&quot;: &quot;237.5&quot;,
+      &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+      &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+      &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+      &quot;maxSlippageBps&quot;: 30,
+      &quot;preconditions&quot;: [
+        &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+        &quot;Oracle deviation remains within 100 bps&quot;,
+        &quot;Estimated gas remains at or below 0.10 USD&quot;
+      ]
+    }
+  ],
+  &quot;refusalReasons&quot;: [],
+  &quot;invalidationConditions&quot;: [
+    &quot;Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z&quot;,
+    &quot;Any source price moves more than 100 bps&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;This result is a bounded action plan, not custody or guaranteed execution.&quot;,
+    &quot;Projected health factor depends on the supplied protocol thresholds and fresh prices.&quot;,
+    &quot;Version 1 returns one single-asset rescue action; it does not split repayment across assets.&quot;
+  ],
+  &quot;sources&quot;: [
+    {
+      &quot;sourceId&quot;: &quot;venus-position-fixture-001&quot;,
+      &quot;label&quot;: &quot;Frozen Venus account and oracle snapshot&quot;,
+      &quot;uri&quot;: &quot;https://fixtures.positioncrew.invalid/venus-position-001.json&quot;,
+      &quot;observedAt&quot;: &quot;2026-08-12T15:59:00.000Z&quot;
+    }
+  ]
+}</pre></details>
+<details><summary>Attached agent output 2</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lending-rescue.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LENDING_RESCUE&quot;,
+  &quot;requestId&quot;: &quot;venus-stressed-position-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;REPAY_DEBT&quot;,
+  &quot;summary&quot;: &quot;Repay 152 USDT to raise health factor from 1.04347826 to 1.25.&quot;,
+  &quot;position&quot;: {
+    &quot;collateralValueUsd&quot;: &quot;1200&quot;,
+    &quot;liquidationWeightedCollateralUsd&quot;: &quot;960&quot;,
+    &quot;debtValueUsd&quot;: &quot;920&quot;,
+    &quot;currentHealthFactor&quot;: &quot;1.04347826&quot;,
+    &quot;stressedHealthFactor&quot;: &quot;0.93913043&quot;,
+    &quot;targetHealthFactor&quot;: &quot;1.25&quot;
+  },
+  &quot;recommendation&quot;: {
+    &quot;actionId&quot;: &quot;action_abfd92fd8ee827ae6ec7d298&quot;,
+    &quot;kind&quot;: &quot;REPAY_DEBT&quot;,
+    &quot;chainId&quot;: 56,
+    &quot;protocol&quot;: &quot;Venus&quot;,
+    &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+    &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+    &quot;asset&quot;: {
+      &quot;symbol&quot;: &quot;USDT&quot;,
+      &quot;address&quot;: &quot;0x55d398326f99059fF775485246999027B3197955&quot;,
+      &quot;decimals&quot;: 18
+    },
+    &quot;amount&quot;: &quot;152&quot;,
+    &quot;amountBaseUnits&quot;: &quot;152000000000000000000&quot;,
+    &quot;amountUsd&quot;: &quot;152&quot;,
+    &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+    &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+    &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+    &quot;maxSlippageBps&quot;: 30,
+    &quot;preconditions&quot;: [
+      &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+      &quot;Oracle deviation remains within 100 bps&quot;,
+      &quot;Estimated gas remains at or below 0.10 USD&quot;
+    ]
+  },
+  &quot;alternatives&quot;: [
+    {
+      &quot;actionId&quot;: &quot;action_8a8a88ebc3801171ed9c7fe2&quot;,
+      &quot;kind&quot;: &quot;ADD_COLLATERAL&quot;,
+      &quot;chainId&quot;: 56,
+      &quot;protocol&quot;: &quot;Venus&quot;,
+      &quot;market&quot;: &quot;0x2222222222222222222222222222222222222222&quot;,
+      &quot;account&quot;: &quot;0x1111111111111111111111111111111111111111&quot;,
+      &quot;asset&quot;: {
+        &quot;symbol&quot;: &quot;WBNB&quot;,
+        &quot;address&quot;: &quot;0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c&quot;,
+        &quot;decimals&quot;: 18
+      },
+      &quot;amount&quot;: &quot;0.395833333333333334&quot;,
+      &quot;amountBaseUnits&quot;: &quot;395833333333333334&quot;,
+      &quot;amountUsd&quot;: &quot;237.5&quot;,
+      &quot;estimatedGasUsd&quot;: &quot;0.04&quot;,
+      &quot;projectedHealthFactor&quot;: &quot;1.25&quot;,
+      &quot;executeBefore&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+      &quot;maxSlippageBps&quot;: 30,
+      &quot;preconditions&quot;: [
+        &quot;Position debt and collateral balances still match request venus-stressed-position-20260812-001&quot;,
+        &quot;Oracle deviation remains within 100 bps&quot;,
+        &quot;Estimated gas remains at or below 0.10 USD&quot;
+      ]
+    }
+  ],
+  &quot;refusalReasons&quot;: [],
+  &quot;invalidationConditions&quot;: [
+    &quot;Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z&quot;,
+    &quot;Any source price moves more than 100 bps&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;This result is a bounded action plan, not custody or guaranteed execution.&quot;,
+    &quot;Projected health factor depends on the supplied protocol thresholds and fresh prices.&quot;,
+    &quot;Version 1 returns one single-asset rescue action; it does not split repayment across assets.&quot;
+  ],
+  &quot;sources&quot;: [
+    {
+      &quot;sourceId&quot;: &quot;venus-position-fixture-001&quot;,
+      &quot;label&quot;: &quot;Frozen Venus account and oracle snapshot&quot;,
+      &quot;uri&quot;: &quot;https://fixtures.positioncrew.invalid/venus-position-001.json&quot;,
+      &quot;observedAt&quot;: &quot;2026-08-12T15:59:00.000Z&quot;
+    }
+  ]
+}</pre></details>
+      </article>
+<article>
+        <h2>Bounded concentrated-liquidity rebalance</h2>
+        <p><strong>Exact output parity:</strong> yes. <strong>Quality score:</strong> not assigned.</p>
+        <p><strong>Recorded time:</strong> founder 94612 ms; D1 API 381 ms. These clocks measure different execution contexts.</p>
+        <p><strong>Marketplace evidence:</strong> E3_SERVER_PERSISTED. A completed $0.00, no-wallet historical-fixture hire is persisted under unique PositionCrew D1 hire, job, and receipt IDs. This does not establish an external buyer or paid commerce.</p>
+        <p><a href="https://positioncrew.dolepee.com/api/benchmark-receipts/3d7270e4-e127-4cff-8290-06b8c2b77f68">Public D1 receipt</a></p>
+        <details><summary>Attached manual output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lp-rebalance.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LP_REBALANCE&quot;,
+  &quot;requestId&quot;: &quot;v3-out-of-range-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;SHIFT&quot;,
+  &quot;proposedRange&quot;: {
+    &quot;lowerTick&quot;: 0,
+    &quot;upperTick&quot;: 240
+  },
+  &quot;estimatedRebalanceCostUsd&quot;: &quot;1&quot;,
+  &quot;expectedGrossFeesUsd&quot;: &quot;19&quot;,
+  &quot;expectedNetBenefitUsd&quot;: &quot;18&quot;,
+  &quot;breakEvenHours&quot;: &quot;1.2631&quot;,
+  &quot;inventoryExposure&quot;: {
+    &quot;token0Bps&quot;: 5000,
+    &quot;token1Bps&quot;: 5000
+  },
+  &quot;summary&quot;: &quot;SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.&quot;,
+  &quot;actionSteps&quot;: [
+    &quot;Collect fees and remove the current liquidity position.&quot;,
+    &quot;Rebalance inventory within 30 bps slippage.&quot;,
+    &quot;Mint the replacement position at ticks 0 and 240.&quot;
+  ],
+  &quot;invalidationConditions&quot;: [
+    &quot;Current tick changes materially from 150.&quot;,
+    &quot;Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.&quot;,
+    &quot;Exact V3 inventory composition must be recomputed immediately before execution.&quot;
+  ]
+}</pre></details>
+        <details><summary>Official D1 agent output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lp-rebalance.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LP_REBALANCE&quot;,
+  &quot;requestId&quot;: &quot;v3-out-of-range-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;SHIFT&quot;,
+  &quot;proposedRange&quot;: {
+    &quot;lowerTick&quot;: 0,
+    &quot;upperTick&quot;: 240
+  },
+  &quot;estimatedRebalanceCostUsd&quot;: &quot;1&quot;,
+  &quot;expectedGrossFeesUsd&quot;: &quot;19&quot;,
+  &quot;expectedNetBenefitUsd&quot;: &quot;18&quot;,
+  &quot;breakEvenHours&quot;: &quot;1.2631&quot;,
+  &quot;inventoryExposure&quot;: {
+    &quot;token0Bps&quot;: 5000,
+    &quot;token1Bps&quot;: 5000
+  },
+  &quot;summary&quot;: &quot;SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.&quot;,
+  &quot;actionSteps&quot;: [
+    &quot;Collect fees and remove the current liquidity position.&quot;,
+    &quot;Rebalance inventory within 30 bps slippage.&quot;,
+    &quot;Mint the replacement position at ticks 0 and 240.&quot;
+  ],
+  &quot;invalidationConditions&quot;: [
+    &quot;Current tick changes materially from 150.&quot;,
+    &quot;Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.&quot;,
+    &quot;Exact V3 inventory composition must be recomputed immediately before execution.&quot;
+  ]
+}</pre></details>
+        <details><summary>Attached agent output 1</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lp-rebalance.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LP_REBALANCE&quot;,
+  &quot;requestId&quot;: &quot;v3-out-of-range-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;SHIFT&quot;,
+  &quot;proposedRange&quot;: {
+    &quot;lowerTick&quot;: 0,
+    &quot;upperTick&quot;: 240
+  },
+  &quot;estimatedRebalanceCostUsd&quot;: &quot;1&quot;,
+  &quot;expectedGrossFeesUsd&quot;: &quot;19&quot;,
+  &quot;expectedNetBenefitUsd&quot;: &quot;18&quot;,
+  &quot;breakEvenHours&quot;: &quot;1.2631&quot;,
+  &quot;inventoryExposure&quot;: {
+    &quot;token0Bps&quot;: 5000,
+    &quot;token1Bps&quot;: 5000
+  },
+  &quot;summary&quot;: &quot;SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.&quot;,
+  &quot;actionSteps&quot;: [
+    &quot;Collect fees and remove the current liquidity position.&quot;,
+    &quot;Rebalance inventory within 30 bps slippage.&quot;,
+    &quot;Mint the replacement position at ticks 0 and 240.&quot;
+  ],
+  &quot;invalidationConditions&quot;: [
+    &quot;Current tick changes materially from 150.&quot;,
+    &quot;Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.&quot;,
+    &quot;Exact V3 inventory composition must be recomputed immediately before execution.&quot;
+  ]
+}</pre></details>
+<details><summary>Attached agent output 2</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.lp-rebalance.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;LP_REBALANCE&quot;,
+  &quot;requestId&quot;: &quot;v3-out-of-range-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;SHIFT&quot;,
+  &quot;proposedRange&quot;: {
+    &quot;lowerTick&quot;: 0,
+    &quot;upperTick&quot;: 240
+  },
+  &quot;estimatedRebalanceCostUsd&quot;: &quot;1&quot;,
+  &quot;expectedGrossFeesUsd&quot;: &quot;19&quot;,
+  &quot;expectedNetBenefitUsd&quot;: &quot;18&quot;,
+  &quot;breakEvenHours&quot;: &quot;1.2631&quot;,
+  &quot;inventoryExposure&quot;: {
+    &quot;token0Bps&quot;: 5000,
+    &quot;token1Bps&quot;: 5000
+  },
+  &quot;summary&quot;: &quot;SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.&quot;,
+  &quot;actionSteps&quot;: [
+    &quot;Collect fees and remove the current liquidity position.&quot;,
+    &quot;Rebalance inventory within 30 bps slippage.&quot;,
+    &quot;Mint the replacement position at ticks 0 and 240.&quot;
+  ],
+  &quot;invalidationConditions&quot;: [
+    &quot;Current tick changes materially from 150.&quot;,
+    &quot;Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.&quot;,
+    &quot;Current time passes 2026-08-12T16:04:00.000Z.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.&quot;,
+    &quot;Exact V3 inventory composition must be recomputed immediately before execution.&quot;
+  ]
+}</pre></details>
+      </article>
+<article>
+        <h2>Bounded BNB-USDT grid construction</h2>
+        <p><strong>Exact output parity:</strong> yes. <strong>Quality score:</strong> not assigned.</p>
+        <p><strong>Recorded time:</strong> founder 28834 ms; D1 API 359 ms. These clocks measure different execution contexts.</p>
+        <p><strong>Marketplace evidence:</strong> E3_SERVER_PERSISTED. A completed $0.00, no-wallet historical-fixture hire is persisted under unique PositionCrew D1 hire, job, and receipt IDs. This does not establish an external buyer or paid commerce.</p>
+        <p><a href="https://positioncrew.dolepee.com/api/benchmark-receipts/ded8d656-794d-496a-bf3c-bd23968cb31e">Public D1 receipt</a></p>
+        <details><summary>Attached manual output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.bounded-grid.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;BOUNDED_GRID&quot;,
+  &quot;requestId&quot;: &quot;bounded-grid-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;BUILD_GRID&quot;,
+  &quot;orders&quot;: [
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9&quot;,
+      &quot;baseAmount&quot;: &quot;27.777777777777&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9.5&quot;,
+      &quot;baseAmount&quot;: &quot;26.315789473684&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;10.5&quot;,
+      &quot;baseAmount&quot;: &quot;23.809523809523&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;11&quot;,
+      &quot;baseAmount&quot;: &quot;22.727272727272&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    }
+  ],
+  &quot;grossSpreadCaptureUsd&quot;: &quot;250&quot;,
+  &quot;estimatedFeesUsd&quot;: &quot;60&quot;,
+  &quot;estimatedSlippageUsd&quot;: &quot;20&quot;,
+  &quot;estimatedGasUsd&quot;: &quot;1&quot;,
+  &quot;expectedNetProfitUsd&quot;: &quot;169&quot;,
+  &quot;worstCaseLossUsd&quot;: &quot;131&quot;,
+  &quot;maximumInventoryUsd&quot;: &quot;500&quot;,
+  &quot;summary&quot;: &quot;Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.&quot;,
+  &quot;cancellationConditions&quot;: [
+    &quot;Cancel at 2026-08-12T16:04:00.000Z.&quot;,
+    &quot;Cancel if volatility exceeds 1000 bps.&quot;,
+    &quot;Cancel if available liquidity falls below 100000 USD.&quot;,
+    &quot;Cancel if inventory reaches 600 USD.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;The profit model assumes 10 completed cycles; fills are not guaranteed.&quot;,
+    &quot;No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits.&quot;
+  ]
+}</pre></details>
+        <details><summary>Official D1 agent output</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.bounded-grid.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;BOUNDED_GRID&quot;,
+  &quot;requestId&quot;: &quot;bounded-grid-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;BUILD_GRID&quot;,
+  &quot;orders&quot;: [
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9&quot;,
+      &quot;baseAmount&quot;: &quot;27.777777777777&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9.5&quot;,
+      &quot;baseAmount&quot;: &quot;26.315789473684&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;10.5&quot;,
+      &quot;baseAmount&quot;: &quot;23.809523809523&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;11&quot;,
+      &quot;baseAmount&quot;: &quot;22.727272727272&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    }
+  ],
+  &quot;grossSpreadCaptureUsd&quot;: &quot;250&quot;,
+  &quot;estimatedFeesUsd&quot;: &quot;60&quot;,
+  &quot;estimatedSlippageUsd&quot;: &quot;20&quot;,
+  &quot;estimatedGasUsd&quot;: &quot;1&quot;,
+  &quot;expectedNetProfitUsd&quot;: &quot;169&quot;,
+  &quot;worstCaseLossUsd&quot;: &quot;131&quot;,
+  &quot;maximumInventoryUsd&quot;: &quot;500&quot;,
+  &quot;summary&quot;: &quot;Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.&quot;,
+  &quot;cancellationConditions&quot;: [
+    &quot;Cancel at 2026-08-12T16:04:00.000Z.&quot;,
+    &quot;Cancel if volatility exceeds 1000 bps.&quot;,
+    &quot;Cancel if available liquidity falls below 100000 USD.&quot;,
+    &quot;Cancel if inventory reaches 600 USD.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;The profit model assumes 10 completed cycles; fills are not guaranteed.&quot;,
+    &quot;No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits.&quot;
+  ]
+}</pre></details>
+        <details><summary>Attached agent output 1</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.bounded-grid.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;BOUNDED_GRID&quot;,
+  &quot;requestId&quot;: &quot;bounded-grid-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;BUILD_GRID&quot;,
+  &quot;orders&quot;: [
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9&quot;,
+      &quot;baseAmount&quot;: &quot;27.777777777777&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9.5&quot;,
+      &quot;baseAmount&quot;: &quot;26.315789473684&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;10.5&quot;,
+      &quot;baseAmount&quot;: &quot;23.809523809523&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;11&quot;,
+      &quot;baseAmount&quot;: &quot;22.727272727272&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    }
+  ],
+  &quot;grossSpreadCaptureUsd&quot;: &quot;250&quot;,
+  &quot;estimatedFeesUsd&quot;: &quot;60&quot;,
+  &quot;estimatedSlippageUsd&quot;: &quot;20&quot;,
+  &quot;estimatedGasUsd&quot;: &quot;1&quot;,
+  &quot;expectedNetProfitUsd&quot;: &quot;169&quot;,
+  &quot;worstCaseLossUsd&quot;: &quot;131&quot;,
+  &quot;maximumInventoryUsd&quot;: &quot;500&quot;,
+  &quot;summary&quot;: &quot;Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.&quot;,
+  &quot;cancellationConditions&quot;: [
+    &quot;Cancel at 2026-08-12T16:04:00.000Z.&quot;,
+    &quot;Cancel if volatility exceeds 1000 bps.&quot;,
+    &quot;Cancel if available liquidity falls below 100000 USD.&quot;,
+    &quot;Cancel if inventory reaches 600 USD.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;The profit model assumes 10 completed cycles; fills are not guaranteed.&quot;,
+    &quot;No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits.&quot;
+  ]
+}</pre></details>
+<details><summary>Attached agent output 2</summary><pre>{
+  &quot;schemaVersion&quot;: &quot;positioncrew.bounded-grid.deliverable.v1&quot;,
+  &quot;service&quot;: &quot;BOUNDED_GRID&quot;,
+  &quot;requestId&quot;: &quot;bounded-grid-20260812-001&quot;,
+  &quot;generatedAt&quot;: &quot;2026-08-12T16:00:30.000Z&quot;,
+  &quot;expiresAt&quot;: &quot;2026-08-12T16:04:00.000Z&quot;,
+  &quot;status&quot;: &quot;ACTIONABLE&quot;,
+  &quot;decision&quot;: &quot;BUILD_GRID&quot;,
+  &quot;orders&quot;: [
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9&quot;,
+      &quot;baseAmount&quot;: &quot;27.777777777777&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;BUY&quot;,
+      &quot;price&quot;: &quot;9.5&quot;,
+      &quot;baseAmount&quot;: &quot;26.315789473684&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;10.5&quot;,
+      &quot;baseAmount&quot;: &quot;23.809523809523&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    },
+    {
+      &quot;side&quot;: &quot;SELL&quot;,
+      &quot;price&quot;: &quot;11&quot;,
+      &quot;baseAmount&quot;: &quot;22.727272727272&quot;,
+      &quot;maximumQuoteAmount&quot;: &quot;250&quot;
+    }
+  ],
+  &quot;grossSpreadCaptureUsd&quot;: &quot;250&quot;,
+  &quot;estimatedFeesUsd&quot;: &quot;60&quot;,
+  &quot;estimatedSlippageUsd&quot;: &quot;20&quot;,
+  &quot;estimatedGasUsd&quot;: &quot;1&quot;,
+  &quot;expectedNetProfitUsd&quot;: &quot;169&quot;,
+  &quot;worstCaseLossUsd&quot;: &quot;131&quot;,
+  &quot;maximumInventoryUsd&quot;: &quot;500&quot;,
+  &quot;summary&quot;: &quot;Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.&quot;,
+  &quot;cancellationConditions&quot;: [
+    &quot;Cancel at 2026-08-12T16:04:00.000Z.&quot;,
+    &quot;Cancel if volatility exceeds 1000 bps.&quot;,
+    &quot;Cancel if available liquidity falls below 100000 USD.&quot;,
+    &quot;Cancel if inventory reaches 600 USD.&quot;
+  ],
+  &quot;limitations&quot;: [
+    &quot;The profit model assumes 10 completed cycles; fills are not guaranteed.&quot;,
+    &quot;No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits.&quot;
+  ]
+}</pre></details>
+      </article>
+  <section class="boundary"><h2>Claim boundary</h2><ul><li>This is a founder-operated, self-attested, non-independent, non-blind comparison on three frozen historical fixtures.</li>
+<li>Canonical exact-output parity proves only that the attached candidates serialize to identical committed outputs; no independent quality score is claimed.</li>
+<li>The selected agent arms are three qualified E3_SERVER_PERSISTED PositionCrew D1 records: completed $0.00, no-wallet historical-fixture hires with public receipts.</li>
+<li>E3_SERVER_PERSISTED proves fresh PositionCrew server-persisted $0.00, no-wallet historical-fixture hires only; the captured public GET observations occurred after completion and do not prove precommitment or observation of record creation.</li>
+<li>Unique server hire means only unique PositionCrew D1 hire, job, and receipt identifiers, not independent buyers or distinct sellers.</li>
+<li>This evidence does not establish paid commerce, payment, settlement, external demand, evaluator-originated hiring, revenue, or external customer activity.</li>
+<li>The fixtures and outputs are historical research evidence, not live executable advice, mainnet execution, investment performance, or a recommendation to trade.</li>
+<li>Founder wall-clock and D1 API duration measure different execution contexts and are reported only as recorded times.</li></ul></section>
+  <footer><p>Report hash: <code>sha256:69fa9304758a2f76921e190ed28d1c6556dd98e4f0bc945cbb82d62739954853</code></p></footer>
+</body>
+</html>

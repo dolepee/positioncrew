@@ -654,10 +654,7 @@ export function isVerifiedFounderAgentAdvantagePublication(
     new Date(publishedAt).toISOString() === publishedAt &&
     record.taskCount === 3 &&
     record.exactOutputParityCount === 3 &&
-    typeof record.recordedSpeedAdvantageCount === "number" &&
-    Number.isInteger(record.recordedSpeedAdvantageCount) &&
-    record.recordedSpeedAdvantageCount >= 0 &&
-    record.recordedSpeedAdvantageCount <= 3 &&
+    record.recordedSpeedAdvantageCount === 3 &&
     record.qualityMethod === "CANONICAL_EXACT_OUTPUT_PARITY" &&
     record.qualityScore === null &&
     record.independent === false &&
@@ -665,10 +662,12 @@ export function isVerifiedFounderAgentAdvantagePublication(
     boundary.includes("founder-operated") &&
     boundary.includes("non-independent") &&
     boundary.includes("non-blind") &&
-    boundary.includes("partial e2") &&
-    boundary.includes("marketplace hire") &&
-    boundary.includes("does not") &&
-    boundary.includes("payment")
+    boundary.includes("e3_server_persisted") &&
+    boundary.includes("server-persisted") &&
+    boundary.includes("historical-fixture") &&
+    boundary.includes("no-wallet") &&
+    boundary.includes("does not establish paid commerce") &&
+    boundary.includes("external")
   );
 }
 

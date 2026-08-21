@@ -1,0 +1,1357 @@
+{
+  "schemaVersion": "positioncrew.founder-agent-advantage-report.v2",
+  "title": "TermiX Agent Advantage Report: Founder-Operated Comparison",
+  "generatedAt": "2026-08-20T20:56:04.230Z",
+  "comparisonMode": "FOUNDER_OPERATED_NON_INDEPENDENT_NON_BLIND",
+  "qualityMethod": "CANONICAL_EXACT_OUTPUT_PARITY",
+  "qualityScore": null,
+  "independent": false,
+  "blind": false,
+  "evaluator": null,
+  "manualOperatorIndependent": false,
+  "manualRunsPerTask": 1,
+  "officialAgentRunsPerTask": 1,
+  "repeatabilityCandidatesPerTask": 2,
+  "sameFounderAcrossTasks": true,
+  "rubricCommittedBeforeCandidates": true,
+  "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+  "marketplaceEvidenceStatus": "E3_SERVER_PERSISTED",
+  "hireProven": true,
+  "uniqueServerHire": true,
+  "uniqueServerHireDefinition": "Unique PositionCrew D1 hire, job, and receipt identifiers; not independent buyers or distinct sellers.",
+  "externalBuyer": false,
+  "paid": false,
+  "freshServerPersistenceProven": true,
+  "freshUnderlyingAnalysisProven": false,
+  "marketplaceHires": {
+    "session": {
+      "schemaVersion": "positioncrew.founder-marketplace-hire-capture.v1",
+      "captureStartedAt": "2026-08-20T20:33:28.106Z",
+      "capturedAt": "2026-08-20T20:33:32.808Z",
+      "origin": "https://positioncrew.dolepee.com",
+      "operatorRole": "FOUNDER",
+      "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+      "comparisonMode": "FOUNDER_OPERATED_NON_INDEPENDENT_NON_BLIND",
+      "marketplaceEvidenceStatus": "E3_SERVER_PERSISTED",
+      "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+      "hireProven": true,
+      "uniqueServerHire": true,
+      "paid": false,
+      "independent": false,
+      "blind": false,
+      "captureMethod": {
+        "requestMethod": "GET",
+        "authorizedRequestCount": 6,
+        "observedHttp200Count": 6,
+        "redirectsFollowed": false,
+        "retriesEnabled": false,
+        "observedAfterCompletion": true
+      },
+      "commerce": {
+        "directCostUsd": "0.00",
+        "walletRequired": false,
+        "settlement": "NO_PAYMENT"
+      },
+      "inventory": {
+        "closedBundleFiles": [
+          "SHA256SUMS",
+          "bounded-grid.hire.json",
+          "bounded-grid.receipt.json",
+          "lending-rescue.hire.json",
+          "lending-rescue.receipt.json",
+          "lp-rebalance.hire.json",
+          "lp-rebalance.receipt.json",
+          "session.json"
+        ],
+        "checksummedJsonFiles": [
+          "bounded-grid.hire.json",
+          "bounded-grid.receipt.json",
+          "lending-rescue.hire.json",
+          "lending-rescue.receipt.json",
+          "lp-rebalance.hire.json",
+          "lp-rebalance.receipt.json",
+          "session.json"
+        ],
+        "checksumManifest": "SHA256SUMS"
+      },
+      "serverClaimBoundary": [
+        "This is a public-workspace run of a frozen historical benchmark fixture.",
+        "The run costs $0.00, requires no wallet, and creates no payment or settlement.",
+        "The server receipt proves only this PositionCrew request, provider selection, result, and timing trace.",
+        "It does not establish an external buyer, paid demand, third-party protocol execution, onchain immutability, or live financial advice."
+      ],
+      "claimBoundary": [
+        "This bundle records post-run public observations of three distinct PositionCrew server-persisted hire, job, and receipt chains; it does not claim that this capture precommitted or observed their creation.",
+        "E3_SERVER_PERSISTED is the founder-report server-persistence classification, not independent or blind completion evidence.",
+        "Unique server hire means only unique PositionCrew D1 hire, job, and receipt identifiers, not independent buyers or distinct sellers.",
+        "Each selected record is a $0.00, no-wallet historical-fixture run with NO_PAYMENT settlement.",
+        "This evidence does not establish paid commerce, external demand, evaluator-originated hiring, third-party protocol execution, live financial advice, or onchain immutability.",
+        "The founder comparison remains non-independent and non-blind."
+      ],
+      "verification": {
+        "taskCount": 3,
+        "globallyUniqueHireIdCount": 3,
+        "globallyUniqueJobIdCount": 3,
+        "globallyUniqueReceiptIdCount": 3,
+        "canonicalHireReceiptChainIdentityCount": 3,
+        "completedJobCount": 3,
+        "canonicalRequestHashMatchCount": 3,
+        "canonicalResponseHashMatchCount": 3,
+        "canonicalDeliverableHashMatchCount": 3,
+        "canonicalEvaluationHashMatchCount": 3
+      },
+      "tasks": [
+        {
+          "benchmarkSlug": "lending-rescue",
+          "providerSlug": "lending-rescue",
+          "providerId": "positioncrew:provider:lending-rescue:v1",
+          "service": "LENDING_RESCUE",
+          "apiDurationMilliseconds": 371,
+          "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+          "serverEvidenceMode": "HISTORICAL_FIXTURE",
+          "hireId": "a4c2ffa2-0713-4631-9bd3-ff1ef7acdc8d",
+          "idempotencyKey": "3f3d84fc-9078-4c47-8307-d58c90e15a05",
+          "jobId": "6219b77f-7cfb-4402-b45b-162eaf6769c8",
+          "receiptId": "7f0234d4-bc81-43d4-9624-31823b334c33",
+          "state": "COMPLETED",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-20T20:22:33.826Z",
+          "startedAt": "2026-08-20T20:22:35.807Z",
+          "completedAt": "2026-08-20T20:22:36.178Z",
+          "receiptCreatedAt": "2026-08-20T20:22:36.178Z",
+          "commerce": {
+            "directCostUsd": "0.00",
+            "walletRequired": false,
+            "settlement": "NO_PAYMENT"
+          },
+          "hashes": {
+            "request": "sha256:4d258873a81ae8b8b700cd0e50a927f6b291e376fc046a12a5b0d4d7faf11b94",
+            "response": "sha256:4ba9356b0ec98b05cb115fb9236a03b207fbe88822127e69da2191c3e6a511a1",
+            "deliverable": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+            "evaluation": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870"
+          },
+          "observations": {
+            "hire": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-hires/a4c2ffa2-0713-4631-9bd3-ff1ef7acdc8d",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:32.249Z",
+              "file": "lending-rescue.hire.json",
+              "bytes": 16203,
+              "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+            },
+            "receipt": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-receipts/7f0234d4-bc81-43d4-9624-31823b334c33",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:32.159Z",
+              "file": "lending-rescue.receipt.json",
+              "bytes": 16203,
+              "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+            }
+          },
+          "canonicalHireReceiptChainIdentity": true
+        },
+        {
+          "benchmarkSlug": "lp-rebalance",
+          "providerSlug": "lp-rebalance",
+          "providerId": "positioncrew:provider:lp-rebalance:v1",
+          "service": "LP_REBALANCE",
+          "apiDurationMilliseconds": 381,
+          "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+          "serverEvidenceMode": "HISTORICAL_FIXTURE",
+          "hireId": "8e312731-18be-4111-8b9c-1ff6ac93a02b",
+          "idempotencyKey": "166e37c4-4aa1-4c63-90bc-42913b49f213",
+          "jobId": "4aae4775-fa5d-4496-ae88-4e5f3762d6ac",
+          "receiptId": "3d7270e4-e127-4cff-8290-06b8c2b77f68",
+          "state": "COMPLETED",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-20T20:26:07.517Z",
+          "startedAt": "2026-08-20T20:26:08.738Z",
+          "completedAt": "2026-08-20T20:26:09.119Z",
+          "receiptCreatedAt": "2026-08-20T20:26:09.119Z",
+          "commerce": {
+            "directCostUsd": "0.00",
+            "walletRequired": false,
+            "settlement": "NO_PAYMENT"
+          },
+          "hashes": {
+            "request": "sha256:bc032a17a593383741c90c878fa101afc8b128d42e5d96d2dea3dbecec4ba318",
+            "response": "sha256:0e6b2e82ec11bc84a6daa45495109752f7e067603d3cc84432fc1587717a27f4",
+            "deliverable": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+            "evaluation": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7"
+          },
+          "observations": {
+            "hire": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-hires/8e312731-18be-4111-8b9c-1ff6ac93a02b",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:31.459Z",
+              "file": "lp-rebalance.hire.json",
+              "bytes": 12398,
+              "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+            },
+            "receipt": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-receipts/3d7270e4-e127-4cff-8290-06b8c2b77f68",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:32.808Z",
+              "file": "lp-rebalance.receipt.json",
+              "bytes": 12398,
+              "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+            }
+          },
+          "canonicalHireReceiptChainIdentity": true
+        },
+        {
+          "benchmarkSlug": "bounded-grid",
+          "providerSlug": "bounded-grid",
+          "providerId": "positioncrew:provider:bounded-grid:v1",
+          "service": "BOUNDED_GRID",
+          "apiDurationMilliseconds": 359,
+          "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+          "serverEvidenceMode": "HISTORICAL_FIXTURE",
+          "hireId": "3f42c256-ee09-468e-accb-3c93d8c3bf61",
+          "idempotencyKey": "ae2400b5-c338-4615-a1f5-e474463a3d8b",
+          "jobId": "fcb9221e-9c66-460e-b374-c288442f37d2",
+          "receiptId": "ded8d656-794d-496a-bf3c-bd23968cb31e",
+          "state": "COMPLETED",
+          "status": "COMPLETED",
+          "createdAt": "2026-08-20T20:26:47.504Z",
+          "startedAt": "2026-08-20T20:26:48.287Z",
+          "completedAt": "2026-08-20T20:26:48.646Z",
+          "receiptCreatedAt": "2026-08-20T20:26:48.646Z",
+          "commerce": {
+            "directCostUsd": "0.00",
+            "walletRequired": false,
+            "settlement": "NO_PAYMENT"
+          },
+          "hashes": {
+            "request": "sha256:6141d28b501766821bdddde671e7b8576d39ee2766f00fa852e36aa513df6622",
+            "response": "sha256:41e45b4ee743da7d8b7ceae85fda6f250f02647a82d70a8e864a02b6a83c84a1",
+            "deliverable": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+            "evaluation": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb"
+          },
+          "observations": {
+            "hire": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-hires/3f42c256-ee09-468e-accb-3c93d8c3bf61",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:31.658Z",
+              "file": "bounded-grid.hire.json",
+              "bytes": 12531,
+              "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+            },
+            "receipt": {
+              "url": "https://positioncrew.dolepee.com/api/benchmark-receipts/ded8d656-794d-496a-bf3c-bd23968cb31e",
+              "httpStatus": 200,
+              "requestedAt": "2026-08-20T20:33:28.109Z",
+              "receivedAt": "2026-08-20T20:33:31.778Z",
+              "file": "bounded-grid.receipt.json",
+              "bytes": 12531,
+              "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+            }
+          },
+          "canonicalHireReceiptChainIdentity": true
+        }
+      ]
+    },
+    "sessionHash": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3",
+    "checksumsHash": "sha256:3650f721ae749b1038f8825ce449a3569be0d4ededa573d5ab24879760f8132c",
+    "verifiedFiles": [
+      {
+        "path": "bounded-grid.hire.json",
+        "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+      },
+      {
+        "path": "bounded-grid.receipt.json",
+        "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+      },
+      {
+        "path": "lending-rescue.hire.json",
+        "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+      },
+      {
+        "path": "lending-rescue.receipt.json",
+        "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+      },
+      {
+        "path": "lp-rebalance.hire.json",
+        "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+      },
+      {
+        "path": "lp-rebalance.receipt.json",
+        "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+      },
+      {
+        "path": "session.json",
+        "sha256": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3"
+      }
+    ]
+  },
+  "tasks": [
+    {
+      "benchmarkSlug": "lending-rescue",
+      "taskId": "venus-stressed-position-20260812-001",
+      "sessionId": "lending-rescue-20260812215350546-bc4a1371",
+      "title": "Bounded lending-position rescue",
+      "category": "Lending risk",
+      "highStakesReason": "A malformed rescue plan can worsen liquidation risk.",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "venus-stressed-position-20260812-001",
+        "fixtureHash": "sha256:068d71bfd268e11bae12e1d26fa3ab4c73c845d42c7d7d150bd05aee1eb81e8d",
+        "rubricHash": "sha256:d13c3608221e0267d1850ffc08ebe01cbc04ed526abe23720ee926f916a71010",
+        "protocolHash": "sha256:43cc33de9a8ae0a5d62a8a47bf10955e8ffeedfe1c51c6d3b4590809f94f7eaa"
+      },
+      "manual": {
+        "operatorId": "Iyanda Abdulqodir",
+        "contactReference": "https://github.com/dolepee",
+        "method": "arithmetic and calculator",
+        "toolExclusionAttestation": "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+        "candidateHash": "sha256:219cbe438be8958014ed65989543cd2072dc026b8427faeecead1fe976bee881",
+        "outputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+        "output": {
+          "schemaVersion": "positioncrew.lending-rescue.deliverable.v1",
+          "service": "LENDING_RESCUE",
+          "requestId": "venus-stressed-position-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "REPAY_DEBT",
+          "summary": "Repay 152 USDT to raise health factor from 1.04347826 to 1.25.",
+          "position": {
+            "collateralValueUsd": "1200",
+            "liquidationWeightedCollateralUsd": "960",
+            "debtValueUsd": "920",
+            "currentHealthFactor": "1.04347826",
+            "stressedHealthFactor": "0.93913043",
+            "targetHealthFactor": "1.25"
+          },
+          "recommendation": {
+            "actionId": "action_abfd92fd8ee827ae6ec7d298",
+            "kind": "REPAY_DEBT",
+            "chainId": 56,
+            "protocol": "Venus",
+            "market": "0x2222222222222222222222222222222222222222",
+            "account": "0x1111111111111111111111111111111111111111",
+            "asset": {
+              "symbol": "USDT",
+              "address": "0x55d398326f99059fF775485246999027B3197955",
+              "decimals": 18
+            },
+            "amount": "152",
+            "amountBaseUnits": "152000000000000000000",
+            "amountUsd": "152",
+            "estimatedGasUsd": "0.04",
+            "projectedHealthFactor": "1.25",
+            "executeBefore": "2026-08-12T16:04:00.000Z",
+            "maxSlippageBps": 30,
+            "preconditions": [
+              "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+              "Oracle deviation remains within 100 bps",
+              "Estimated gas remains at or below 0.10 USD"
+            ]
+          },
+          "alternatives": [
+            {
+              "actionId": "action_8a8a88ebc3801171ed9c7fe2",
+              "kind": "ADD_COLLATERAL",
+              "chainId": 56,
+              "protocol": "Venus",
+              "market": "0x2222222222222222222222222222222222222222",
+              "account": "0x1111111111111111111111111111111111111111",
+              "asset": {
+                "symbol": "WBNB",
+                "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+                "decimals": 18
+              },
+              "amount": "0.395833333333333334",
+              "amountBaseUnits": "395833333333333334",
+              "amountUsd": "237.5",
+              "estimatedGasUsd": "0.04",
+              "projectedHealthFactor": "1.25",
+              "executeBefore": "2026-08-12T16:04:00.000Z",
+              "maxSlippageBps": 30,
+              "preconditions": [
+                "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                "Oracle deviation remains within 100 bps",
+                "Estimated gas remains at or below 0.10 USD"
+              ]
+            }
+          ],
+          "refusalReasons": [],
+          "invalidationConditions": [
+            "Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z",
+            "Any source price moves more than 100 bps",
+            "Current time passes 2026-08-12T16:04:00.000Z"
+          ],
+          "limitations": [
+            "This result is a bounded action plan, not custody or guaranteed execution.",
+            "Projected health factor depends on the supplied protocol thresholds and fresh prices.",
+            "Version 1 returns one single-asset rescue action; it does not split repayment across assets."
+          ],
+          "sources": [
+            {
+              "sourceId": "venus-position-fixture-001",
+              "label": "Frozen Venus account and oracle snapshot",
+              "uri": "https://fixtures.positioncrew.invalid/venus-position-001.json",
+              "observedAt": "2026-08-12T15:59:00.000Z"
+            }
+          ]
+        },
+        "elapsedMilliseconds": 356626,
+        "directCostUsd": "0",
+        "capturedAt": "2026-08-20T14:58:59.674Z"
+      },
+      "agent": {
+        "providerId": "positioncrew:provider:lending-rescue:v1",
+        "officialTimingSource": "POSITIONCREW_D1_HIRE_API_DURATION",
+        "officialElapsedMilliseconds": 371,
+        "directCostUsd": "0.00",
+        "hireId": "a4c2ffa2-0713-4631-9bd3-ff1ef7acdc8d",
+        "jobId": "6219b77f-7cfb-4402-b45b-162eaf6769c8",
+        "receiptId": "7f0234d4-bc81-43d4-9624-31823b334c33",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/7f0234d4-bc81-43d4-9624-31823b334c33",
+        "requestHash": "sha256:4d258873a81ae8b8b700cd0e50a927f6b291e376fc046a12a5b0d4d7faf11b94",
+        "responseHash": "sha256:4ba9356b0ec98b05cb115fb9236a03b207fbe88822127e69da2191c3e6a511a1",
+        "deliverableHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+        "evaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870",
+        "output": {
+          "schemaVersion": "positioncrew.lending-rescue.deliverable.v1",
+          "service": "LENDING_RESCUE",
+          "requestId": "venus-stressed-position-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "REPAY_DEBT",
+          "summary": "Repay 152 USDT to raise health factor from 1.04347826 to 1.25.",
+          "position": {
+            "collateralValueUsd": "1200",
+            "liquidationWeightedCollateralUsd": "960",
+            "debtValueUsd": "920",
+            "currentHealthFactor": "1.04347826",
+            "stressedHealthFactor": "0.93913043",
+            "targetHealthFactor": "1.25"
+          },
+          "recommendation": {
+            "actionId": "action_abfd92fd8ee827ae6ec7d298",
+            "kind": "REPAY_DEBT",
+            "chainId": 56,
+            "protocol": "Venus",
+            "market": "0x2222222222222222222222222222222222222222",
+            "account": "0x1111111111111111111111111111111111111111",
+            "asset": {
+              "symbol": "USDT",
+              "address": "0x55d398326f99059fF775485246999027B3197955",
+              "decimals": 18
+            },
+            "amount": "152",
+            "amountBaseUnits": "152000000000000000000",
+            "amountUsd": "152",
+            "estimatedGasUsd": "0.04",
+            "projectedHealthFactor": "1.25",
+            "executeBefore": "2026-08-12T16:04:00.000Z",
+            "maxSlippageBps": 30,
+            "preconditions": [
+              "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+              "Oracle deviation remains within 100 bps",
+              "Estimated gas remains at or below 0.10 USD"
+            ]
+          },
+          "alternatives": [
+            {
+              "actionId": "action_8a8a88ebc3801171ed9c7fe2",
+              "kind": "ADD_COLLATERAL",
+              "chainId": 56,
+              "protocol": "Venus",
+              "market": "0x2222222222222222222222222222222222222222",
+              "account": "0x1111111111111111111111111111111111111111",
+              "asset": {
+                "symbol": "WBNB",
+                "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+                "decimals": 18
+              },
+              "amount": "0.395833333333333334",
+              "amountBaseUnits": "395833333333333334",
+              "amountUsd": "237.5",
+              "estimatedGasUsd": "0.04",
+              "projectedHealthFactor": "1.25",
+              "executeBefore": "2026-08-12T16:04:00.000Z",
+              "maxSlippageBps": 30,
+              "preconditions": [
+                "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                "Oracle deviation remains within 100 bps",
+                "Estimated gas remains at or below 0.10 USD"
+              ]
+            }
+          ],
+          "refusalReasons": [],
+          "invalidationConditions": [
+            "Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z",
+            "Any source price moves more than 100 bps",
+            "Current time passes 2026-08-12T16:04:00.000Z"
+          ],
+          "limitations": [
+            "This result is a bounded action plan, not custody or guaranteed execution.",
+            "Projected health factor depends on the supplied protocol thresholds and fresh prices.",
+            "Version 1 returns one single-asset rescue action; it does not split repayment across assets."
+          ],
+          "sources": [
+            {
+              "sourceId": "venus-position-fixture-001",
+              "label": "Frozen Venus account and oracle snapshot",
+              "uri": "https://fixtures.positioncrew.invalid/venus-position-001.json",
+              "observedAt": "2026-08-12T15:59:00.000Z"
+            }
+          ]
+        },
+        "repeatabilityCandidates": [
+          {
+            "candidateHash": "sha256:1e21f704fb57f06c5a15f8ebe368ae28d8cf8d9834856cf36f5f7326ef1a06ee",
+            "outputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+            "output": {
+              "schemaVersion": "positioncrew.lending-rescue.deliverable.v1",
+              "service": "LENDING_RESCUE",
+              "requestId": "venus-stressed-position-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "REPAY_DEBT",
+              "summary": "Repay 152 USDT to raise health factor from 1.04347826 to 1.25.",
+              "position": {
+                "collateralValueUsd": "1200",
+                "liquidationWeightedCollateralUsd": "960",
+                "debtValueUsd": "920",
+                "currentHealthFactor": "1.04347826",
+                "stressedHealthFactor": "0.93913043",
+                "targetHealthFactor": "1.25"
+              },
+              "recommendation": {
+                "actionId": "action_abfd92fd8ee827ae6ec7d298",
+                "kind": "REPAY_DEBT",
+                "chainId": 56,
+                "protocol": "Venus",
+                "market": "0x2222222222222222222222222222222222222222",
+                "account": "0x1111111111111111111111111111111111111111",
+                "asset": {
+                  "symbol": "USDT",
+                  "address": "0x55d398326f99059fF775485246999027B3197955",
+                  "decimals": 18
+                },
+                "amount": "152",
+                "amountBaseUnits": "152000000000000000000",
+                "amountUsd": "152",
+                "estimatedGasUsd": "0.04",
+                "projectedHealthFactor": "1.25",
+                "executeBefore": "2026-08-12T16:04:00.000Z",
+                "maxSlippageBps": 30,
+                "preconditions": [
+                  "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                  "Oracle deviation remains within 100 bps",
+                  "Estimated gas remains at or below 0.10 USD"
+                ]
+              },
+              "alternatives": [
+                {
+                  "actionId": "action_8a8a88ebc3801171ed9c7fe2",
+                  "kind": "ADD_COLLATERAL",
+                  "chainId": 56,
+                  "protocol": "Venus",
+                  "market": "0x2222222222222222222222222222222222222222",
+                  "account": "0x1111111111111111111111111111111111111111",
+                  "asset": {
+                    "symbol": "WBNB",
+                    "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+                    "decimals": 18
+                  },
+                  "amount": "0.395833333333333334",
+                  "amountBaseUnits": "395833333333333334",
+                  "amountUsd": "237.5",
+                  "estimatedGasUsd": "0.04",
+                  "projectedHealthFactor": "1.25",
+                  "executeBefore": "2026-08-12T16:04:00.000Z",
+                  "maxSlippageBps": 30,
+                  "preconditions": [
+                    "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                    "Oracle deviation remains within 100 bps",
+                    "Estimated gas remains at or below 0.10 USD"
+                  ]
+                }
+              ],
+              "refusalReasons": [],
+              "invalidationConditions": [
+                "Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z",
+                "Any source price moves more than 100 bps",
+                "Current time passes 2026-08-12T16:04:00.000Z"
+              ],
+              "limitations": [
+                "This result is a bounded action plan, not custody or guaranteed execution.",
+                "Projected health factor depends on the supplied protocol thresholds and fresh prices.",
+                "Version 1 returns one single-asset rescue action; it does not split repayment across assets."
+              ],
+              "sources": [
+                {
+                  "sourceId": "venus-position-fixture-001",
+                  "label": "Frozen Venus account and oracle snapshot",
+                  "uri": "https://fixtures.positioncrew.invalid/venus-position-001.json",
+                  "observedAt": "2026-08-12T15:59:00.000Z"
+                }
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:50.842Z",
+            "localFixtureElapsedMilliseconds": 5,
+            "directCostUsd": "0"
+          },
+          {
+            "candidateHash": "sha256:8e8b060d5cd829cf26be0659f547d3374cf7d50591efa023d2245861a0bccf0a",
+            "outputHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+            "output": {
+              "schemaVersion": "positioncrew.lending-rescue.deliverable.v1",
+              "service": "LENDING_RESCUE",
+              "requestId": "venus-stressed-position-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "REPAY_DEBT",
+              "summary": "Repay 152 USDT to raise health factor from 1.04347826 to 1.25.",
+              "position": {
+                "collateralValueUsd": "1200",
+                "liquidationWeightedCollateralUsd": "960",
+                "debtValueUsd": "920",
+                "currentHealthFactor": "1.04347826",
+                "stressedHealthFactor": "0.93913043",
+                "targetHealthFactor": "1.25"
+              },
+              "recommendation": {
+                "actionId": "action_abfd92fd8ee827ae6ec7d298",
+                "kind": "REPAY_DEBT",
+                "chainId": 56,
+                "protocol": "Venus",
+                "market": "0x2222222222222222222222222222222222222222",
+                "account": "0x1111111111111111111111111111111111111111",
+                "asset": {
+                  "symbol": "USDT",
+                  "address": "0x55d398326f99059fF775485246999027B3197955",
+                  "decimals": 18
+                },
+                "amount": "152",
+                "amountBaseUnits": "152000000000000000000",
+                "amountUsd": "152",
+                "estimatedGasUsd": "0.04",
+                "projectedHealthFactor": "1.25",
+                "executeBefore": "2026-08-12T16:04:00.000Z",
+                "maxSlippageBps": 30,
+                "preconditions": [
+                  "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                  "Oracle deviation remains within 100 bps",
+                  "Estimated gas remains at or below 0.10 USD"
+                ]
+              },
+              "alternatives": [
+                {
+                  "actionId": "action_8a8a88ebc3801171ed9c7fe2",
+                  "kind": "ADD_COLLATERAL",
+                  "chainId": 56,
+                  "protocol": "Venus",
+                  "market": "0x2222222222222222222222222222222222222222",
+                  "account": "0x1111111111111111111111111111111111111111",
+                  "asset": {
+                    "symbol": "WBNB",
+                    "address": "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+                    "decimals": 18
+                  },
+                  "amount": "0.395833333333333334",
+                  "amountBaseUnits": "395833333333333334",
+                  "amountUsd": "237.5",
+                  "estimatedGasUsd": "0.04",
+                  "projectedHealthFactor": "1.25",
+                  "executeBefore": "2026-08-12T16:04:00.000Z",
+                  "maxSlippageBps": 30,
+                  "preconditions": [
+                    "Position debt and collateral balances still match request venus-stressed-position-20260812-001",
+                    "Oracle deviation remains within 100 bps",
+                    "Estimated gas remains at or below 0.10 USD"
+                  ]
+                }
+              ],
+              "refusalReasons": [],
+              "invalidationConditions": [
+                "Any collateral or debt balance changes after 2026-08-12T16:00:00.000Z",
+                "Any source price moves more than 100 bps",
+                "Current time passes 2026-08-12T16:04:00.000Z"
+              ],
+              "limitations": [
+                "This result is a bounded action plan, not custody or guaranteed execution.",
+                "Projected health factor depends on the supplied protocol thresholds and fresh prices.",
+                "Version 1 returns one single-asset rescue action; it does not split repayment across assets."
+              ],
+              "sources": [
+                {
+                  "sourceId": "venus-position-fixture-001",
+                  "label": "Frozen Venus account and oracle snapshot",
+                  "uri": "https://fixtures.positioncrew.invalid/venus-position-001.json",
+                  "observedAt": "2026-08-12T15:59:00.000Z"
+                }
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:50.845Z",
+            "localFixtureElapsedMilliseconds": 2,
+            "directCostUsd": "0"
+          }
+        ]
+      },
+      "quality": {
+        "method": "CANONICAL_EXACT_OUTPUT_PARITY",
+        "exactCanonicalParity": true,
+        "qualityScore": null,
+        "verdict": "IDENTICAL_CANONICAL_OUTPUT"
+      },
+      "recordedSpeedupMultiple": 961.256065,
+      "recordedEfficiencyAdvantageSupported": true,
+      "marketplace": {
+        "evidenceStatus": "E3_SERVER_PERSISTED",
+        "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+        "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+        "serverEvidenceMode": "HISTORICAL_FIXTURE",
+        "hireId": "a4c2ffa2-0713-4631-9bd3-ff1ef7acdc8d",
+        "jobId": "6219b77f-7cfb-4402-b45b-162eaf6769c8",
+        "receiptId": "7f0234d4-bc81-43d4-9624-31823b334c33",
+        "hireUrl": "https://positioncrew.dolepee.com/api/benchmark-hires/a4c2ffa2-0713-4631-9bd3-ff1ef7acdc8d",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/7f0234d4-bc81-43d4-9624-31823b334c33",
+        "state": "COMPLETED",
+        "status": "COMPLETED",
+        "apiDurationMilliseconds": 371,
+        "requestHash": "sha256:4d258873a81ae8b8b700cd0e50a927f6b291e376fc046a12a5b0d4d7faf11b94",
+        "responseHash": "sha256:4ba9356b0ec98b05cb115fb9236a03b207fbe88822127e69da2191c3e6a511a1",
+        "deliverableHash": "sha256:5b10d83eb65c55e7a3dc91387d7ea5a9f2a1e492e73e586295a9a919ef123d1f",
+        "evaluationHash": "sha256:33f9d88a98c1df54d73de1759471902e18872b40cd1d0e3071c84183312d6870",
+        "hireProven": true,
+        "externalBuyer": false,
+        "uniqueServerHire": true,
+        "paid": false,
+        "freshServerPersistenceProven": true,
+        "freshUnderlyingAnalysisProven": false
+      }
+    },
+    {
+      "benchmarkSlug": "lp-rebalance",
+      "taskId": "v3-out-of-range-20260812-001",
+      "sessionId": "lp-rebalance-20260812215351113-a9d92c57",
+      "title": "Bounded concentrated-liquidity rebalance",
+      "category": "Liquidity management",
+      "highStakesReason": "Incorrect ranges or constraints can increase capital loss.",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "v3-out-of-range-20260812-001",
+        "fixtureHash": "sha256:77c30b4b66f92a3bcff1dbf7752fdc75cbde1365f344120f32f298ef4ec83ac5",
+        "rubricHash": "sha256:f79fa49dca56009cc43932751b9d4e6bcc7d346bb977e7f68f047a07a24b0ef6",
+        "protocolHash": "sha256:7c35e4169854d687333eaf35bbf9556864b4d88792dcc648fde5c476793daa4b"
+      },
+      "manual": {
+        "operatorId": "Iyanda Abdulqodir",
+        "contactReference": "https://github.com/dolepee",
+        "method": "arithmetic and calculator",
+        "toolExclusionAttestation": "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+        "candidateHash": "sha256:c1896f768b757cd67033ca86f13ed02a88b60be65c31ca8ec50aeea291ee4fdf",
+        "outputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+        "output": {
+          "schemaVersion": "positioncrew.lp-rebalance.deliverable.v1",
+          "service": "LP_REBALANCE",
+          "requestId": "v3-out-of-range-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "SHIFT",
+          "proposedRange": {
+            "lowerTick": 0,
+            "upperTick": 240
+          },
+          "estimatedRebalanceCostUsd": "1",
+          "expectedGrossFeesUsd": "19",
+          "expectedNetBenefitUsd": "18",
+          "breakEvenHours": "1.2631",
+          "inventoryExposure": {
+            "token0Bps": 5000,
+            "token1Bps": 5000
+          },
+          "summary": "SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.",
+          "actionSteps": [
+            "Collect fees and remove the current liquidity position.",
+            "Rebalance inventory within 30 bps slippage.",
+            "Mint the replacement position at ticks 0 and 240."
+          ],
+          "invalidationConditions": [
+            "Current tick changes materially from 150.",
+            "Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.",
+            "Current time passes 2026-08-12T16:04:00.000Z."
+          ],
+          "limitations": [
+            "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
+            "Exact V3 inventory composition must be recomputed immediately before execution."
+          ]
+        },
+        "elapsedMilliseconds": 94612,
+        "directCostUsd": "0",
+        "capturedAt": "2026-08-20T15:07:18.474Z"
+      },
+      "agent": {
+        "providerId": "positioncrew:provider:lp-rebalance:v1",
+        "officialTimingSource": "POSITIONCREW_D1_HIRE_API_DURATION",
+        "officialElapsedMilliseconds": 381,
+        "directCostUsd": "0.00",
+        "hireId": "8e312731-18be-4111-8b9c-1ff6ac93a02b",
+        "jobId": "4aae4775-fa5d-4496-ae88-4e5f3762d6ac",
+        "receiptId": "3d7270e4-e127-4cff-8290-06b8c2b77f68",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/3d7270e4-e127-4cff-8290-06b8c2b77f68",
+        "requestHash": "sha256:bc032a17a593383741c90c878fa101afc8b128d42e5d96d2dea3dbecec4ba318",
+        "responseHash": "sha256:0e6b2e82ec11bc84a6daa45495109752f7e067603d3cc84432fc1587717a27f4",
+        "deliverableHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+        "evaluationHash": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7",
+        "output": {
+          "schemaVersion": "positioncrew.lp-rebalance.deliverable.v1",
+          "service": "LP_REBALANCE",
+          "requestId": "v3-out-of-range-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "SHIFT",
+          "proposedRange": {
+            "lowerTick": 0,
+            "upperTick": 240
+          },
+          "estimatedRebalanceCostUsd": "1",
+          "expectedGrossFeesUsd": "19",
+          "expectedNetBenefitUsd": "18",
+          "breakEvenHours": "1.2631",
+          "inventoryExposure": {
+            "token0Bps": 5000,
+            "token1Bps": 5000
+          },
+          "summary": "SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.",
+          "actionSteps": [
+            "Collect fees and remove the current liquidity position.",
+            "Rebalance inventory within 30 bps slippage.",
+            "Mint the replacement position at ticks 0 and 240."
+          ],
+          "invalidationConditions": [
+            "Current tick changes materially from 150.",
+            "Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.",
+            "Current time passes 2026-08-12T16:04:00.000Z."
+          ],
+          "limitations": [
+            "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
+            "Exact V3 inventory composition must be recomputed immediately before execution."
+          ]
+        },
+        "repeatabilityCandidates": [
+          {
+            "candidateHash": "sha256:f1f2af7ca0142ced1618b7759bc63ecc8819f6dbc827dfc9ec7451d86a6cf47b",
+            "outputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+            "output": {
+              "schemaVersion": "positioncrew.lp-rebalance.deliverable.v1",
+              "service": "LP_REBALANCE",
+              "requestId": "v3-out-of-range-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "SHIFT",
+              "proposedRange": {
+                "lowerTick": 0,
+                "upperTick": 240
+              },
+              "estimatedRebalanceCostUsd": "1",
+              "expectedGrossFeesUsd": "19",
+              "expectedNetBenefitUsd": "18",
+              "breakEvenHours": "1.2631",
+              "inventoryExposure": {
+                "token0Bps": 5000,
+                "token1Bps": 5000
+              },
+              "summary": "SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.",
+              "actionSteps": [
+                "Collect fees and remove the current liquidity position.",
+                "Rebalance inventory within 30 bps slippage.",
+                "Mint the replacement position at ticks 0 and 240."
+              ],
+              "invalidationConditions": [
+                "Current tick changes materially from 150.",
+                "Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.",
+                "Current time passes 2026-08-12T16:04:00.000Z."
+              ],
+              "limitations": [
+                "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
+                "Exact V3 inventory composition must be recomputed immediately before execution."
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:51.404Z",
+            "localFixtureElapsedMilliseconds": 5,
+            "directCostUsd": "0"
+          },
+          {
+            "candidateHash": "sha256:67508c30edd9476e0587bdbee5c1b72f45182fa7ef98089eb66a2d17aebe92af",
+            "outputHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+            "output": {
+              "schemaVersion": "positioncrew.lp-rebalance.deliverable.v1",
+              "service": "LP_REBALANCE",
+              "requestId": "v3-out-of-range-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "SHIFT",
+              "proposedRange": {
+                "lowerTick": 0,
+                "upperTick": 240
+              },
+              "estimatedRebalanceCostUsd": "1",
+              "expectedGrossFeesUsd": "19",
+              "expectedNetBenefitUsd": "18",
+              "breakEvenHours": "1.2631",
+              "inventoryExposure": {
+                "token0Bps": 5000,
+                "token1Bps": 5000
+              },
+              "summary": "SHIFT the LP range to 0..240; projected net benefit is 18 USD after costs.",
+              "actionSteps": [
+                "Collect fees and remove the current liquidity position.",
+                "Rebalance inventory within 30 bps slippage.",
+                "Mint the replacement position at ticks 0 and 240."
+              ],
+              "invalidationConditions": [
+                "Current tick changes materially from 150.",
+                "Gas exceeds 0.10 USD or swap cost exceeds 0.95 USD.",
+                "Current time passes 2026-08-12T16:04:00.000Z."
+              ],
+              "limitations": [
+                "Projected fees use current pool fees, pool share, range density, and a disclosed uptime factor.",
+                "Exact V3 inventory composition must be recomputed immediately before execution."
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:51.407Z",
+            "localFixtureElapsedMilliseconds": 2,
+            "directCostUsd": "0"
+          }
+        ]
+      },
+      "quality": {
+        "method": "CANONICAL_EXACT_OUTPUT_PARITY",
+        "exactCanonicalParity": true,
+        "qualityScore": null,
+        "verdict": "IDENTICAL_CANONICAL_OUTPUT"
+      },
+      "recordedSpeedupMultiple": 248.325459,
+      "recordedEfficiencyAdvantageSupported": true,
+      "marketplace": {
+        "evidenceStatus": "E3_SERVER_PERSISTED",
+        "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+        "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+        "serverEvidenceMode": "HISTORICAL_FIXTURE",
+        "hireId": "8e312731-18be-4111-8b9c-1ff6ac93a02b",
+        "jobId": "4aae4775-fa5d-4496-ae88-4e5f3762d6ac",
+        "receiptId": "3d7270e4-e127-4cff-8290-06b8c2b77f68",
+        "hireUrl": "https://positioncrew.dolepee.com/api/benchmark-hires/8e312731-18be-4111-8b9c-1ff6ac93a02b",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/3d7270e4-e127-4cff-8290-06b8c2b77f68",
+        "state": "COMPLETED",
+        "status": "COMPLETED",
+        "apiDurationMilliseconds": 381,
+        "requestHash": "sha256:bc032a17a593383741c90c878fa101afc8b128d42e5d96d2dea3dbecec4ba318",
+        "responseHash": "sha256:0e6b2e82ec11bc84a6daa45495109752f7e067603d3cc84432fc1587717a27f4",
+        "deliverableHash": "sha256:4aeae7547f335af6383587dffc06e7747db74bdb4cf9b450856a4fcae31e009b",
+        "evaluationHash": "sha256:5ab153fa961ea2bf4c26ffcfea25c8f767c51a2e87e32cffb7d81680c75cc6d7",
+        "hireProven": true,
+        "externalBuyer": false,
+        "uniqueServerHire": true,
+        "paid": false,
+        "freshServerPersistenceProven": true,
+        "freshUnderlyingAnalysisProven": false
+      }
+    },
+    {
+      "benchmarkSlug": "bounded-grid",
+      "taskId": "bounded-grid-20260812-001",
+      "sessionId": "bounded-grid-20260812215351671-fc8afdab",
+      "title": "Bounded BNB-USDT grid construction",
+      "category": "Trading controls",
+      "highStakesReason": "Unsafe grid parameters can create uncontrolled inventory exposure.",
+      "benchmarkLock": {
+        "schemaVersion": "positioncrew.benchmark-lock.v1",
+        "taskId": "bounded-grid-20260812-001",
+        "fixtureHash": "sha256:f232852a88ff6b1446d3496aec4ac311a210d30ee4d6da0af97ffaa88a89a930",
+        "rubricHash": "sha256:19448c9350f99b7e7b65351b9c91513e59d708e02176c44e4188b4d4c9fca12d",
+        "protocolHash": "sha256:e85596cea18c8dd2a2d42407131aa817ac6f8647c24a1f643bdf52dd5b452988"
+      },
+      "manual": {
+        "operatorId": "Iyanda Abdulqodir",
+        "contactReference": "https://github.com/dolepee",
+        "method": "arithmetic and calculator",
+        "toolExclusionAttestation": "I completed this task without PositionCrew, an AI assistant, a prior candidate output, or access to the scoring rubric.",
+        "candidateHash": "sha256:2f4f8803347a28a0b1e29f930be0800e4d952ad5c991bc1d7ebef28d571a7e59",
+        "outputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+        "output": {
+          "schemaVersion": "positioncrew.bounded-grid.deliverable.v1",
+          "service": "BOUNDED_GRID",
+          "requestId": "bounded-grid-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "BUILD_GRID",
+          "orders": [
+            {
+              "side": "BUY",
+              "price": "9",
+              "baseAmount": "27.777777777777",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "BUY",
+              "price": "9.5",
+              "baseAmount": "26.315789473684",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "SELL",
+              "price": "10.5",
+              "baseAmount": "23.809523809523",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "SELL",
+              "price": "11",
+              "baseAmount": "22.727272727272",
+              "maximumQuoteAmount": "250"
+            }
+          ],
+          "grossSpreadCaptureUsd": "250",
+          "estimatedFeesUsd": "60",
+          "estimatedSlippageUsd": "20",
+          "estimatedGasUsd": "1",
+          "expectedNetProfitUsd": "169",
+          "worstCaseLossUsd": "131",
+          "maximumInventoryUsd": "500",
+          "summary": "Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.",
+          "cancellationConditions": [
+            "Cancel at 2026-08-12T16:04:00.000Z.",
+            "Cancel if volatility exceeds 1000 bps.",
+            "Cancel if available liquidity falls below 100000 USD.",
+            "Cancel if inventory reaches 600 USD."
+          ],
+          "limitations": [
+            "The profit model assumes 10 completed cycles; fills are not guaranteed.",
+            "No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits."
+          ]
+        },
+        "elapsedMilliseconds": 28834,
+        "directCostUsd": "0",
+        "capturedAt": "2026-08-20T14:50:03.172Z"
+      },
+      "agent": {
+        "providerId": "positioncrew:provider:bounded-grid:v1",
+        "officialTimingSource": "POSITIONCREW_D1_HIRE_API_DURATION",
+        "officialElapsedMilliseconds": 359,
+        "directCostUsd": "0.00",
+        "hireId": "3f42c256-ee09-468e-accb-3c93d8c3bf61",
+        "jobId": "fcb9221e-9c66-460e-b374-c288442f37d2",
+        "receiptId": "ded8d656-794d-496a-bf3c-bd23968cb31e",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/ded8d656-794d-496a-bf3c-bd23968cb31e",
+        "requestHash": "sha256:6141d28b501766821bdddde671e7b8576d39ee2766f00fa852e36aa513df6622",
+        "responseHash": "sha256:41e45b4ee743da7d8b7ceae85fda6f250f02647a82d70a8e864a02b6a83c84a1",
+        "deliverableHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+        "evaluationHash": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb",
+        "output": {
+          "schemaVersion": "positioncrew.bounded-grid.deliverable.v1",
+          "service": "BOUNDED_GRID",
+          "requestId": "bounded-grid-20260812-001",
+          "generatedAt": "2026-08-12T16:00:30.000Z",
+          "expiresAt": "2026-08-12T16:04:00.000Z",
+          "status": "ACTIONABLE",
+          "decision": "BUILD_GRID",
+          "orders": [
+            {
+              "side": "BUY",
+              "price": "9",
+              "baseAmount": "27.777777777777",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "BUY",
+              "price": "9.5",
+              "baseAmount": "26.315789473684",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "SELL",
+              "price": "10.5",
+              "baseAmount": "23.809523809523",
+              "maximumQuoteAmount": "250"
+            },
+            {
+              "side": "SELL",
+              "price": "11",
+              "baseAmount": "22.727272727272",
+              "maximumQuoteAmount": "250"
+            }
+          ],
+          "grossSpreadCaptureUsd": "250",
+          "estimatedFeesUsd": "60",
+          "estimatedSlippageUsd": "20",
+          "estimatedGasUsd": "1",
+          "expectedNetProfitUsd": "169",
+          "worstCaseLossUsd": "131",
+          "maximumInventoryUsd": "500",
+          "summary": "Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.",
+          "cancellationConditions": [
+            "Cancel at 2026-08-12T16:04:00.000Z.",
+            "Cancel if volatility exceeds 1000 bps.",
+            "Cancel if available liquidity falls below 100000 USD.",
+            "Cancel if inventory reaches 600 USD."
+          ],
+          "limitations": [
+            "The profit model assumes 10 completed cycles; fills are not guaranteed.",
+            "No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits."
+          ]
+        },
+        "repeatabilityCandidates": [
+          {
+            "candidateHash": "sha256:07d7d6fd5aa70eced6fe66522aa64f0a5fe29d486acd9f104dd9b615b59662fb",
+            "outputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+            "output": {
+              "schemaVersion": "positioncrew.bounded-grid.deliverable.v1",
+              "service": "BOUNDED_GRID",
+              "requestId": "bounded-grid-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "BUILD_GRID",
+              "orders": [
+                {
+                  "side": "BUY",
+                  "price": "9",
+                  "baseAmount": "27.777777777777",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "BUY",
+                  "price": "9.5",
+                  "baseAmount": "26.315789473684",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "SELL",
+                  "price": "10.5",
+                  "baseAmount": "23.809523809523",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "SELL",
+                  "price": "11",
+                  "baseAmount": "22.727272727272",
+                  "maximumQuoteAmount": "250"
+                }
+              ],
+              "grossSpreadCaptureUsd": "250",
+              "estimatedFeesUsd": "60",
+              "estimatedSlippageUsd": "20",
+              "estimatedGasUsd": "1",
+              "expectedNetProfitUsd": "169",
+              "worstCaseLossUsd": "131",
+              "maximumInventoryUsd": "500",
+              "summary": "Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.",
+              "cancellationConditions": [
+                "Cancel at 2026-08-12T16:04:00.000Z.",
+                "Cancel if volatility exceeds 1000 bps.",
+                "Cancel if available liquidity falls below 100000 USD.",
+                "Cancel if inventory reaches 600 USD."
+              ],
+              "limitations": [
+                "The profit model assumes 10 completed cycles; fills are not guaranteed.",
+                "No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits."
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:51.966Z",
+            "localFixtureElapsedMilliseconds": 7,
+            "directCostUsd": "0"
+          },
+          {
+            "candidateHash": "sha256:181aebac92328d2cba852b6f18044de501ebe0f42f3af0d9fec6e27d8915a83e",
+            "outputHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+            "output": {
+              "schemaVersion": "positioncrew.bounded-grid.deliverable.v1",
+              "service": "BOUNDED_GRID",
+              "requestId": "bounded-grid-20260812-001",
+              "generatedAt": "2026-08-12T16:00:30.000Z",
+              "expiresAt": "2026-08-12T16:04:00.000Z",
+              "status": "ACTIONABLE",
+              "decision": "BUILD_GRID",
+              "orders": [
+                {
+                  "side": "BUY",
+                  "price": "9",
+                  "baseAmount": "27.777777777777",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "BUY",
+                  "price": "9.5",
+                  "baseAmount": "26.315789473684",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "SELL",
+                  "price": "10.5",
+                  "baseAmount": "23.809523809523",
+                  "maximumQuoteAmount": "250"
+                },
+                {
+                  "side": "SELL",
+                  "price": "11",
+                  "baseAmount": "22.727272727272",
+                  "maximumQuoteAmount": "250"
+                }
+              ],
+              "grossSpreadCaptureUsd": "250",
+              "estimatedFeesUsd": "60",
+              "estimatedSlippageUsd": "20",
+              "estimatedGasUsd": "1",
+              "expectedNetProfitUsd": "169",
+              "worstCaseLossUsd": "131",
+              "maximumInventoryUsd": "500",
+              "summary": "Build 4 bounded orders from 9 to 11; projected net profit is 169 USD.",
+              "cancellationConditions": [
+                "Cancel at 2026-08-12T16:04:00.000Z.",
+                "Cancel if volatility exceeds 1000 bps.",
+                "Cancel if available liquidity falls below 100000 USD.",
+                "Cancel if inventory reaches 600 USD."
+              ],
+              "limitations": [
+                "The profit model assumes 10 completed cycles; fills are not guaranteed.",
+                "No averaging or replacement orders may exceed the frozen capital, loss, or inventory limits."
+              ]
+            },
+            "capturedAt": "2026-08-12T21:53:51.969Z",
+            "localFixtureElapsedMilliseconds": 2,
+            "directCostUsd": "0"
+          }
+        ]
+      },
+      "quality": {
+        "method": "CANONICAL_EXACT_OUTPUT_PARITY",
+        "exactCanonicalParity": true,
+        "qualityScore": null,
+        "verdict": "IDENTICAL_CANONICAL_OUTPUT"
+      },
+      "recordedSpeedupMultiple": 80.317549,
+      "recordedEfficiencyAdvantageSupported": true,
+      "marketplace": {
+        "evidenceStatus": "E3_SERVER_PERSISTED",
+        "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+        "evidenceMode": "FRESH_SERVER_PERSISTED_HISTORICAL_FIXTURE_HIRE",
+        "serverEvidenceMode": "HISTORICAL_FIXTURE",
+        "hireId": "3f42c256-ee09-468e-accb-3c93d8c3bf61",
+        "jobId": "fcb9221e-9c66-460e-b374-c288442f37d2",
+        "receiptId": "ded8d656-794d-496a-bf3c-bd23968cb31e",
+        "hireUrl": "https://positioncrew.dolepee.com/api/benchmark-hires/3f42c256-ee09-468e-accb-3c93d8c3bf61",
+        "receiptUrl": "https://positioncrew.dolepee.com/api/benchmark-receipts/ded8d656-794d-496a-bf3c-bd23968cb31e",
+        "state": "COMPLETED",
+        "status": "COMPLETED",
+        "apiDurationMilliseconds": 359,
+        "requestHash": "sha256:6141d28b501766821bdddde671e7b8576d39ee2766f00fa852e36aa513df6622",
+        "responseHash": "sha256:41e45b4ee743da7d8b7ceae85fda6f250f02647a82d70a8e864a02b6a83c84a1",
+        "deliverableHash": "sha256:a3f957a586d3259d12856131b4a5fe7099cb172269178b957791a0f80a36a1ce",
+        "evaluationHash": "sha256:f63635c2639907bf6f0c85b61891d4f6241c1b6dd53ab61c75a3e4541e5f85fb",
+        "hireProven": true,
+        "externalBuyer": false,
+        "uniqueServerHire": true,
+        "paid": false,
+        "freshServerPersistenceProven": true,
+        "freshUnderlyingAnalysisProven": false
+      }
+    }
+  ],
+  "summary": {
+    "taskCount": 3,
+    "exactOutputParityCount": 3,
+    "recordedSpeedAdvantageCount": 3,
+    "directCostUsd": "0",
+    "agentTotalElapsedMilliseconds": 1111,
+    "manualTotalElapsedMilliseconds": 480072,
+    "marketplaceEvidenceStatus": "E3_SERVER_PERSISTED"
+  },
+  "evidenceManifest": {
+    "schemaVersion": "positioncrew.founder-agent-advantage-evidence-manifest.v2",
+    "marketplaceHires": {
+      "sessionHash": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3",
+      "checksumsHash": "sha256:3650f721ae749b1038f8825ce449a3569be0d4ededa573d5ab24879760f8132c",
+      "verifiedFiles": [
+        {
+          "path": "bounded-grid.hire.json",
+          "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+        },
+        {
+          "path": "bounded-grid.receipt.json",
+          "sha256": "sha256:f63c8dd72b5b892b9d774e9e44fd47fa4f3bb14292d6574396c17958a6b92c68"
+        },
+        {
+          "path": "lending-rescue.hire.json",
+          "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+        },
+        {
+          "path": "lending-rescue.receipt.json",
+          "sha256": "sha256:b4846a8bab6e75a6f2cfb0bb098ca3c593f9ed23073d40655d8a85991378b230"
+        },
+        {
+          "path": "lp-rebalance.hire.json",
+          "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+        },
+        {
+          "path": "lp-rebalance.receipt.json",
+          "sha256": "sha256:4c7bf310ed1884944737ebb99ba687e515874b6e1e8462749ec19f062b64a30f"
+        },
+        {
+          "path": "session.json",
+          "sha256": "sha256:ab5086fe205f784db87493046809b846fbf8a1f2d909da46717a86e3b8e225e3"
+        }
+      ]
+    },
+    "candidates": [
+      {
+        "benchmarkSlug": "lending-rescue",
+        "sessionId": "lending-rescue-20260812215350546-bc4a1371",
+        "manualCandidateHash": "sha256:219cbe438be8958014ed65989543cd2072dc026b8427faeecead1fe976bee881",
+        "agentCandidateHashes": [
+          "sha256:1e21f704fb57f06c5a15f8ebe368ae28d8cf8d9834856cf36f5f7326ef1a06ee",
+          "sha256:8e8b060d5cd829cf26be0659f547d3374cf7d50591efa023d2245861a0bccf0a"
+        ]
+      },
+      {
+        "benchmarkSlug": "lp-rebalance",
+        "sessionId": "lp-rebalance-20260812215351113-a9d92c57",
+        "manualCandidateHash": "sha256:c1896f768b757cd67033ca86f13ed02a88b60be65c31ca8ec50aeea291ee4fdf",
+        "agentCandidateHashes": [
+          "sha256:f1f2af7ca0142ced1618b7759bc63ecc8819f6dbc827dfc9ec7451d86a6cf47b",
+          "sha256:67508c30edd9476e0587bdbee5c1b72f45182fa7ef98089eb66a2d17aebe92af"
+        ]
+      },
+      {
+        "benchmarkSlug": "bounded-grid",
+        "sessionId": "bounded-grid-20260812215351671-fc8afdab",
+        "manualCandidateHash": "sha256:2f4f8803347a28a0b1e29f930be0800e4d952ad5c991bc1d7ebef28d571a7e59",
+        "agentCandidateHashes": [
+          "sha256:07d7d6fd5aa70eced6fe66522aa64f0a5fe29d486acd9f104dd9b615b59662fb",
+          "sha256:181aebac92328d2cba852b6f18044de501ebe0f42f3af0d9fec6e27d8915a83e"
+        ]
+      }
+    ]
+  },
+  "evidenceManifestHash": "sha256:e6e425f289a458f6735f035cff255efa886b19087b5d984d976bdfb1c1db0377",
+  "claimBoundary": [
+    "This is a founder-operated, self-attested, non-independent, non-blind comparison on three frozen historical fixtures.",
+    "Canonical exact-output parity proves only that the attached candidates serialize to identical committed outputs; no independent quality score is claimed.",
+    "The selected agent arms are three qualified E3_SERVER_PERSISTED PositionCrew D1 records: completed $0.00, no-wallet historical-fixture hires with public receipts.",
+    "E3_SERVER_PERSISTED proves fresh PositionCrew server-persisted $0.00, no-wallet historical-fixture hires only; the captured public GET observations occurred after completion and do not prove precommitment or observation of record creation.",
+    "Unique server hire means only unique PositionCrew D1 hire, job, and receipt identifiers, not independent buyers or distinct sellers.",
+    "This evidence does not establish paid commerce, payment, settlement, external demand, evaluator-originated hiring, revenue, or external customer activity.",
+    "The fixtures and outputs are historical research evidence, not live executable advice, mainnet execution, investment performance, or a recommendation to trade.",
+    "Founder wall-clock and D1 API duration measure different execution contexts and are reported only as recorded times."
+  ],
+  "reportHash": "sha256:69fa9304758a2f76921e190ed28d1c6556dd98e4f0bc945cbb82d62739954853"
+}
