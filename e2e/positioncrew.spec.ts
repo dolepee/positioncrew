@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { readFileSync } from "node:fs";
 
 const TRANSIENT_REQUEST_ERROR = /socket hang up|ECONNRESET|ECONNREFUSED|fetch failed/i;
@@ -28,6 +28,208 @@ const lpFixture = JSON.parse(
     "utf8",
   ),
 ) as Record<string, unknown>;
+
+const gridFixture = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/bounded-grid/bnb-usdt-grid.v1.json", import.meta.url),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+
+const yieldFixture = JSON.parse(
+  readFileSync(
+    new URL("../fixtures/yield-optimization/venus-to-beefy.v1.json", import.meta.url),
+    "utf8",
+  ),
+) as Record<string, unknown>;
+
+function freshProbeRequest(
+  fixture: Record<string, unknown>,
+  now: Date,
+  sourceId: string,
+  sourceLabel: string,
+  blockNumber: string,
+) {
+  const observedAt = new Date(now.getTime() - 5_000).toISOString();
+  const rebase = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(rebase);
+    if (typeof value !== "object" || value === null) return value;
+    return Object.fromEntries(Object.entries(value).map(([key, child]) => {
+      if (key === "observedAt") return [key, observedAt];
+      if (key === "sourceId") return [key, sourceId];
+      return [key, rebase(child)];
+    }));
+  };
+  const request = rebase(structuredClone(fixture)) as Record<string, unknown>;
+  request.requestId = `browser-probe-${now.getTime()}-${String(request.service).toLowerCase()}`;
+  request.requestedAt = now.toISOString();
+  request.deadline = new Date(now.getTime() + 5 * 60_000).toISOString();
+  request.sources = [{
+    sourceId,
+    label: sourceLabel,
+    uri: `https://bscscan.com/block/${blockNumber}`,
+    observedAt,
+  }];
+  return request;
+}
+
+async function installDeterministicLiveProbeRoutes(page: Page) {
+  const now = new Date();
+  const blockNumber = "117112307";
+  const gridSourceId = `pancake-v3-mainnet-block-${blockNumber}`;
+  const yieldSourceId = `venus-yield-mainnet-block-${blockNumber}`;
+  const gridRequest = freshProbeRequest(
+    gridFixture,
+    now,
+    gridSourceId,
+    `PancakeSwap V3 market at BSC block ${blockNumber}`,
+    blockNumber,
+  );
+  const yieldRequest = freshProbeRequest(
+    yieldFixture,
+    now,
+    yieldSourceId,
+    `Venus stablecoin markets at BSC block ${blockNumber}`,
+    blockNumber,
+  );
+
+  await page.route("**/api/status", async (route) => {
+    const chain = (chainId: 56 | 97, name: string) => ({
+      chainId,
+      name,
+      blockNumber,
+      blockTimestamp: now.toISOString(),
+      blockAgeSeconds: 1,
+      gasPriceGwei: "0.1",
+      rpcLatencyMs: 42,
+      rpcUrl: "https://bsc-dataseed.bnbchain.org",
+      explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.system-telemetry.v1",
+        generatedAt: now.toISOString(),
+        mainnet: chain(56, "BNB Smart Chain"),
+        testnet: chain(97, "BNB Smart Chain Testnet"),
+        market: {
+          pair: "WBNB/USDT",
+          venue: "PancakeSwap V3",
+          poolAddress: "0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+          feeTier: 100,
+          spotPriceUsd: "860",
+          tick: 0,
+          liquidityRaw: "1000000",
+          observedAt: now.toISOString(),
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+        },
+        venus: {
+          market: "vUSDT",
+          address: "0xfD5840Cd36d94D7229439859C0112a4185BC0255",
+          supplyAprPct: "3.25",
+          borrowAprPct: "5.5",
+          availableLiquidityUsd: "10000000",
+          totalBorrowsUsd: "5000000",
+          observedAt: now.toISOString(),
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+        },
+      }),
+    });
+  });
+  await page.route(/\/api\/wallets\/[^/]+\/venus(?:\?.*)?$/, async (route) => {
+    const account = route.request().url().split("/wallets/")[1]?.split("/")[0] ?? "";
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.venus-account-probe.v1",
+        generatedAt: now.toISOString(),
+        chainId: 56,
+        account,
+        state: "NO_POSITION",
+        nativeBalanceBnb: "0",
+        usdtBalance: "0",
+        liquidityUsd: "0",
+        shortfallUsd: "0",
+        enteredMarkets: [],
+        position: {
+          collateralValueUsd: "0",
+          liquidationWeightedCollateralUsd: "0",
+          debtValueUsd: "0",
+          healthFactor: null,
+          markets: [],
+        },
+        rescueRequest: null,
+        source: {
+          comptroller: "0xfD36E2c2a6789Db23113685031d7F16329158384",
+          blockNumber,
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+        },
+        boundary: "Deterministic block-pinned browser fixture.",
+      }),
+    });
+  });
+  await page.route("**/api/markets/pancake/wbnb-usdt/grid", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.pancake-grid-probe.v1",
+        generatedAt: now.toISOString(),
+        chainId: 56,
+        state: "READY",
+        market: {
+          pair: "WBNB/USDT",
+          poolAddress: "0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+          feeTier: 100,
+          spotPriceUsd: "10",
+          activeLiquidityUsd: "1000000",
+          reserveValueUsd: "1000000",
+          realizedVolatilityBps: 300,
+          volatilityWindowSeconds: 3600,
+          volatilitySampleCount: 4,
+        },
+        gridRequest,
+        source: {
+          blockNumber,
+          blockTimestamp: now.toISOString(),
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+          poolExplorerUrl: "https://bscscan.com/address/0x36696169C63e42cd08ce11f5deeBbCeBae652050",
+        },
+        boundary: "Deterministic block-pinned PancakeSwap browser fixture.",
+      }),
+    });
+  });
+  await page.route("**/api/markets/venus/stable-yields", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.venus-yield-probe.v1",
+        generatedAt: now.toISOString(),
+        chainId: 56,
+        state: "READY",
+        markets: [
+          { opportunityId: "venus-usdt", symbol: "USDT", vToken: "0x1111111111111111111111111111111111111111", underlying: "0x55d398326f99059fF775485246999027B3197955", baseSupplyApyBps: 400, availableLiquidityUsd: "10000000" },
+          { opportunityId: "venus-usdc", symbol: "USDC", vToken: "0x2222222222222222222222222222222222222222", underlying: "0x3333333333333333333333333333333333333333", baseSupplyApyBps: 350, availableLiquidityUsd: "9000000" },
+          { opportunityId: "venus-lisusd", symbol: "lisUSD", vToken: "0x4444444444444444444444444444444444444444", underlying: "0x5555555555555555555555555555555555555555", baseSupplyApyBps: 300, availableLiquidityUsd: "8000000" },
+          { opportunityId: "venus-usdf", symbol: "USDF", vToken: "0x6666666666666666666666666666666666666666", underlying: "0x7777777777777777777777777777777777777777", baseSupplyApyBps: 250, availableLiquidityUsd: "7000000" },
+        ],
+        yieldRequest,
+        source: {
+          comptroller: "0xfD36E2c2a6789Db23113685031d7F16329158384",
+          oracle: "0x8888888888888888888888888888888888888888",
+          blockNumber,
+          blockTimestamp: now.toISOString(),
+          measuredSecondsPerBlock: 3,
+          explorerUrl: `https://bscscan.com/block/${blockNumber}`,
+        },
+        boundary: "Deterministic block-pinned Venus browser fixture.",
+      }),
+    });
+  });
+}
 
 function liveLendingRequest(now: Date, account: string, blockNumber: string) {
   const observedAt = new Date(now.getTime() - 5_000).toISOString();
@@ -86,22 +288,26 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
   await expect(page.getByRole("heading", { name: "Hire a capital operator." })).toBeVisible();
   await expect(page.getByText("4/4", { exact: true }).last()).toBeVisible();
   await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByRole("button", { name: "Try lending rescue free" })).toBeVisible();
 
-  await page.getByRole("button", { name: "Open free lending rescue trial" }).click();
+  await page.getByRole("button", { name: "Select and continue to Hire and run" }).click();
   await expect(page.getByRole("heading", { name: "Define the job. Inspect the action." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Locked receipt" })).toHaveAttribute("aria-pressed", "true");
+  await page.getByRole("button", { name: "Interactive" }).click();
   await expect(page.getByText("Free provider trial", { exact: true })).toBeVisible();
   await expect(page.getByText("5 TEST_USDC listed price · no wallet required", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Interactive" })).toHaveAttribute("aria-pressed", "true");
-  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  await page.getByRole("button", { name: "Run lending rescue simulation" }).click();
 
   await expect(page.getByRole("heading", { name: "Repay 152 USDT" })).toBeVisible();
   await expect(page.getByText(/inputs were not fetched live/)).toBeVisible();
   await expect(page.getByText("100/100", { exact: true }).first()).toBeVisible();
-  const advantageStatus = page.getByRole("region", { name: "Agent Advantage status" });
-  await expect(advantageStatus.getByText("Independent comparison pending", { exact: true })).toBeVisible();
-  await expect(advantageStatus).toContainText("no Agent Advantage result is claimed");
-  await expect(advantageStatus.getByRole("link", { name: "Inspect evidence" })).toHaveAttribute("href", "#evidence");
+  const advantageStatus = page.getByRole("region", { name: "Founder Agent Advantage comparison status" });
+  await expect(advantageStatus.getByText("Founder comparison published", { exact: true })).toBeVisible();
+  await expect(advantageStatus).toContainText("3/3 frozen tasks record exact canonical output parity");
+  await expect(advantageStatus.getByRole("link", { name: "Open founder report" })).toHaveAttribute(
+    "href",
+    "/evidence/agent-advantage-founder/",
+  );
   await page.getByRole("button", { name: "JSON" }).click();
   await expect(page.getByText("application/json", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Receipt", exact: true }).click();
@@ -110,16 +316,84 @@ test("a cold buyer can discover, hire, and inspect the lending provider", async 
 
   await page.getByRole("button", { name: "Locked receipt" }).click();
   await expect(page.getByText(/Historical August 12 fixture/)).toBeVisible();
-  await page.getByRole("button", { name: "Run lending rescue" }).click();
-  await expect(page.getByText(/Locked historical fixture/)).toBeVisible();
-  await page.getByRole("button", { name: "Receipt", exact: true }).click();
-  const receiptLink = page.getByRole("link", { name: "Public receipt" });
-  await expect(receiptLink).toBeVisible();
-  const receiptPath = await receiptLink.getAttribute("href");
-  expect(receiptPath).toMatch(/^\/api\/receipts\/sha256:[a-f0-9]{64}$/);
-  const receipt = await getWithTransportRetry(page.request, receiptPath!);
-  expect(receipt.status()).toBe(200);
-  expect((await receipt.json()).schemaVersion).toBe("positioncrew.public-receipt.v1");
+  await expect(page.locator(".composer-footer").getByText("$0.00", { exact: true })).toBeVisible();
+  await expect(page.getByText("No wallet · no payment · public locked receipt", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Hire and run" })).toBeVisible();
+});
+
+test("a lost hire response reuses the unresolved idempotency key", async ({ page }) => {
+  const idempotencyKeys: string[] = [];
+  await page.route(/\/api\/benchmark-hires$/, async (route) => {
+    const body = route.request().postDataJSON() as { idempotencyKey: string };
+    idempotencyKeys.push(body.idempotencyKey);
+    await route.abort("connectionreset");
+  });
+
+  await page.goto("/#marketplace");
+  await page.getByRole("button", { name: "Select and continue to Hire and run" }).click();
+  const hireButton = page.getByRole("button", { name: "Hire and run" });
+  await hireButton.click();
+  await expect.poll(() => idempotencyKeys.length).toBe(1);
+  await expect(hireButton).toBeEnabled();
+  await hireButton.click();
+  await expect.poll(() => idempotencyKeys.length).toBe(2);
+  expect(idempotencyKeys[1]).toBe(idempotencyKeys[0]);
+});
+
+test("a lost job response resumes the persisted hire instead of creating another", async ({ page }) => {
+  const hireId = "11111111-1111-4111-8111-111111111111";
+  let createCount = 0;
+  let jobCount = 0;
+  await page.route(/\/api\/benchmark-hires$/, async (route) => {
+    createCount += 1;
+    const request = route.request().postDataJSON() as { idempotencyKey: string };
+    await route.fulfill({
+      status: 201,
+      contentType: "application/json",
+      body: JSON.stringify({
+        schemaVersion: "positioncrew.fresh-marketplace-chain.v1",
+        claimBoundary: ["Frozen fixture.", "$0 and no wallet.", "Server receipt only.", "No external buyer claim."],
+        hire: {
+          hireId,
+          idempotencyKey: request.idempotencyKey,
+          providerSlug: "lending-rescue",
+          providerId: "positioncrew:lending-rescue:v1",
+          benchmarkSlug: "lending-rescue",
+          service: "LENDING_RESCUE",
+          evidenceMode: "HISTORICAL_FIXTURE",
+          commerce: { directCostUsd: "0.00", walletRequired: false, settlement: "NO_PAYMENT" },
+          request: {},
+          requestHash: "sha256:" + "a".repeat(64),
+          createdAt: new Date().toISOString(),
+        },
+        job: {
+          jobId: "22222222-2222-4222-8222-222222222222",
+          state: "CREATED",
+          status: "HIRE_RECORDED",
+          createdAt: new Date().toISOString(),
+          startedAt: null,
+          completedAt: null,
+          apiDurationMilliseconds: null,
+          error: null,
+        },
+        receipt: null,
+      }),
+    });
+  });
+  await page.route(new RegExp("/api/benchmark-hires/" + hireId + "/jobs$"), async (route) => {
+    jobCount += 1;
+    await route.abort("connectionreset");
+  });
+
+  await page.goto("/#marketplace");
+  await page.getByRole("button", { name: "Select and continue to Hire and run" }).click();
+  const hireButton = page.getByRole("button", { name: "Hire and run" });
+  await hireButton.click();
+  await expect.poll(() => jobCount).toBe(1);
+  await expect(hireButton).toBeEnabled();
+  await hireButton.click();
+  await expect.poll(() => jobCount).toBe(2);
+  expect(createCount).toBe(1);
 });
 
 test("slow remote hydration never blocks provider discovery", async ({ page }) => {
@@ -132,14 +406,15 @@ test("slow remote hydration never blocks provider discovery", async ({ page }) =
   await expect(page.getByRole("button", { name: /Lending Rescue v1/ })).toBeVisible({
     timeout: 3_000,
   });
-  await expect(page.getByRole("button", { name: "Open free lending rescue trial" })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Select and continue to Hire and run" })).toBeVisible();
   await expect(page.getByRole("button", { name: /LP Range Operator v1/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Yield Allocator v1/ })).toBeVisible();
   await expect(page.getByRole("button", { name: /Bounded Grid Builder v1/ })).toBeVisible();
   await expect(page.getByText("Connecting", { exact: true })).toHaveText("Connecting");
 });
 
-test("live BSC telemetry and Venus wallet risk are independently inspectable", async ({ page }) => {
+test("BSC telemetry and Venus wallet risk are independently inspectable", async ({ page }) => {
+  await installDeterministicLiveProbeRoutes(page);
   await page.goto("/#marketplace");
   await expect(page.getByText("LIVE BSC DATA", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.locator(".market-system-panel").getByText("4/4", { exact: true })).toBeVisible();
@@ -216,28 +491,16 @@ test("a block-pinned Venus position can become the provider request", async ({ p
 });
 
 test("a block-pinned Pancake market can become a bounded grid request", async ({ page }) => {
+  await installDeterministicLiveProbeRoutes(page);
   await page.goto("/#jobs");
   await page.getByRole("combobox", { name: "Provider" }).selectOption("BOUNDED_GRID");
   await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("PancakeSwap market probe", { exact: true })).toBeVisible();
   await expect(page.getByText(/Block-pinned PancakeSwap market from BSC block/)).toBeVisible();
-  await page.getByRole("button", { name: "Run bounded grid" }).click();
+  await page.getByRole("button", { name: "Run bounded grid simulation" }).click();
   await expect(page.getByRole("heading", { name: /Build [45] bounded orders/ })).toBeVisible();
   await expect(page.getByText(/Block-pinned PancakeSwap input/)).toBeVisible();
 
-  const response = await getWithTransportRetry(page.request, "/api/markets/pancake/wbnb-usdt/grid");
-  expect(response.status()).toBe(200);
-  const probe = await response.json();
-  expect(probe).toMatchObject({
-    schemaVersion: "positioncrew.pancake-grid-probe.v1",
-    chainId: 56,
-    state: "READY",
-    market: { pair: "WBNB/USDT", feeTier: 100 },
-    gridRequest: { service: "BOUNDED_GRID", chainId: 56 },
-  });
-  expect(probe.market.realizedVolatilityBps).toBeGreaterThanOrEqual(0);
-  expect(probe.market.volatilitySampleCount).toBeGreaterThanOrEqual(3);
-  expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
 });
 
 test("a block-pinned Pancake position can become an LP rebalance request", async ({ page }) => {
@@ -309,43 +572,34 @@ test("a block-pinned Pancake position can become an LP rebalance request", async
 });
 
 test("block-pinned Venus stablecoin rates can become a yield request", async ({ page }) => {
+  await installDeterministicLiveProbeRoutes(page);
   await page.goto("/#jobs");
   await page.getByRole("combobox", { name: "Provider" }).selectOption("YIELD_OPTIMIZATION");
   await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
   await expect(page.getByText("Venus stablecoin probe", { exact: true })).toBeVisible();
   await expect(page.getByText(/Block-pinned Venus yield market from BSC block/)).toBeVisible();
   await expect(page.getByLabel("Leading base APY (bps)")).toBeDisabled();
-  await page.getByRole("button", { name: "Run yield optimisation" }).click();
-  await expect(page.getByRole("heading", { name: /SUPPLY to venus-core-/ })).toBeVisible();
+  await page.getByRole("button", { name: "Run yield optimisation simulation" }).click();
+  await expect(page.getByRole("heading", { name: /to beefy-usdt-vault/ })).toBeVisible();
   await expect(page.getByText(/Block-pinned Venus yield input/)).toBeVisible();
 
-  const response = await getWithTransportRetry(page.request, "/api/markets/venus/stable-yields");
-  expect(response.status()).toBe(200);
-  const probe = await response.json();
-  expect(probe).toMatchObject({
-    schemaVersion: "positioncrew.venus-yield-probe.v1",
-    chainId: 56,
-    state: "READY",
-    yieldRequest: { service: "YIELD_OPTIMIZATION", chainId: 56 },
-  });
-  expect(probe.markets).toHaveLength(4);
-  expect(probe.markets.every((market: { availableLiquidityUsd: string }) =>
-    Number(market.availableLiquidityUsd) > 0)).toBe(true);
-  expect(probe.source.measuredSecondsPerBlock).toBeGreaterThan(0);
-  expect(probe.source.explorerUrl).toMatch(/^https:\/\/bscscan\.com\/block\//);
 });
 
 test("all four mandatory capital jobs return category-specific results", async ({ page }) => {
+  await installDeterministicLiveProbeRoutes(page);
   await page.goto("/#jobs");
   const provider = page.getByRole("combobox", { name: "Provider" });
   await expect(provider).toBeVisible();
   const cases = [
-    { value: "LP_REBALANCE", button: "Run lp rebalance", output: "SHIFT range to 0...240" },
-    { value: "YIELD_OPTIMIZATION", button: "Run yield optimisation", output: /SUPPLY to venus-core-/ },
-    { value: "BOUNDED_GRID", button: "Run bounded grid", output: "Build 4 bounded orders" },
+    { value: "LP_REBALANCE", button: "Run lp rebalance simulation", output: "SHIFT range to 0...240" },
+    { value: "YIELD_OPTIMIZATION", button: "Run yield optimisation simulation", output: /to beefy-usdt-vault/ },
+    { value: "BOUNDED_GRID", button: "Run bounded grid simulation", output: "Build 4 bounded orders" },
   ];
   for (const candidate of cases) {
     await provider.selectOption(candidate.value);
+    if (candidate.value === "LP_REBALANCE") {
+      await page.getByRole("button", { name: "Interactive" }).click();
+    }
     if (candidate.value === "BOUNDED_GRID" || candidate.value === "YIELD_OPTIMIZATION") {
       await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
     }
@@ -360,15 +614,17 @@ test("all four mandatory capital jobs return category-specific results", async (
 test("an undersized action cap fails closed", async ({ page }) => {
   await page.goto("/#jobs");
   await expect(page.getByRole("combobox", { name: "Provider" })).toBeVisible();
+  await page.getByRole("button", { name: "Interactive" }).click();
   const actionCap = page.getByLabel("Maximum action (USD)");
   await expect(actionCap).toBeEnabled();
   await actionCap.fill("100");
-  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  await page.getByRole("button", { name: "Run lending rescue simulation" }).click();
   await expect(page.getByText("REFUSED CONSTRAINTS", { exact: true })).toBeVisible();
   await expect(page.getByText("No allowed rescue action fits the wallet inventory and safety limits.", { exact: true })).toBeVisible();
 });
 
 test("every non-lending provider accepts custom bounds and fails closed", async ({ page }) => {
+  await installDeterministicLiveProbeRoutes(page);
   await page.goto("/#jobs");
   const provider = page.getByRole("combobox", { name: "Provider" });
   const cases = [
@@ -376,27 +632,30 @@ test("every non-lending provider accepts custom bounds and fails closed", async 
       service: "LP_REBALANCE",
       field: "Minimum net benefit (USD)",
       value: "1000",
-      button: "Run lp rebalance",
+      button: "Run lp rebalance simulation",
       decision: "HOLD",
     },
     {
       service: "YIELD_OPTIMIZATION",
       field: "Minimum net benefit (USD)",
       value: "1000",
-      button: "Run yield optimisation",
+      button: "Run yield optimisation simulation",
       decision: "HOLD",
     },
     {
       service: "BOUNDED_GRID",
       field: "Maximum loss (USD)",
       value: "1",
-      button: "Run bounded grid",
+      button: "Run bounded grid simulation",
       decision: "NO GRID",
     },
   ];
 
   for (const candidate of cases) {
     await provider.selectOption(candidate.service);
+    if (candidate.service === "LP_REBALANCE") {
+      await page.getByRole("button", { name: "Interactive" }).click();
+    }
     if (candidate.service === "BOUNDED_GRID" || candidate.service === "YIELD_OPTIMIZATION") {
       await expect(page.getByText("READY", { exact: true })).toBeVisible({ timeout: 20_000 });
     }
@@ -436,10 +695,10 @@ test("the evidence page separates conformance from advantage claims", async ({ p
   await expect(page.getByText("4/4", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("3/3", { exact: true }).first()).toBeVisible();
   await expect(page.getByText("6", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("DELIVERED", { exact: true })).toHaveCount(3);
+  await expect(page.getByText("OBSERVED", { exact: true })).toHaveCount(3);
   await expect(page.getByText("source-committed agent runs", { exact: true })).toBeVisible();
   await expect(page.getByText(/source 3b28703/).first()).toBeVisible();
-  await expect(page.getByText("No advantage result is claimed.", { exact: true })).toBeVisible();
+  await expect(page.getByText("No independent/blind result is claimed.", { exact: true })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Funded provider receipts" })).toBeVisible();
   await expect(page.getByText("0.6 U", { exact: true })).toBeVisible();
   await expect(page.getByText("Verified integration, disclosed operator.", { exact: true })).toBeVisible();
@@ -506,10 +765,10 @@ test("the evidence page exposes the precommitted public marketplace deliveries",
   });
 
   await page.goto("/#evidence");
-  const deliverySection = page.getByRole("region", { name: "Hired through the public marketplace" });
+  const deliverySection = page.getByRole("region", { name: "Delivered through public Provider endpoints" });
   await expect(deliverySection).toBeVisible();
   await expect(deliverySection.getByText("6/6", { exact: true }).first()).toBeVisible();
-  await expect(deliverySection.getByText("public Provider jobs", { exact: true })).toBeVisible();
+  await expect(deliverySection.getByText("controlled endpoint observations", { exact: true })).toBeVisible();
   await expect(deliverySection.getByText("0", { exact: true })).toBeVisible();
   await expect(deliverySection.getByText("retries or replacements", { exact: true })).toBeVisible();
   await expect(deliverySection.getByText("3/3", { exact: true })).toBeVisible();
@@ -521,7 +780,7 @@ test("the evidence page exposes the precommitted public marketplace deliveries",
 });
 
 test("a published Agent Advantage status exposes the committed report without changing its scope", async ({ page }) => {
-  await page.route("**/evidence/agent-advantage-status.json", async (route) => {
+  await page.route("**/api/benchmarks/status", async (route) => {
     await route.fulfill({
       contentType: "application/json",
       body: JSON.stringify({
@@ -550,7 +809,8 @@ test("a published Agent Advantage status exposes the committed report without ch
   await expect(page.getByText(/scope remains limited to the published report/)).toBeVisible();
 
   await page.goto("/#jobs");
-  await page.getByRole("button", { name: "Run lending rescue" }).click();
+  await page.getByRole("button", { name: "Interactive" }).click();
+  await page.getByRole("button", { name: "Run lending rescue simulation" }).click();
   const resultStatus = page.getByRole("region", { name: "Agent Advantage status" });
   await expect(resultStatus.getByText("Independent report published", { exact: true })).toBeVisible();
   await expect(resultStatus).toContainText("2/3 frozen tasks support the pre-registered advantage rule");

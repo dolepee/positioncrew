@@ -1,0 +1,16 @@
+{
+  "schemaVersion": "positioncrew.founder-agent-advantage-publication.v1",
+  "status": "PENDING_FOUNDER_COMPARISON",
+  "reportUrl": null,
+  "reportHash": null,
+  "evidenceManifestHash": null,
+  "publishedAt": null,
+  "taskCount": 3,
+  "exactOutputParityCount": null,
+  "recordedSpeedAdvantageCount": null,
+  "qualityMethod": "CANONICAL_EXACT_OUTPUT_PARITY",
+  "qualityScore": null,
+  "independent": false,
+  "blind": false,
+  "boundary": "This founder-operated comparison is non-independent and non-blind. Exact canonical output parity and recorded timing do not establish an independent quality score, external demand, payment, live execution, investment performance, or generalization beyond the three frozen fixtures."
+}

@@ -1,0 +1,389 @@
+import {
+  FRESH_MARKETPLACE_CLAIM_BOUNDARY,
+  FreshMarketplaceChainSchema,
+  type FreshMarketplaceChain,
+  type FreshMarketplaceHireRequest,
+} from "./fresh-hire-schema.js";
+
+export interface D1Result {
+  success: boolean;
+  error?: string;
+  meta: { changes?: number };
+}
+
+export interface D1PreparedStatement {
+  bind(...values: unknown[]): D1PreparedStatement;
+  first<T = Record<string, unknown>>(): Promise<T | null>;
+  run(): Promise<D1Result>;
+}
+
+export interface D1Database {
+  prepare(sql: string): D1PreparedStatement;
+  batch(statements: D1PreparedStatement[]): Promise<D1Result[]>;
+}
+
+export const FRESH_MARKETPLACE_JOB_LEASE_MILLISECONDS = 5 * 60 * 1_000;
+export const FRESH_MARKETPLACE_CREATE_WINDOW_MILLISECONDS = 60 * 1_000;
+export const FRESH_MARKETPLACE_MAX_CREATES_PER_WINDOW = 30;
+export const FRESH_MARKETPLACE_MAX_PERSISTED_HIRES = 10_000;
+
+interface JoinedRow extends Record<string, unknown> {
+  hire_id: string;
+  idempotency_key: string;
+  provider_slug: string;
+  provider_id: string;
+  benchmark_slug: string;
+  service: string;
+  evidence_mode: string;
+  direct_cost_usd: string;
+  wallet_required: number;
+  request_json: string;
+  request_hash: string;
+  hire_created_at: string;
+  job_id: string;
+  job_state: string;
+  job_created_at: string;
+  job_started_at: string | null;
+  job_completed_at: string | null;
+  api_duration_milliseconds: number | null;
+  error_code: string | null;
+  error_message: string | null;
+  receipt_id: string | null;
+  response_json: string | null;
+  response_hash: string | null;
+  deliverable_hash: string | null;
+  evaluation_hash: string | null;
+  receipt_created_at: string | null;
+}
+
+export interface CreateFreshMarketplaceHire {
+  request: FreshMarketplaceHireRequest;
+  providerId: string;
+  hireId: string;
+  jobId: string;
+  createdAt: string;
+  requestJson: string;
+  requestHash: string;
+}
+
+export interface CompleteFreshMarketplaceJob {
+  hireId: string;
+  jobId: string;
+  claimToken: string;
+  receiptId: string;
+  responseJson: string;
+  responseHash: string;
+  deliverableHash: string;
+  evaluationHash: string;
+  completedAt: string;
+  apiDurationMilliseconds: number;
+}
+
+export class FreshMarketplaceIdempotencyConflict extends Error {
+  readonly code = "IDEMPOTENCY_CONFLICT";
+  readonly domain = "positioncrew.fresh-marketplace";
+
+  constructor() {
+    super("The idempotency key is already bound to another provider or benchmark");
+    this.name = "FreshMarketplaceIdempotencyConflict";
+  }
+}
+
+export class FreshMarketplaceCapacityExceeded extends Error {
+  readonly code = "HIRE_CAPACITY_EXCEEDED";
+  readonly domain = "positioncrew.fresh-marketplace";
+
+  constructor() {
+    super("The public durable-hire creation boundary has been reached");
+    this.name = "FreshMarketplaceCapacityExceeded";
+  }
+}
+
+export function isFreshMarketplaceCapacityExceeded(
+  error: unknown,
+): error is FreshMarketplaceCapacityExceeded {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as Record<string, unknown>;
+  return (
+    candidate.name === "FreshMarketplaceCapacityExceeded" &&
+    candidate.code === "HIRE_CAPACITY_EXCEEDED" &&
+    candidate.domain === "positioncrew.fresh-marketplace" &&
+    candidate.message === "The public durable-hire creation boundary has been reached"
+  );
+}
+
+export function isFreshMarketplaceIdempotencyConflict(
+  error: unknown,
+): error is FreshMarketplaceIdempotencyConflict {
+  if (typeof error !== "object" || error === null) return false;
+  const candidate = error as Record<string, unknown>;
+  return (
+    candidate.name === "FreshMarketplaceIdempotencyConflict" &&
+    candidate.code === "IDEMPOTENCY_CONFLICT" &&
+    candidate.domain === "positioncrew.fresh-marketplace" &&
+    candidate.message === "The idempotency key is already bound to another provider or benchmark"
+  );
+}
+
+function jobStatus(state: string): FreshMarketplaceChain["job"]["status"] {
+  if (state === "CREATED") return "HIRE_RECORDED";
+  if (state === "RUNNING") return "RUNNING";
+  if (state === "COMPLETED") return "COMPLETED";
+  if (state === "FAILED") return "FAILED";
+  throw new Error("Unknown persisted job state");
+}
+
+function rowToChain(row: JoinedRow): FreshMarketplaceChain {
+  const request = JSON.parse(row.request_json) as Record<string, unknown>;
+  const receipt = row.receipt_id === null ? null : {
+    receiptId: row.receipt_id,
+    publicUrl: "/api/benchmark-receipts/" + encodeURIComponent(row.receipt_id),
+    responseHash: row.response_hash,
+    deliverableHash: row.deliverable_hash,
+    evaluationHash: row.evaluation_hash,
+    createdAt: row.receipt_created_at,
+    response: JSON.parse(row.response_json ?? "null") as unknown,
+  };
+  return FreshMarketplaceChainSchema.parse({
+    schemaVersion: "positioncrew.fresh-marketplace-chain.v1",
+    claimBoundary: [...FRESH_MARKETPLACE_CLAIM_BOUNDARY],
+    hire: {
+      hireId: row.hire_id,
+      idempotencyKey: row.idempotency_key,
+      providerSlug: row.provider_slug,
+      providerId: row.provider_id,
+      benchmarkSlug: row.benchmark_slug,
+      service: row.service,
+      evidenceMode: row.evidence_mode,
+      commerce: {
+        directCostUsd: row.direct_cost_usd,
+        walletRequired: row.wallet_required === 1,
+        settlement: "NO_PAYMENT",
+      },
+      request,
+      requestHash: row.request_hash,
+      createdAt: row.hire_created_at,
+    },
+    job: {
+      jobId: row.job_id,
+      state: row.job_state,
+      status: jobStatus(row.job_state),
+      createdAt: row.job_created_at,
+      startedAt: row.job_started_at,
+      completedAt: row.job_completed_at,
+      apiDurationMilliseconds: row.api_duration_milliseconds,
+      error: row.error_code === null || row.error_message === null
+        ? null
+        : { code: row.error_code, message: row.error_message },
+    },
+    receipt,
+  });
+}
+
+const JOINED_SELECT = [
+  "SELECT h.hire_id, h.idempotency_key, h.provider_slug, h.provider_id,",
+  "h.benchmark_slug, h.service, h.evidence_mode, h.direct_cost_usd, h.wallet_required,",
+  "h.request_json, h.request_hash, h.created_at AS hire_created_at,",
+  "j.job_id, j.state AS job_state, j.created_at AS job_created_at,",
+  "j.started_at AS job_started_at, j.completed_at AS job_completed_at,",
+  "j.api_duration_milliseconds, j.error_code, j.error_message,",
+  "r.receipt_id, r.response_json, r.response_hash, r.deliverable_hash,",
+  "r.evaluation_hash, r.created_at AS receipt_created_at",
+  "FROM fresh_marketplace_hires h",
+  "JOIN fresh_marketplace_jobs j ON j.hire_id = h.hire_id",
+  "LEFT JOIN fresh_marketplace_receipts r ON r.job_id = j.job_id",
+].join(" ");
+
+export class FreshMarketplaceStore {
+  constructor(private readonly db: D1Database) {}
+
+  async createHire(input: CreateFreshMarketplaceHire): Promise<{
+    chain: FreshMarketplaceChain;
+    replayed: boolean;
+  }> {
+    const existing = await this.getByIdempotencyKey(input.request.idempotencyKey);
+    if (existing) return this.matchReplay(existing, input.request);
+    const createdAtMilliseconds = Date.parse(input.createdAt);
+    if (!Number.isFinite(createdAtMilliseconds)) {
+      throw new Error("D1 hire creation requires a valid ISO timestamp");
+    }
+    const createWindowStartedAt = new Date(
+      createdAtMilliseconds - FRESH_MARKETPLACE_CREATE_WINDOW_MILLISECONDS,
+    ).toISOString();
+
+    try {
+      const results = await this.db.batch([
+        this.db.prepare([
+          "INSERT INTO fresh_marketplace_hires",
+          "(hire_id, idempotency_key, provider_slug, provider_id, benchmark_slug, service,",
+          "evidence_mode, direct_cost_usd, wallet_required, request_json, request_hash, created_at)",
+          "SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?",
+          "WHERE (SELECT COUNT(*) FROM fresh_marketplace_hires) < ?",
+          "AND (SELECT COUNT(*) FROM fresh_marketplace_hires WHERE created_at >= ?) < ?",
+        ].join(" ")).bind(
+          input.hireId,
+          input.request.idempotencyKey,
+          input.request.providerSlug,
+          input.providerId,
+          input.request.benchmarkSlug,
+          input.request.benchmarkSlug === "lending-rescue"
+            ? "LENDING_RESCUE"
+            : input.request.benchmarkSlug === "lp-rebalance"
+              ? "LP_REBALANCE"
+              : "BOUNDED_GRID",
+          "HISTORICAL_FIXTURE",
+          "0.00",
+          0,
+          input.requestJson,
+          input.requestHash,
+          input.createdAt,
+          FRESH_MARKETPLACE_MAX_PERSISTED_HIRES,
+          createWindowStartedAt,
+          FRESH_MARKETPLACE_MAX_CREATES_PER_WINDOW,
+        ),
+        this.db.prepare(
+          [
+            "INSERT INTO fresh_marketplace_jobs (job_id, hire_id, state, created_at)",
+            "SELECT ?, h.hire_id, 'CREATED', ? FROM fresh_marketplace_hires h WHERE h.hire_id = ?",
+          ].join(" "),
+        ).bind(input.jobId, input.createdAt, input.hireId),
+      ]);
+      const failed = results.find((result) => !result.success);
+      if (failed) throw new Error(failed.error ?? "D1 hire creation failed");
+      if (results[0]?.meta.changes !== 1) throw new FreshMarketplaceCapacityExceeded();
+      if (results[1]?.meta.changes !== 1) throw new Error("D1 job creation did not follow its hire");
+    } catch (error) {
+      const raced = await this.getByIdempotencyKey(input.request.idempotencyKey);
+      if (raced) return this.matchReplay(raced, input.request);
+      throw error;
+    }
+
+    const chain = await this.getHire(input.hireId);
+    if (!chain) throw new Error("Persisted hire could not be read back");
+    return { chain, replayed: false };
+  }
+
+  async getHire(hireId: string): Promise<FreshMarketplaceChain | null> {
+    const row = await this.db.prepare(JOINED_SELECT + " WHERE h.hire_id = ?").bind(hireId).first<JoinedRow>();
+    return row ? rowToChain(row) : null;
+  }
+
+  async getReceipt(receiptId: string): Promise<FreshMarketplaceChain | null> {
+    const row = await this.db.prepare(JOINED_SELECT + " WHERE r.receipt_id = ?").bind(receiptId).first<JoinedRow>();
+    return row ? rowToChain(row) : null;
+  }
+
+  async claimJob(hireId: string, startedAt: string): Promise<{
+    chain: FreshMarketplaceChain | null;
+    claimed: boolean;
+    claimToken: string | null;
+  }> {
+    const startedAtMilliseconds = Date.parse(startedAt);
+    if (!Number.isFinite(startedAtMilliseconds)) {
+      throw new Error("D1 job claim requires a valid ISO timestamp");
+    }
+    const staleBefore = new Date(
+      startedAtMilliseconds - FRESH_MARKETPLACE_JOB_LEASE_MILLISECONDS,
+    ).toISOString();
+    const result = await this.db.prepare(
+      [
+        "UPDATE fresh_marketplace_jobs SET state = 'RUNNING', started_at = ?,",
+        "completed_at = NULL, api_duration_milliseconds = NULL, error_code = NULL, error_message = NULL",
+        "WHERE hire_id = ? AND (state = 'CREATED' OR",
+        "(state = 'RUNNING' AND started_at IS NOT NULL AND started_at <= ?))",
+      ].join(" "),
+    ).bind(startedAt, hireId, staleBefore).run();
+    if (!result.success) throw new Error(result.error ?? "D1 job claim failed");
+    const claimed = result.meta.changes === 1;
+    return {
+      chain: await this.getHire(hireId),
+      claimed,
+      claimToken: claimed ? startedAt : null,
+    };
+  }
+
+  async completeJob(input: CompleteFreshMarketplaceJob): Promise<FreshMarketplaceChain> {
+    const results = await this.db.batch([
+      this.db.prepare([
+        "INSERT INTO fresh_marketplace_receipts",
+        "(receipt_id, job_id, hire_id, response_json, response_hash, deliverable_hash, evaluation_hash, created_at)",
+        "SELECT ?, j.job_id, j.hire_id, ?, ?, ?, ?, ? FROM fresh_marketplace_jobs j",
+        "WHERE j.job_id = ? AND j.hire_id = ? AND j.state = 'RUNNING' AND j.started_at = ?",
+      ].join(" ")).bind(
+        input.receiptId,
+        input.responseJson,
+        input.responseHash,
+        input.deliverableHash,
+        input.evaluationHash,
+        input.completedAt,
+        input.jobId,
+        input.hireId,
+        input.claimToken,
+      ),
+      this.db.prepare([
+        "UPDATE fresh_marketplace_jobs SET state = 'COMPLETED', completed_at = ?,",
+        "api_duration_milliseconds = ? WHERE job_id = ? AND hire_id = ?",
+        "AND state = 'RUNNING' AND started_at = ?",
+      ].join(" ")).bind(
+        input.completedAt,
+        input.apiDurationMilliseconds,
+        input.jobId,
+        input.hireId,
+        input.claimToken,
+      ),
+    ]);
+    const failed = results.find((result) => !result.success);
+    if (failed) throw new Error(failed.error ?? "D1 job finalization failed");
+    const chain = await this.getHire(input.hireId);
+    if (!chain || chain.job.state !== "COMPLETED" || !chain.receipt) {
+      throw new Error("D1 job finalization did not commit a receipt");
+    }
+    return chain;
+  }
+
+  async failJob(
+    hireId: string,
+    jobId: string,
+    claimToken: string,
+    completedAt: string,
+    apiDurationMilliseconds: number,
+    code: string,
+    message: string,
+  ): Promise<FreshMarketplaceChain | null> {
+    const result = await this.db.prepare([
+      "UPDATE fresh_marketplace_jobs SET state = 'FAILED', completed_at = ?,",
+      "api_duration_milliseconds = ?, error_code = ?, error_message = ?",
+      "WHERE job_id = ? AND hire_id = ? AND state = 'RUNNING' AND started_at = ?",
+    ].join(" ")).bind(
+      completedAt,
+      apiDurationMilliseconds,
+      code,
+      message,
+      jobId,
+      hireId,
+      claimToken,
+    ).run();
+    if (!result.success) throw new Error(result.error ?? "D1 failed-job persistence failed");
+    return this.getHire(hireId);
+  }
+
+  private async getByIdempotencyKey(idempotencyKey: string): Promise<FreshMarketplaceChain | null> {
+    const row = await this.db.prepare(JOINED_SELECT + " WHERE h.idempotency_key = ?")
+      .bind(idempotencyKey)
+      .first<JoinedRow>();
+    return row ? rowToChain(row) : null;
+  }
+
+  private matchReplay(
+    existing: FreshMarketplaceChain,
+    request: FreshMarketplaceHireRequest,
+  ): { chain: FreshMarketplaceChain; replayed: true } {
+    if (
+      existing.hire.providerSlug !== request.providerSlug ||
+      existing.hire.benchmarkSlug !== request.benchmarkSlug
+    ) {
+      throw new FreshMarketplaceIdempotencyConflict();
+    }
+    return { chain: existing, replayed: true };
+  }
+}

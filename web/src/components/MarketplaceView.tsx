@@ -47,6 +47,7 @@ export function MarketplaceView({
   const selectedTask = TASKS.find((task) => task.id === selectedService);
   const SelectedIcon = selectedTask?.icon;
   const catalogLoading = providers.length === 0;
+  const selectedSupportsPersistedHire = selectedService !== "YIELD_OPTIMIZATION";
 
   return (
     <main className="marketplace-page">
@@ -55,9 +56,9 @@ export function MarketplaceView({
           <div className="market-intro-copy">
             <span className="page-kicker">BSC capital operations</span>
             <h1>Hire a capital operator.</h1>
-            <p>Choose the outcome. PositionCrew returns a bounded action you can inspect before anything executes.</p>
+            <p>Find, compare, and select a provider, then create a server-persisted $0 historical-fixture hire and inspect its public receipt.</p>
             <button className="market-intro-action" type="button" onClick={() => onCreateJob("LENDING_RESCUE")}>
-              Try lending rescue free <ArrowRight size={17} aria-hidden="true" />
+              Select lending rescue <ArrowRight size={17} aria-hidden="true" />
             </button>
           </div>
           <div className="market-system-panel" aria-label="Marketplace system status">
@@ -88,7 +89,7 @@ export function MarketplaceView({
               <span className="task-deck-top"><span>{task.index}</span><Icon size={19} aria-hidden="true" /></span>
               <strong>{task.title}</strong>
               <small>{task.description}</small>
-              <span className="task-deck-foot"><span><b>Free trial</b><small>5 TEST_USDC listed</small></span><ArrowUpRight size={15} aria-hidden="true" /></span>
+              <span className="task-deck-foot"><span><b>{task.id === "YIELD_OPTIMIZATION" ? "Simulation" : "$0 persisted hire"}</b><small>{task.id === "YIELD_OPTIMIZATION" ? "No frozen comparison task" : "Historical fixture · no wallet"}</small></span><ArrowUpRight size={15} aria-hidden="true" /></span>
             </button>
           );
         })}
@@ -187,7 +188,7 @@ export function MarketplaceView({
                   <div><span>{selected.category}</span><h2>{selected.name}</h2></div>
                 </div>
                 <div className="provider-detail-meta">
-                  <strong>{selected.price.amount} {selected.price.token}<small>listed price · no-wallet trial free</small></strong>
+                  <strong>{selectedSupportsPersistedHire ? "$0.00" : "Free simulation"}<small>{selectedSupportsPersistedHire ? "historical fixture · no wallet" : "not marketplace evidence"}</small></strong>
                   <span className={`availability-label ${selectedResult ? "ready" : "pending"}`}><i /> {selectedResult ? "Reachable" : "Checking"}</span>
                 </div>
                 <p className="provider-summary">{selected.summary}</p>
@@ -201,7 +202,7 @@ export function MarketplaceView({
                   <div><dt><BadgeCheck size={14} /> Conformance</dt><dd>{selectedResult?.result.evaluation.score ?? "-"}/100 · {selectedResult?.result.job.state ?? "Checking"}</dd></div>
                 </dl>
                 <button className="primary-action" type="button" onClick={() => onCreateJob(selected.service)}>
-                  Open free {serviceLabel(selected.service).toLowerCase()} trial
+                  {selectedSupportsPersistedHire ? "Select and continue to Hire and run" : `Open ${serviceLabel(selected.service).toLowerCase()} simulation`}
                   <ArrowRight size={16} aria-hidden="true" />
                 </button>
                 {selectedResult?.receipt.path ? (
@@ -213,7 +214,9 @@ export function MarketplaceView({
                 ) : null}
                 <div className="provider-boundary">
                   <strong>Trial boundary</strong>
-                  <span>No wallet or token required · live Provider endpoint · ERC-8004 testnet identity · funded testnet commerce evidence disclosed separately</span>
+                  <span>{selectedSupportsPersistedHire
+                    ? "$0 · no wallet · frozen historical task · D1 request/result receipt · no payment, external-demand, or live-advice claim"
+                    : "Interactive simulation only · no persisted marketplace-hire claim"}</span>
                 </div>
               </>
             ) : (

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { PROVIDER_CATALOG } from "../../src/marketplace/catalog.js";
 import { EvidenceView } from "./components/EvidenceView";
@@ -9,10 +9,14 @@ import type {
   AacpProductionReadiness,
   AgentCaptureManifestResponse,
   AgentAdvantagePublicationStatus,
+  FounderAgentAdvantagePublicationStatus,
+  PublicationLoadState,
   BenchmarkRepeatabilityMatrixResponse,
   BenchmarkRepeatabilityResponse,
   Erc8183TestnetLedger,
   FixtureJobResponse,
+  FreshMarketplaceBenchmarkSlug,
+  FreshMarketplaceChain,
   JobRequestMode,
   MatrixResponse,
   MarketplaceInvocationEvidence,
@@ -24,22 +28,11 @@ import type {
   SystemTelemetry,
 } from "./types";
 
-const SESSION_STORAGE_KEY = "positioncrew.session-jobs.v1";
-
-function storedSessionJobs(): SessionJob[] {
-  try {
-    const value = JSON.parse(window.localStorage.getItem(SESSION_STORAGE_KEY) ?? "[]") as unknown;
-    if (!Array.isArray(value)) return [];
-    return value.filter((candidate): candidate is SessionJob =>
-      typeof candidate === "object" &&
-      candidate !== null &&
-      "ranAt" in candidate &&
-      "response" in candidate,
-    ).slice(0, 20);
-  } catch {
-    return [];
-  }
-}
+const FRESH_BENCHMARK_BY_SERVICE: Partial<Record<ServiceId, FreshMarketplaceBenchmarkSlug>> = {
+  LENDING_RESCUE: "lending-rescue",
+  LP_REBALANCE: "lp-rebalance",
+  BOUNDED_GRID: "bounded-grid",
+};
 
 function viewFromHash(): AppView {
   const value = window.location.hash.replace("#", "");
@@ -65,13 +58,23 @@ export default function App() {
   const [captureManifest, setCaptureManifest] = useState<AgentCaptureManifestResponse | null>(null);
   const [marketplaceProvenance, setMarketplaceProvenance] = useState<MarketplaceInvocationEvidence | null>(null);
   const [advantagePublication, setAdvantagePublication] = useState<AgentAdvantagePublicationStatus | null>(null);
+  const [founderAdvantagePublication, setFounderAdvantagePublication] = useState<FounderAgentAdvantagePublicationStatus | null>(null);
+  const [advantagePublicationLoadState, setAdvantagePublicationLoadState] = useState<PublicationLoadState>("LOADING");
+  const [founderAdvantagePublicationLoadState, setFounderAdvantagePublicationLoadState] = useState<PublicationLoadState>("LOADING");
   const [commerceLedger, setCommerceLedger] = useState<Erc8183TestnetLedger | null>(null);
   const [aacpReadiness, setAacpReadiness] = useState<AacpProductionReadiness | null>(null);
   const [productionTrackRecord, setProductionTrackRecord] = useState<ProductionTrackRecord | null>(null);
-  const [sessionJobs, setSessionJobs] = useState<SessionJob[]>(storedSessionJobs);
+  const [sessionJobs, setSessionJobs] = useState<SessionJob[]>([]);
   const [activeJob, setActiveJob] = useState<SessionJob | null>(null);
+  const [marketplaceTrace, setMarketplaceTrace] = useState<FreshMarketplaceChain | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const unresolvedFreshHire = useRef<{
+    benchmarkSlug: FreshMarketplaceBenchmarkSlug;
+    providerSlug: string;
+    idempotencyKey: string;
+    chain?: FreshMarketplaceChain;
+  } | null>(null);
   const provider = providers.find((candidate) => candidate.service === selectedService);
   const fixture = matrix.get(selectedService);
 
@@ -101,12 +104,32 @@ export default function App() {
       fetch("/api/commerce/aacp", { headers: { Accept: "application/json" } })
         .then((response) => jsonResponse<AacpProductionReadiness>(response))
         .then((payload) => setAacpReadiness(payload.state === "SOURCE_UNAVAILABLE" ? null : payload)),
-      fetch("/evidence/agent-advantage-status.json", {
+      fetch("/api/benchmarks/status", {
         cache: "no-store",
         headers: { Accept: "application/json" },
       })
         .then((response) => jsonResponse<AgentAdvantagePublicationStatus>(response))
-        .then(setAdvantagePublication),
+        .then((publication) => {
+          setAdvantagePublication(publication);
+          setAdvantagePublicationLoadState("AVAILABLE");
+        })
+        .catch(() => {
+          setAdvantagePublication(null);
+          setAdvantagePublicationLoadState("UNAVAILABLE");
+        }),
+      fetch("/api/benchmarks/founder-comparison/status", {
+        cache: "no-store",
+        headers: { Accept: "application/json" },
+      })
+        .then((response) => jsonResponse<FounderAgentAdvantagePublicationStatus>(response))
+        .then((publication) => {
+          setFounderAdvantagePublication(publication);
+          setFounderAdvantagePublicationLoadState("AVAILABLE");
+        })
+        .catch(() => {
+          setFounderAdvantagePublication(null);
+          setFounderAdvantagePublicationLoadState("UNAVAILABLE");
+        }),
       fetch("/api/operations/production", { headers: { Accept: "application/json" } })
         .then((response) => jsonResponse<ProductionTrackRecord>(response))
         .then(setProductionTrackRecord),
@@ -131,10 +154,6 @@ export default function App() {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  useEffect(() => {
-    window.localStorage.setItem(SESSION_STORAGE_KEY, JSON.stringify(sessionJobs));
-  }, [sessionJobs]);
-
   function navigate(next: AppView) {
     if (window.location.hash !== `#${next}`) window.location.hash = next;
     setView(next);
@@ -143,6 +162,7 @@ export default function App() {
   function createJob(service: ServiceId) {
     setSelectedService(service);
     setActiveJob(null);
+    setMarketplaceTrace(null);
     navigate("jobs");
   }
 
@@ -151,6 +171,78 @@ export default function App() {
     setError(null);
     const startedAt = performance.now();
     try {
+      const benchmarkSlug = FRESH_BENCHMARK_BY_SERVICE[request.service as ServiceId];
+      const selectedProvider = providers.find((candidate) => candidate.service === request.service);
+      if (mode === "FROZEN_FIXTURE" && benchmarkSlug && selectedProvider) {
+        const pendingHire = unresolvedFreshHire.current?.benchmarkSlug === benchmarkSlug &&
+            unresolvedFreshHire.current.providerSlug === selectedProvider.slug
+          ? unresolvedFreshHire.current
+          : null;
+        const logicalHire = pendingHire ?? {
+          benchmarkSlug,
+          providerSlug: selectedProvider.slug,
+          idempotencyKey: crypto.randomUUID(),
+        };
+        unresolvedFreshHire.current = logicalHire;
+        let trace = logicalHire.chain;
+        if (!trace) {
+          const createResponse = await fetch("/api/benchmark-hires", {
+            method: "POST",
+            headers: { Accept: "application/json", "Content-Type": "application/json" },
+            body: JSON.stringify({
+              schemaVersion: "positioncrew.fresh-marketplace-hire-request.v1",
+              idempotencyKey: logicalHire.idempotencyKey,
+              benchmarkSlug,
+              providerSlug: selectedProvider.slug,
+            }),
+          });
+          try {
+            trace = await jsonResponse<FreshMarketplaceChain>(createResponse);
+          } catch (createError) {
+            if (createResponse.status >= 400 && createResponse.status < 500 && createResponse.status !== 429) {
+              unresolvedFreshHire.current = null;
+            }
+            throw createError;
+          }
+          unresolvedFreshHire.current = { ...logicalHire, chain: trace };
+        }
+        if (!trace) throw new Error("Persisted marketplace hire did not return a chain");
+        let activeTrace: FreshMarketplaceChain = trace;
+        setMarketplaceTrace(activeTrace);
+        const runResponse = await fetch("/api/benchmark-hires/" + encodeURIComponent(activeTrace.hire.hireId) + "/jobs", {
+          method: "POST",
+          headers: { Accept: "application/json" },
+        });
+        activeTrace = await jsonResponse<FreshMarketplaceChain>(runResponse);
+        unresolvedFreshHire.current = { ...logicalHire, chain: activeTrace };
+        setMarketplaceTrace(activeTrace);
+        for (let attempt = 0; activeTrace.job.state === "RUNNING" && attempt < 80; attempt += 1) {
+          await new Promise((resolve) => window.setTimeout(resolve, 250));
+          activeTrace = await fetch("/api/benchmark-hires/" + encodeURIComponent(activeTrace.hire.hireId), {
+            headers: { Accept: "application/json" },
+            cache: "no-store",
+          }).then((response) => jsonResponse<FreshMarketplaceChain>(response));
+          unresolvedFreshHire.current = { ...logicalHire, chain: activeTrace };
+          setMarketplaceTrace(activeTrace);
+        }
+        if (activeTrace.job.state === "FAILED") {
+          unresolvedFreshHire.current = null;
+          throw new Error(activeTrace.job.error?.message ?? "Persisted provider job failed");
+        }
+        if (activeTrace.job.state !== "COMPLETED" || !activeTrace.receipt) {
+          throw new Error("Persisted provider job did not complete within 20 seconds");
+        }
+        const sessionJob: SessionJob = {
+          response: activeTrace.receipt.response,
+          responseTimeMs: activeTrace.job.apiDurationMilliseconds ?? Math.max(1, Math.round(performance.now() - startedAt)),
+          ranAt: activeTrace.job.completedAt ?? new Date().toISOString(),
+          marketplaceTrace: activeTrace,
+        };
+        setActiveJob(sessionJob);
+        setSessionJobs((jobs) => [sessionJob, ...jobs].slice(0, 20));
+        unresolvedFreshHire.current = null;
+        return;
+      }
       const endpoint = providers.find((candidate) => candidate.service === request.service)?.endpoint ?? "/api/jobs";
       const response = await fetch(endpoint, {
         method: "POST",
@@ -175,6 +267,7 @@ export default function App() {
   function selectSessionJob(job: SessionJob) {
     setSelectedService(job.response.result.request.service);
     setActiveJob(job);
+    setMarketplaceTrace(job.marketplaceTrace ?? null);
     navigate("jobs");
   }
 
@@ -186,6 +279,7 @@ export default function App() {
           selectedService={selectedService}
           fixture={fixture}
           activeJob={activeJob}
+          marketplaceTrace={marketplaceTrace}
           sessionJobs={sessionJobs}
           loading={loading}
           onRun={runJob}
@@ -193,11 +287,15 @@ export default function App() {
           onSelectService={(service) => {
             setSelectedService(service);
             setActiveJob(null);
+            setMarketplaceTrace(null);
           }}
           telemetry={telemetry}
           benchmarks={benchmarks}
           marketplaceProvenance={marketplaceProvenance}
           advantagePublication={advantagePublication}
+          founderAdvantagePublication={founderAdvantagePublication}
+          advantagePublicationLoadState={advantagePublicationLoadState}
+          founderAdvantagePublicationLoadState={founderAdvantagePublicationLoadState}
           onClearJobs={() => {
             setSessionJobs([]);
             setActiveJob(null);
@@ -205,7 +303,7 @@ export default function App() {
         />
       );
     }
-    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} marketplaceProvenance={marketplaceProvenance} commerceLedger={commerceLedger} aacpReadiness={aacpReadiness} advantagePublication={advantagePublication} productionTrackRecord={productionTrackRecord} />;
+    if (view === "evidence") return <EvidenceView providers={providers} matrix={matrix} telemetry={telemetry} benchmarks={benchmarks} captureManifest={captureManifest} marketplaceProvenance={marketplaceProvenance} commerceLedger={commerceLedger} aacpReadiness={aacpReadiness} advantagePublication={advantagePublication} founderAdvantagePublication={founderAdvantagePublication} advantagePublicationLoadState={advantagePublicationLoadState} founderAdvantagePublicationLoadState={founderAdvantagePublicationLoadState} productionTrackRecord={productionTrackRecord} />;
     return (
       <MarketplaceView
         providers={providers}
@@ -216,7 +314,7 @@ export default function App() {
         telemetry={telemetry}
       />
     );
-  }, [view, provider, fixture, activeJob, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, marketplaceProvenance, commerceLedger, aacpReadiness, advantagePublication, productionTrackRecord]);
+  }, [view, provider, fixture, activeJob, marketplaceTrace, sessionJobs, loading, providers, matrix, selectedService, telemetry, benchmarks, captureManifest, marketplaceProvenance, commerceLedger, aacpReadiness, advantagePublication, founderAdvantagePublication, advantagePublicationLoadState, founderAdvantagePublicationLoadState, productionTrackRecord]);
 
   return (
     <div className="app-shell">

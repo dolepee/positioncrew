@@ -32,8 +32,11 @@ import {
 import { TASKS } from "../task-config";
 import type {
   AgentAdvantagePublicationStatus,
+  FounderAgentAdvantagePublicationStatus,
+  PublicationLoadState,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
+  FreshMarketplaceChain,
   JobRequestMode,
   MarketplaceInvocationEvidence,
   PancakeGridProbe,
@@ -46,6 +49,7 @@ import type {
   VenusAccountProbe,
   VenusYieldProbe,
 } from "../types";
+import { isVerifiedFounderAgentAdvantagePublication } from "../types";
 
 type ResultView = "summary" | "json" | "receipt";
 type WorkspaceInputMode = "interactive" | "locked";
@@ -389,17 +393,28 @@ function ResultAdvantageBand({
   benchmarks,
   marketplaceProvenance,
   advantagePublication,
+  founderAdvantagePublication,
+  advantagePublicationLoadState,
+  founderAdvantagePublicationLoadState,
 }: {
   service: ServiceId;
   conformanceScore: number;
   benchmarks: BenchmarkRepeatabilityResponse[];
   marketplaceProvenance: MarketplaceInvocationEvidence | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
+  founderAdvantagePublication: FounderAgentAdvantagePublicationStatus | null;
+  advantagePublicationLoadState: PublicationLoadState;
+  founderAdvantagePublicationLoadState: PublicationLoadState;
 }) {
   const benchmarked = BENCHMARK_SERVICES.has(service as TermixBenchmarkService);
   const repeatability = benchmarks.find((record) => record.service === service);
   const delivery = marketplaceProvenance?.summaries.find((summary) => summary.service === service);
   const published = advantagePublication?.status === "PUBLISHED" ? advantagePublication : null;
+  const publishedFounder = isVerifiedFounderAgentAdvantagePublication(
+    founderAdvantagePublication,
+  )
+    ? founderAdvantagePublication
+    : null;
 
   if (!benchmarked) {
     return (
@@ -414,13 +429,36 @@ function ResultAdvantageBand({
     );
   }
 
-  if (!advantagePublication) {
+  if (
+    !advantagePublication &&
+    !founderAdvantagePublication &&
+    (advantagePublicationLoadState === "LOADING" ||
+      founderAdvantagePublicationLoadState === "LOADING")
+  ) {
     return (
       <section className="result-advantage-band neutral" aria-label="Agent Advantage status">
         <div className="result-advantage-copy">
           <span className="result-advantage-state"><Clock3 size={13} /> Evidence status loading</span>
           <strong>The useful result remains available while its comparison record loads.</strong>
           <small>The {conformanceScore}/100 receipt is deterministic conformance. PositionCrew does not infer an Agent Advantage result when the independent publication record is unavailable.</small>
+        </div>
+        <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
+      </section>
+    );
+  }
+
+  if (
+    !advantagePublication &&
+    !founderAdvantagePublication &&
+    advantagePublicationLoadState === "UNAVAILABLE" &&
+    founderAdvantagePublicationLoadState === "UNAVAILABLE"
+  ) {
+    return (
+      <section className="result-advantage-band neutral" aria-label="Agent Advantage status unavailable">
+        <div className="result-advantage-copy">
+          <span className="result-advantage-state"><AlertTriangle size={13} /> Evidence status unavailable</span>
+          <strong>Neither tracked benchmark publication record is currently available.</strong>
+          <small>The conformance receipt remains visible, but no independent or founder comparison result and no report link is inferred.</small>
         </div>
         <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
       </section>
@@ -440,12 +478,25 @@ function ResultAdvantageBand({
     );
   }
 
+  if (publishedFounder) {
+    return (
+      <section className="result-advantage-band published" aria-label="Founder Agent Advantage comparison status">
+        <div className="result-advantage-copy">
+          <span className="result-advantage-state"><BadgeCheck size={13} /> Founder comparison published</span>
+          <strong>{publishedFounder.exactOutputParityCount}/3 frozen tasks record exact canonical output parity.</strong>
+          <small>{publishedFounder.recordedSpeedAdvantageCount}/3 record lower agent time. Quality score: not assigned (null). This founder-operated comparison is non-independent and non-blind and does not establish external demand, payment, live execution, or investment performance.</small>
+        </div>
+        <a href={publishedFounder.reportUrl}>Open founder report <ArrowRight size={13} /></a>
+      </section>
+    );
+  }
+
   return (
     <section className="result-advantage-band pending" aria-label="Agent Advantage status">
       <div className="result-advantage-copy">
         <span className="result-advantage-state"><Clock3 size={13} /> Independent comparison pending</span>
-        <strong>{delivery ? `${delivery.successCount}/2 public deliveries captured${delivery.medianElapsedMilliseconds != null ? ` at ${delivery.medianElapsedMilliseconds} ms median` : ""}.` : "Public delivery record is still loading."}</strong>
-        <small>{repeatability ? `${repeatability.runs.length} source-committed agent candidates are locked. ` : "The source-committed candidate record is still loading. "}The manual baseline and different blind evaluator remain pending; no Agent Advantage result is claimed.</small>
+        <strong>{delivery ? `${delivery.successCount}/2 controlled endpoint observations retained${delivery.medianElapsedMilliseconds != null ? ` at ${delivery.medianElapsedMilliseconds} ms median` : ""}.` : "The endpoint observation record is still loading."}</strong>
+        <small>{repeatability ? `${repeatability.runs.length} source-committed agent candidates are locked. ` : "The source-committed candidate record is still loading. "}{service === "BOUNDED_GRID" ? "Grid still has an unresolved fresh-input versus historical-result mode contradiction. " : ""}{founderAdvantagePublicationLoadState === "UNAVAILABLE" ? "The founder publication status is unavailable. " : founderAdvantagePublication?.status === "PUBLISHED" && !publishedFounder ? "The founder publication record failed verification, so no claim or link is enabled. " : ""}This is partial E2 evidence, not a marketplace hire or fresh execution. {advantagePublicationLoadState === "UNAVAILABLE" ? "The independent publication status is unavailable." : "Independent blind evaluation remains pending."}</small>
       </div>
       <a href="#evidence">Inspect evidence <ArrowRight size={13} /></a>
     </section>
@@ -457,11 +508,17 @@ function SummaryResult({
   benchmarks,
   marketplaceProvenance,
   advantagePublication,
+  founderAdvantagePublication,
+  advantagePublicationLoadState,
+  founderAdvantagePublicationLoadState,
 }: {
   response: FixtureJobResponse;
   benchmarks: BenchmarkRepeatabilityResponse[];
   marketplaceProvenance: MarketplaceInvocationEvidence | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
+  founderAdvantagePublication: FounderAgentAdvantagePublicationStatus | null;
+  advantagePublicationLoadState: PublicationLoadState;
+  founderAdvantagePublicationLoadState: PublicationLoadState;
 }) {
   const deliverable = response.result.deliverable;
   const metrics = metricsFor(deliverable);
@@ -541,12 +598,21 @@ function SummaryResult({
         benchmarks={benchmarks}
         marketplaceProvenance={marketplaceProvenance}
         advantagePublication={advantagePublication}
+        founderAdvantagePublication={founderAdvantagePublication}
+        advantagePublicationLoadState={advantagePublicationLoadState}
+        founderAdvantagePublicationLoadState={founderAdvantagePublicationLoadState}
       />
     </div>
   );
 }
 
-function ReceiptView({ response }: { response: FixtureJobResponse }) {
+function ReceiptView({
+  response,
+  marketplaceTrace,
+}: {
+  response: FixtureJobResponse;
+  marketplaceTrace: FreshMarketplaceChain | null;
+}) {
   const { job, evaluation } = response.result;
   function downloadReceipt() {
     const body = JSON.stringify(response, null, 2);
@@ -562,11 +628,14 @@ function ReceiptView({ response }: { response: FixtureJobResponse }) {
       <div className="receipt-actions">
         <span><ShieldCheck size={14} /> {response.receipt.mode.replaceAll("_", " ")}</span>
         <div>
+          {marketplaceTrace?.receipt && <a href={marketplaceTrace.receipt.publicUrl} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Persisted public receipt</a>}
           {response.receipt.path && <a href={response.receipt.path} target="_blank" rel="noreferrer"><ExternalLink size={14} /> Public receipt</a>}
           <button type="button" onClick={downloadReceipt}><Download size={14} /> Download</button>
         </div>
       </div>
       <dl className="receipt-facts">
+        {marketplaceTrace && <div><dt>Hire ID</dt><dd>{marketplaceTrace.hire.hireId}</dd></div>}
+        {marketplaceTrace?.receipt && <div><dt>Receipt ID</dt><dd>{marketplaceTrace.receipt.receiptId}</dd></div>}
         <div><dt>Job ID</dt><dd>{job.jobId}</dd></div>
         <div><dt>Provider</dt><dd>{job.providerId}</dd></div>
         <div><dt>Conformance scorer</dt><dd>{job.evaluatorId}</dd></div>
@@ -921,6 +990,7 @@ export function JobWorkspace({
   selectedService,
   fixture,
   activeJob,
+  marketplaceTrace,
   sessionJobs,
   loading,
   onRun,
@@ -930,12 +1000,16 @@ export function JobWorkspace({
   benchmarks,
   marketplaceProvenance,
   advantagePublication,
+  founderAdvantagePublication,
+  advantagePublicationLoadState,
+  founderAdvantagePublicationLoadState,
   onClearJobs,
 }: {
   provider: ProviderListing | undefined;
   selectedService: ServiceId;
   fixture: FixtureJobResponse | undefined;
   activeJob: SessionJob | null;
+  marketplaceTrace: FreshMarketplaceChain | null;
   sessionJobs: SessionJob[];
   loading: boolean;
   onRun: (request: Record<string, unknown>, mode: JobRequestMode) => Promise<void>;
@@ -945,13 +1019,16 @@ export function JobWorkspace({
   benchmarks: BenchmarkRepeatabilityResponse[];
   marketplaceProvenance: MarketplaceInvocationEvidence | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
+  founderAdvantagePublication: FounderAgentAdvantagePublicationStatus | null;
+  advantagePublicationLoadState: PublicationLoadState;
+  founderAdvantagePublicationLoadState: PublicationLoadState;
   onClearJobs: () => void;
 }) {
   const service = selectedService;
   const task = TASKS.find((candidate) => candidate.id === service) ?? TASKS[0];
   const [draft, setDraft] = useState<JobDraft>(EMPTY_DRAFT);
   const [resultView, setResultView] = useState<ResultView>("summary");
-  const [inputMode, setInputMode] = useState<WorkspaceInputMode>("interactive");
+  const [inputMode, setInputMode] = useState<WorkspaceInputMode>("locked");
   const [liveRequest, setLiveRequest] = useState<JobRequest | null>(null);
   const liveRequestRef = useRef<JobRequest | null>(null);
   const shownResponse = activeJob?.response ?? null;
@@ -977,7 +1054,7 @@ export function JobWorkspace({
 
   useEffect(() => {
     setResultView("summary");
-    setInputMode("interactive");
+    setInputMode(service === "YIELD_OPTIMIZATION" ? "interactive" : "locked");
     liveRequestRef.current = null;
     setLiveRequest(null);
     setDraft(draftFromRequest(fixtureRequest));
@@ -1147,16 +1224,36 @@ export function JobWorkspace({
                 ? "Current-clock scenario with custom bounds. Inputs and timestamps are caller-controlled; this is not benchmark evidence or live wallet execution."
                 : "Current-clock simulation seeded from the August 12 fixture. Observation timestamps are rebased for the scenario; values are not fetched live."}</span>
           </div>
+          {marketplaceTrace && (
+            <div className="request-boundary" role="status" aria-live="polite">
+              {marketplaceTrace.job.status === "COMPLETED"
+                ? <CheckCircle2 size={15} aria-hidden="true" />
+                : marketplaceTrace.job.status === "FAILED"
+                  ? <AlertTriangle size={15} aria-hidden="true" />
+                  : <LoaderCircle className="spin" size={15} aria-hidden="true" />}
+              <span>
+                <strong>{marketplaceTrace.job.status.replaceAll("_", " ")}</strong>
+                {" · Hire "}{shortHash(marketplaceTrace.hire.hireId, 14)}
+                {marketplaceTrace.receipt && <>{" · "}<a href={marketplaceTrace.receipt.publicUrl} target="_blank" rel="noreferrer">Public receipt <ExternalLink size={11} /></a></>}
+              </span>
+            </div>
+          )}
           <div className="composer-footer">
             <span>
-              <strong>{inputMode === "locked" ? `${provider?.price.amount ?? "5"} ${provider?.price.token ?? "TEST_USDC"}` : "Free provider trial"}</strong>
-              <small>{inputMode === "locked"
-                ? "Public locked receipt"
-                : `${provider?.price.amount ?? "5"} ${provider?.price.token ?? "TEST_USDC"} listed price · no wallet required`}</small>
+              <strong>{inputMode === "locked" && service !== "YIELD_OPTIMIZATION"
+                ? "$0.00"
+                : inputMode === "locked"
+                  ? "Free historical simulation"
+                  : "Free provider trial"}</strong>
+              <small>{inputMode === "locked" && service !== "YIELD_OPTIMIZATION"
+                ? "No wallet · no payment · public locked receipt"
+                : inputMode === "locked"
+                  ? "No persisted marketplace hire"
+                  : `${provider?.price.amount ?? "5"} ${provider?.price.token ?? "TEST_USDC"} listed price · no wallet required`}</small>
             </span>
             <button className="primary-action" type="button" onClick={submitJob} aria-describedby="request-boundary" disabled={loading || !fixture || liveMarketPending || (service === "LENDING_RESCUE" && !draft.allowRepay && !draft.allowCollateral)}>
               {loading ? <LoaderCircle className="spin" size={16} /> : <Play size={16} />}
-              {loading ? "Running job" : `Run ${serviceLabel(service).toLowerCase()}`}
+              {loading ? (marketplaceTrace?.job.status.replaceAll("_", " ") ?? "Recording hire") : inputMode === "locked" && service !== "YIELD_OPTIMIZATION" ? "Hire and run" : `Run ${serviceLabel(service).toLowerCase()} simulation`}
               {!loading && <ArrowRight size={15} />}
             </button>
           </div>
@@ -1176,12 +1273,15 @@ export function JobWorkspace({
               <SummaryResult
                 response={shownResponse}
                 benchmarks={benchmarks}
-                marketplaceProvenance={marketplaceProvenance}
-                advantagePublication={advantagePublication}
+          marketplaceProvenance={marketplaceProvenance}
+          advantagePublication={advantagePublication}
+          founderAdvantagePublication={founderAdvantagePublication}
+          advantagePublicationLoadState={advantagePublicationLoadState}
+          founderAdvantagePublicationLoadState={founderAdvantagePublicationLoadState}
               />
             ) :
               resultView === "json" ? <MachineJson response={shownResponse} /> :
-                <ReceiptView response={shownResponse} />
+                <ReceiptView response={shownResponse} marketplaceTrace={activeJob?.marketplaceTrace ?? marketplaceTrace} />
           ) : (
             <div className="empty-result-state">
               <span className="empty-result-icon"><ShieldCheck size={28} strokeWidth={1.6} /></span>
@@ -1198,8 +1298,8 @@ export function JobWorkspace({
 
       <section className="session-jobs" aria-labelledby="session-jobs-title">
         <div className="section-bar">
-          <div><span className="section-kicker">Persistent local record</span><h2 id="session-jobs-title">Job history</h2></div>
-          <div className="history-actions"><span>{sessionJobs.length} jobs</span>{sessionJobs.length > 0 && <button type="button" onClick={onClearJobs} title="Clear local job history"><Trash2 size={14} /> Clear</button>}</div>
+          <div><span className="section-kicker">Server receipt view</span><h2 id="session-jobs-title">Recent job activity</h2></div>
+          <div className="history-actions"><span>{sessionJobs.length} jobs</span>{sessionJobs.length > 0 && <button type="button" onClick={onClearJobs} title="Clear this browser view only"><Trash2 size={14} /> Clear view</button>}</div>
         </div>
         <div className="history-table-wrap">
           <table className="history-table">

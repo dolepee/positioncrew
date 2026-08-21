@@ -192,11 +192,17 @@ describe("public fixture job boundary", () => {
       },
     });
     expect(openApi).toMatchObject({ openapi: "3.1.0", servers: [{ url: origin }] });
-    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(12);
+    expect(Object.keys((openApi.paths ?? {}) as object)).toHaveLength(18);
     expect(openApi.paths).toMatchObject({
       "/api/status": { get: { operationId: "getSystemTelemetry" } },
       "/api/operations/production": {
         get: { operationId: "getProductionTrackRecord" },
+      },
+      "/api/benchmarks/status": {
+        get: { operationId: "getBenchmarkPublicationStatus" },
+      },
+      "/api/benchmarks/founder-comparison/status": {
+        get: { operationId: "getFounderBenchmarkPublicationStatus" },
       },
       "/api/benchmarks/marketplace-provenance": {
         get: { operationId: "getMarketplaceInvocationEvidence" },
@@ -272,5 +278,36 @@ describe("public fixture job boundary", () => {
       throw new Error("Expected a lending rescue deliverable");
     }
     expect(response.result.deliverable.recommendation).toBeNull();
+  });
+});
+
+describe("fresh marketplace OpenAPI routes", () => {
+  it("exposes the four persisted-hire operations with no extra methods", async () => {
+    const { buildOpenApiDocument } = await import("../src/marketplace/discovery.js");
+    const document = buildOpenApiDocument("https://positioncrew.example");
+    const paths = document.paths as Record<string, Record<string, { operationId?: string }>>;
+    const expected = [
+      ["/api/benchmark-hires", "post", "createFreshMarketplaceHire"],
+      ["/api/benchmark-hires/{hireId}", "get", "getFreshMarketplaceHire"],
+      ["/api/benchmark-hires/{hireId}/jobs", "post", "runFreshMarketplaceHire"],
+      ["/api/benchmark-receipts/{receiptId}", "get", "getFreshMarketplaceReceipt"],
+    ] as const;
+
+    for (const [path, method, operationId] of expected) {
+      expect(Object.keys(paths[path] ?? {})).toEqual([method]);
+      expect(paths[path]?.[method]?.operationId).toBe(operationId);
+    }
+    const hireOperation = paths["/api/benchmark-hires"]?.post as {
+      responses?: Record<string, unknown>;
+    };
+    expect(Object.keys(hireOperation.responses ?? {})).toEqual([
+      "200",
+      "201",
+      "400",
+      "409",
+      "413",
+      "422",
+      "429",
+    ]);
   });
 });
