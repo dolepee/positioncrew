@@ -11,6 +11,10 @@ import {
   type PositionCrewRequest,
 } from "../contracts/index.js";
 import { PROVIDER_CATALOG, type ProviderListing } from "./catalog.js";
+import {
+  FreshMarketplaceChainSchema,
+  FreshMarketplaceHireRequestSchema,
+} from "../commerce/fresh-hire-schema.js";
 
 type ServiceId = PositionCrewRequest["service"];
 
@@ -115,8 +119,9 @@ export function buildProviderManifest(
       settlement: provider.settlement,
       adapter: "AACP_PRODUCTION_RUNTIME_PENDING",
       readinessUrl: absolute(origin, "/api/commerce/aacp"),
+      freshHistoricalHireUrl: absolute(origin, "/api/benchmark-hires"),
       boundary:
-        "The public endpoint offers a no-wallet provider trial and runs an in-memory conformance lifecycle. The listed 5 TEST_USDC price is not collected by the trial. Funded ERC-8183 testnet evidence is disclosed separately. Four 5 USDC Agent.family listings are public; their A2A runtimes and any paid AACP order or revenue remain pending.",
+        "The public endpoint offers a no-wallet provider simulation. Three frozen benchmark tasks also support a distinct $0 historical-fixture hire with a server-persisted request and receipt. Neither path collects the listed price or proves external demand, paid settlement, or live advice.",
     },
   };
 }
@@ -142,6 +147,7 @@ export function buildMarketplaceManifest(
     operatingRecordUrl: absolute(origin, "/api/operations/production"),
     marketplaceDeliveryEvidenceUrl: absolute(origin, "/api/benchmarks/marketplace-provenance"),
     aacpReadinessUrl: absolute(origin, "/api/commerce/aacp"),
+    freshHistoricalHireUrl: absolute(origin, "/api/benchmark-hires"),
     providers: PROVIDER_CATALOG.map((provider) => ({
       providerId: provider.providerId,
       service: provider.service,
@@ -155,17 +161,26 @@ export function buildMarketplaceManifest(
       settlement: "IN_MEMORY_CONFORMANCE",
       aacp: "PRODUCTION_RUNTIME_PENDING",
       judgeTrial: "NO_WALLET_PROVIDER_CALL",
+      freshHistoricalHire: "D1_PERSISTED_ZERO_COST_HISTORICAL_FIXTURE",
       agentAdvantage: "PENDING_INDEPENDENT_BLIND_EVALUATION",
     },
   };
 }
 
 export function buildOpenApiDocument(origin: string): Record<string, unknown> {
-  const schemas = Object.fromEntries(
+  const schemas: Record<string, unknown> = Object.fromEntries(
     [...SCHEMA_REGISTRY.entries()].map(([schemaId, schema]) => [
       componentName(schemaId),
       z.toJSONSchema(schema, { target: "draft-2020-12" }),
     ]),
+  );
+  schemas.FreshMarketplaceHireRequest = z.toJSONSchema(
+    FreshMarketplaceHireRequestSchema,
+    { target: "draft-2020-12" },
+  );
+  schemas.FreshMarketplaceChain = z.toJSONSchema(
+    FreshMarketplaceChainSchema,
+    { target: "draft-2020-12" },
   );
   const providerPaths = Object.fromEntries(
     PROVIDER_CATALOG.map((provider) => [
@@ -216,6 +231,84 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
   );
   const paths = {
     ...providerPaths,
+    "/api/benchmark-hires": {
+      post: {
+        summary: "Persist a $0 no-wallet historical-fixture hire before provider computation",
+        operationId: "createFreshMarketplaceHire",
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/FreshMarketplaceHireRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": { description: "Unique hire and CREATED job persisted" },
+          "200": { description: "Idempotent replay of an existing hire" },
+          "400": { description: "Request body is not valid JSON" },
+          "409": { description: "Idempotency key or frozen provider binding conflict" },
+          "413": { description: "Request body exceeds 4096 bytes" },
+          "429": { description: "Public durable-hire creation boundary reached" },
+          "422": { description: "Request is not one of the three frozen task shapes" },
+        },
+      },
+    },
+    "/api/benchmark-hires/{hireId}": {
+      get: {
+        summary: "Read a complete persisted hire, job, and optional receipt chain",
+        operationId: "getFreshMarketplaceHire",
+        parameters: [{
+          name: "hireId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        responses: {
+          "200": {
+            description: "Current server-persisted chain",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/FreshMarketplaceChain" } } },
+          },
+          "404": { description: "Unknown hire" },
+        },
+      },
+    },
+    "/api/benchmark-hires/{hireId}/jobs": {
+      post: {
+        summary: "Claim and run the already-persisted frozen benchmark job",
+        operationId: "runFreshMarketplaceHire",
+        parameters: [{
+          name: "hireId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        responses: {
+          "202": { description: "Persisted job is RUNNING" },
+          "200": { description: "Idempotent replay of a terminal job" },
+          "404": { description: "Unknown hire" },
+        },
+      },
+    },
+    "/api/benchmark-receipts/{receiptId}": {
+      get: {
+        summary: "Read an immutable public receipt and its hire chain",
+        operationId: "getFreshMarketplaceReceipt",
+        parameters: [{
+          name: "receiptId",
+          in: "path",
+          required: true,
+          schema: { type: "string", format: "uuid" },
+        }],
+        responses: {
+          "200": {
+            description: "$0 historical-fixture receipt with exact response commitments",
+            content: { "application/json": { schema: { $ref: "#/components/schemas/FreshMarketplaceChain" } } },
+          },
+          "404": { description: "Unknown receipt" },
+        },
+      },
+    },
     "/api/status": {
       get: {
         summary: "Read current BSC, PancakeSwap, Venus, and integration-boundary telemetry",
@@ -231,6 +324,30 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
           "200": {
             description:
               "Every observed scheduled verification run after the fixed epoch, or a bounded source-unavailable record",
+          },
+        },
+      },
+    },
+    "/api/benchmarks/status": {
+      get: {
+        summary: "Read the truthful Agent Advantage publication status",
+        operationId: "getBenchmarkPublicationStatus",
+        responses: {
+          "200": {
+            description:
+              "The tracked pending or independently verified published status without inferred completion",
+          },
+        },
+      },
+    },
+    "/api/benchmarks/founder-comparison/status": {
+      get: {
+        summary: "Read the founder-operated Agent Advantage comparison status",
+        operationId: "getFounderBenchmarkPublicationStatus",
+        responses: {
+          "200": {
+            description:
+              "The tracked founder-operated, non-independent, non-blind exact-output comparison status",
           },
         },
       },
@@ -318,7 +435,7 @@ export function buildOpenApiDocument(origin: string): Record<string, unknown> {
       title: "PositionCrew Provider API",
       version: "1.0.0",
       description:
-        "Machine-readable contracts for four bounded BSC capital providers. The no-wallet trial remains an in-memory conformance rail; production AACP readiness is reported separately and paid settlement is not yet claimed.",
+        "Machine-readable contracts for four bounded BSC capital providers. Three frozen historical tasks expose a separate D1-persisted $0 no-wallet hire and receipt path. Interactive simulations do not become marketplace evidence, and paid settlement or external demand is not claimed.",
     },
     servers: [{ url: origin }],
     paths,

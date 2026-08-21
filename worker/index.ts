@@ -4,6 +4,8 @@ import erc8183Job489Deliverable from "../evidence/erc8183-job-489.deliverable.js
 import erc8183TestnetLedger from "../evidence/erc8183-jobs.testnet.json" with { type: "json" };
 import marketplaceInvocationEvidence from "../evidence/marketplace-invocations.production.json" with { type: "json" };
 import productionMonitorEpoch from "../evidence/production-monitor-epoch.json" with { type: "json" };
+import agentAdvantagePublicationStatus from "../web/public/evidence/agent-advantage-status.json" with { type: "json" };
+import founderAgentAdvantagePublicationStatus from "../web/public/evidence/founder-agent-advantage-status.json" with { type: "json" };
 import {
   runBenchmarkRepeatability,
   runFixtureRequest,
@@ -20,6 +22,18 @@ import {
   type AacpProductionReadiness,
 } from "../src/commerce/aacp-production.js";
 import { buildErc8183TestnetDeliverable } from "../src/commerce/erc8183-evidence.js";
+import {
+  FreshMarketplaceStore,
+  isFreshMarketplaceCapacityExceeded,
+  isFreshMarketplaceIdempotencyConflict,
+  type D1Database,
+} from "../src/commerce/d1-marketplace-store.js";
+import {
+  FRESH_MARKETPLACE_TASKS,
+  FreshMarketplaceHireRequestSchema,
+  canonicalJson,
+  sha256Commitment,
+} from "../src/commerce/fresh-hire-schema.js";
 import { PositionCrewRequestSchema } from "../src/contracts/index.js";
 import { PROVIDER_CATALOG } from "../src/marketplace/catalog.js";
 import {
@@ -45,6 +59,11 @@ import {
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
+  DB: D1Database;
+}
+
+interface WorkerExecutionContext {
+  waitUntil(promise: Promise<unknown>): void;
 }
 
 const SERVICES = new Set([
@@ -90,6 +109,171 @@ function json(body: unknown, status = 200, cacheControl = "no-store"): Response 
 
 function apiError(status: number, error: string, details: unknown): Response {
   return json({ schemaVersion: "positioncrew.api-error.v1", error, details }, status);
+}
+
+class FreshMarketplaceRequestError extends Error {
+  constructor(
+    readonly status: 400 | 413,
+    readonly code: "INVALID_JSON" | "REQUEST_TOO_LARGE",
+    message: string,
+  ) {
+    super(message);
+    this.name = "FreshMarketplaceRequestError";
+  }
+}
+
+async function boundedJson(request: Request): Promise<unknown> {
+  const declaredLength = Number(request.headers.get("Content-Length") ?? "0");
+  if (Number.isFinite(declaredLength) && declaredLength > 4_096) {
+    throw new FreshMarketplaceRequestError(
+      413,
+      "REQUEST_TOO_LARGE",
+      "Fresh marketplace request exceeds 4096 bytes",
+    );
+  }
+  const text = await request.text();
+  if (new TextEncoder().encode(text).byteLength > 4_096) {
+    throw new FreshMarketplaceRequestError(
+      413,
+      "REQUEST_TOO_LARGE",
+      "Fresh marketplace request exceeds 4096 bytes",
+    );
+  }
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    throw new FreshMarketplaceRequestError(
+      400,
+      "INVALID_JSON",
+      "Fresh marketplace request body must be valid JSON",
+    );
+  }
+}
+
+function freshStore(env: Env): FreshMarketplaceStore {
+  if (!env.DB) throw new Error("Fresh marketplace persistence is unavailable");
+  return new FreshMarketplaceStore(env.DB);
+}
+
+async function createFreshMarketplaceHire(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "POST") return apiError(405, "METHOD_NOT_ALLOWED", ["Use POST."]);
+  const parsed = FreshMarketplaceHireRequestSchema.parse(await boundedJson(request));
+  const task = FRESH_MARKETPLACE_TASKS[parsed.benchmarkSlug];
+  const provider = getProviderBySlug(parsed.providerSlug);
+  if (!provider || provider.service !== task.service || provider.requestSchema !== task.requestSchema) {
+    return apiError(409, "FROZEN_PROVIDER_BINDING_MISMATCH", [
+      "The selected provider is not bound to this frozen benchmark task.",
+    ]);
+  }
+  const persistedRequest = {
+    schemaVersion: "positioncrew.fresh-marketplace-provider-request.v1",
+    benchmarkSlug: parsed.benchmarkSlug,
+    providerSlug: parsed.providerSlug,
+    providerId: provider.providerId,
+    requestSchema: task.requestSchema,
+    evidenceMode: "HISTORICAL_FIXTURE",
+    directCostUsd: "0.00",
+    walletRequired: false,
+  };
+  const requestJson = canonicalJson(persistedRequest);
+  const result = await freshStore(env).createHire({
+    request: parsed,
+    providerId: provider.providerId,
+    hireId: crypto.randomUUID(),
+    jobId: crypto.randomUUID(),
+    createdAt: new Date().toISOString(),
+    requestJson,
+    requestHash: await sha256Commitment(persistedRequest),
+  });
+  return json(result.chain, result.replayed ? 200 : 201);
+}
+
+async function finishFreshMarketplaceJob(
+  env: Env,
+  hireId: string,
+  jobId: string,
+  claimToken: string,
+  benchmarkSlug: keyof typeof FRESH_MARKETPLACE_TASKS,
+  startedAtPerformance: number,
+): Promise<void> {
+  const store = freshStore(env);
+  try {
+    const task = FRESH_MARKETPLACE_TASKS[benchmarkSlug];
+    const response = await runFrozenFixture(task.service);
+    if (
+      response.result.request.service !== task.service ||
+      response.result.job.state !== "COMPLETED" ||
+      response.result.job.deliverable === null
+    ) {
+      throw new Error("Frozen provider response was not a completed result for the persisted service");
+    }
+    const deliverable = response.result.job.deliverable;
+    const responseJson = canonicalJson(response);
+    await store.completeJob({
+      hireId,
+      jobId,
+      claimToken,
+      receiptId: crypto.randomUUID(),
+      responseJson,
+      responseHash: await sha256Commitment(response),
+      deliverableHash: deliverable.deliverableHash,
+      evaluationHash: response.result.evaluation.evaluationHash,
+      completedAt: new Date().toISOString(),
+      apiDurationMilliseconds: Math.max(1, Math.round(performance.now() - startedAtPerformance)),
+    });
+  } catch (error) {
+    await store.failJob(
+      hireId,
+      jobId,
+      claimToken,
+      new Date().toISOString(),
+      Math.max(1, Math.round(performance.now() - startedAtPerformance)),
+      "PROVIDER_EXECUTION_FAILED",
+      error instanceof Error ? error.message.slice(0, 500) : "Unknown provider failure",
+    );
+  }
+}
+
+async function runFreshMarketplaceHire(
+  request: Request,
+  env: Env,
+  context: WorkerExecutionContext,
+  hireId: string,
+): Promise<Response> {
+  if (request.method !== "POST") return apiError(405, "METHOD_NOT_ALLOWED", ["Use POST."]);
+  const startedAtPerformance = performance.now();
+  const store = freshStore(env);
+  const claimed = await store.claimJob(hireId, new Date().toISOString());
+  if (!claimed.chain) return apiError(404, "HIRE_NOT_FOUND", ["Unknown persisted hire ID."]);
+  if (!claimed.claimed) return json(claimed.chain, claimed.chain.job.state === "RUNNING" ? 202 : 200);
+  if (!claimed.claimToken) throw new Error("Claimed fresh marketplace job did not return a claim token");
+  context.waitUntil(finishFreshMarketplaceJob(
+    env,
+    hireId,
+    claimed.chain.job.jobId,
+    claimed.claimToken,
+    claimed.chain.hire.benchmarkSlug,
+    startedAtPerformance,
+  ));
+  return json(claimed.chain, 202);
+}
+
+async function getFreshMarketplaceHire(request: Request, env: Env, hireId: string): Promise<Response> {
+  if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+  const chain = await freshStore(env).getHire(hireId);
+  return chain ? json(chain) : apiError(404, "HIRE_NOT_FOUND", ["Unknown persisted hire ID."]);
+}
+
+async function getFreshMarketplaceReceipt(
+  request: Request,
+  env: Env,
+  receiptId: string,
+): Promise<Response> {
+  if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+  const chain = await freshStore(env).getReceipt(receiptId);
+  return chain
+    ? json(chain, 200, "public, max-age=3600, s-maxage=86400, immutable")
+    : apiError(404, "RECEIPT_NOT_FOUND", ["Unknown persisted receipt ID."]);
 }
 
 async function jobs(request: Request, url: URL): Promise<Response> {
@@ -315,7 +499,12 @@ async function rescue(request: Request): Promise<Response> {
   return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET or POST."]);
 }
 
-async function api(request: Request, url: URL): Promise<Response> {
+async function api(
+  request: Request,
+  url: URL,
+  env: Env,
+  context: WorkerExecutionContext,
+): Promise<Response> {
   if (request.method === "OPTIONS") return new Response(null, { status: 204, headers: API_HEADERS });
 
   try {
@@ -347,6 +536,27 @@ async function api(request: Request, url: URL): Promise<Response> {
       );
     }
 
+    if (url.pathname === "/api/benchmark-hires") {
+      return await createFreshMarketplaceHire(request, env);
+    }
+
+    const freshHireJobRoute = url.pathname.match(
+      /^\/api\/benchmark-hires\/([0-9a-f-]{36})\/jobs$/,
+    );
+    if (freshHireJobRoute) {
+      return runFreshMarketplaceHire(request, env, context, freshHireJobRoute[1]!);
+    }
+
+    const freshHireRoute = url.pathname.match(/^\/api\/benchmark-hires\/([0-9a-f-]{36})$/);
+    if (freshHireRoute) return getFreshMarketplaceHire(request, env, freshHireRoute[1]!);
+
+    const freshReceiptRoute = url.pathname.match(
+      /^\/api\/benchmark-receipts\/([0-9a-f-]{36})$/,
+    );
+    if (freshReceiptRoute) {
+      return getFreshMarketplaceReceipt(request, env, freshReceiptRoute[1]!);
+    }
+
     if (url.pathname === "/api/status") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return json(
@@ -359,6 +569,24 @@ async function api(request: Request, url: URL): Promise<Response> {
     if (url.pathname === "/api/operations/production") {
       if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
       return productionTrackRecord();
+    }
+
+    if (url.pathname === "/api/benchmarks/status") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        agentAdvantagePublicationStatus,
+        200,
+        "public, max-age=0, s-maxage=300",
+      );
+    }
+
+    if (url.pathname === "/api/benchmarks/founder-comparison/status") {
+      if (request.method !== "GET") return apiError(405, "METHOD_NOT_ALLOWED", ["Use GET."]);
+      return json(
+        founderAgentAdvantagePublicationStatus,
+        200,
+        "public, max-age=0, s-maxage=300",
+      );
     }
 
     if (url.pathname === "/api/benchmarks/repeatability") {
@@ -520,6 +748,15 @@ async function api(request: Request, url: URL): Promise<Response> {
     if (url.pathname === "/api/rescue") return rescue(request);
     return apiError(404, "NOT_FOUND", ["Unknown PositionCrew API route."]);
   } catch (error) {
+    if (isFreshMarketplaceCapacityExceeded(error)) {
+      return apiError(429, "HIRE_CAPACITY_EXCEEDED", [error.message]);
+    }
+    if (error instanceof FreshMarketplaceRequestError) {
+      return apiError(error.status, error.code, [error.message]);
+    }
+    if (isFreshMarketplaceIdempotencyConflict(error)) {
+      return apiError(409, "IDEMPOTENCY_CONFLICT", [error.message]);
+    }
     if (error instanceof ZodError) {
       return apiError(
         422,
@@ -542,14 +779,14 @@ function withSecurityHeaders(response: Response): Response {
 }
 
 export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
+  async fetch(request: Request, env: Env, context: WorkerExecutionContext): Promise<Response> {
     const url = new URL(request.url);
     if (
       url.pathname.startsWith("/api/") ||
       url.pathname === "/openapi.json" ||
       url.pathname === "/.well-known/positioncrew.json"
     ) {
-      return api(request, url);
+      return api(request, url, env, context);
     }
 
     const appView = new Map([

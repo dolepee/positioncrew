@@ -294,6 +294,47 @@ export interface SessionJob {
   response: FixtureJobResponse;
   responseTimeMs: number;
   ranAt: string;
+  marketplaceTrace?: FreshMarketplaceChain;
+}
+
+export type FreshMarketplaceBenchmarkSlug = "lending-rescue" | "lp-rebalance" | "bounded-grid";
+export type FreshMarketplaceStatus = "HIRE_RECORDED" | "RUNNING" | "COMPLETED" | "FAILED";
+
+export interface FreshMarketplaceChain {
+  schemaVersion: "positioncrew.fresh-marketplace-chain.v1";
+  claimBoundary: [string, string, string, string];
+  hire: {
+    hireId: string;
+    idempotencyKey: string;
+    providerSlug: "lending-rescue" | "lp-rebalance" | "bounded-grid";
+    providerId: string;
+    benchmarkSlug: FreshMarketplaceBenchmarkSlug;
+    service: "LENDING_RESCUE" | "LP_REBALANCE" | "BOUNDED_GRID";
+    evidenceMode: "HISTORICAL_FIXTURE";
+    commerce: { directCostUsd: "0.00"; walletRequired: false; settlement: "NO_PAYMENT" };
+    request: Record<string, unknown>;
+    requestHash: string;
+    createdAt: string;
+  };
+  job: {
+    jobId: string;
+    state: "CREATED" | "RUNNING" | "COMPLETED" | "FAILED";
+    status: FreshMarketplaceStatus;
+    createdAt: string;
+    startedAt: string | null;
+    completedAt: string | null;
+    apiDurationMilliseconds: number | null;
+    error: { code: string; message: string } | null;
+  };
+  receipt: {
+    receiptId: string;
+    publicUrl: string;
+    responseHash: string;
+    deliverableHash: string;
+    evaluationHash: string;
+    createdAt: string;
+    response: FixtureJobResponse;
+  } | null;
 }
 
 export interface ChainProbe {
@@ -554,6 +595,81 @@ export type AgentAdvantagePublicationStatus =
       agentBlindQualityScore: number;
       boundary: string;
     };
+
+export type FounderAgentAdvantagePublicationStatus =
+  | {
+      schemaVersion: "positioncrew.founder-agent-advantage-publication.v1";
+      status: "PENDING_FOUNDER_COMPARISON";
+      reportUrl: null;
+      reportHash: null;
+      evidenceManifestHash: null;
+      publishedAt: null;
+      taskCount: 3;
+      exactOutputParityCount: null;
+      recordedSpeedAdvantageCount: null;
+      qualityMethod: "CANONICAL_EXACT_OUTPUT_PARITY";
+      qualityScore: null;
+      independent: false;
+      blind: false;
+      boundary: string;
+    }
+  | {
+      schemaVersion: "positioncrew.founder-agent-advantage-publication.v1";
+      status: "PUBLISHED";
+      reportUrl: "/evidence/agent-advantage-founder/";
+      reportHash: string;
+      evidenceManifestHash: string;
+      publishedAt: string;
+      taskCount: 3;
+      exactOutputParityCount: number;
+      recordedSpeedAdvantageCount: number;
+      qualityMethod: "CANONICAL_EXACT_OUTPUT_PARITY";
+      qualityScore: null;
+      independent: false;
+      blind: false;
+      boundary: string;
+    };
+
+export type PublicationLoadState = "LOADING" | "AVAILABLE" | "UNAVAILABLE";
+
+const SHA256_COMMITMENT = /^sha256:[a-f0-9]{64}$/;
+
+export function isVerifiedFounderAgentAdvantagePublication(
+  value: unknown,
+): value is Extract<FounderAgentAdvantagePublicationStatus, { status: "PUBLISHED" }> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const record = value as Record<string, unknown>;
+  const publishedAt = record.publishedAt;
+  const boundary = typeof record.boundary === "string" ? record.boundary.toLowerCase() : "";
+  return (
+    record.schemaVersion === "positioncrew.founder-agent-advantage-publication.v1" &&
+    record.status === "PUBLISHED" &&
+    record.reportUrl === "/evidence/agent-advantage-founder/" &&
+    typeof record.reportHash === "string" &&
+    SHA256_COMMITMENT.test(record.reportHash) &&
+    typeof record.evidenceManifestHash === "string" &&
+    SHA256_COMMITMENT.test(record.evidenceManifestHash) &&
+    typeof publishedAt === "string" &&
+    !Number.isNaN(Date.parse(publishedAt)) &&
+    new Date(publishedAt).toISOString() === publishedAt &&
+    record.taskCount === 3 &&
+    record.exactOutputParityCount === 3 &&
+    record.recordedSpeedAdvantageCount === 3 &&
+    record.qualityMethod === "CANONICAL_EXACT_OUTPUT_PARITY" &&
+    record.qualityScore === null &&
+    record.independent === false &&
+    record.blind === false &&
+    boundary.includes("founder-operated") &&
+    boundary.includes("non-independent") &&
+    boundary.includes("non-blind") &&
+    boundary.includes("e3_server_persisted") &&
+    boundary.includes("server-persisted") &&
+    boundary.includes("historical-fixture") &&
+    boundary.includes("no-wallet") &&
+    boundary.includes("does not establish paid commerce") &&
+    boundary.includes("external")
+  );
+}
 
 export interface BenchmarkRepeatabilityResponse {
   schemaVersion: "positioncrew.benchmark-repeatability.v1";

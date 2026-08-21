@@ -1,0 +1,33 @@
+{
+  "schemaVersion": "positioncrew.fresh-marketplace-protocol.v1",
+  "frozenAt": "2026-08-20T00:00:00.000Z",
+  "journey": "FOUNDER_PUBLIC_WORKSPACE_COMPARISON",
+  "commerce": {
+    "directCostUsd": "0.00",
+    "walletRequired": false,
+    "settlement": "NO_PAYMENT"
+  },
+  "evidenceMode": "HISTORICAL_FIXTURE",
+  "tasks": [
+    {
+      "benchmarkSlug": "lending-rescue",
+      "providerSlug": "lending-rescue",
+      "service": "LENDING_RESCUE",
+      "requestSchema": "positioncrew.lending-rescue.request.v1"
+    },
+    {
+      "benchmarkSlug": "lp-rebalance",
+      "providerSlug": "lp-rebalance",
+      "service": "LP_REBALANCE",
+      "requestSchema": "positioncrew.lp-rebalance.request.v1"
+    },
+    {
+      "benchmarkSlug": "bounded-grid",
+      "providerSlug": "bounded-grid",
+      "service": "BOUNDED_GRID",
+      "requestSchema": "positioncrew.bounded-grid.request.v1"
+    }
+  ],
+  "stateMachine": ["HIRE_RECORDED", "RUNNING", "COMPLETED", "FAILED"],
+  "boundary": "Server-persisted PositionCrew public-workspace request and result trace for a $0 no-wallet historical fixture. It is not evidence of payment, an external buyer, third-party protocol execution, onchain immutability, or live financial advice."
+}

@@ -1,11 +1,13 @@
 import { randomBytes, randomInt } from "node:crypto";
 import {
+  lstatSync,
   mkdirSync,
   readFileSync,
+  realpathSync,
   readdirSync,
   writeFileSync,
 } from "node:fs";
-import { basename, join, resolve } from "node:path";
+import { basename, join, resolve, sep } from "node:path";
 import { performance } from "node:perf_hooks";
 import { z } from "zod";
 import { runFrozenFixture } from "../api/fixture-jobs.js";
@@ -388,6 +390,63 @@ function loadCandidates(directory: string, session: BenchmarkSession): Benchmark
     .filter((name) => name.endsWith(".json"))
     .sort()
     .map((name) => validateCandidateRecord(readJson(join(candidateDirectory(directory), name)), session));
+}
+
+export interface FounderComparisonEvidence {
+  directory: string;
+  session: BenchmarkSession;
+  manual: BenchmarkCandidateRecord;
+  agents: [BenchmarkCandidateRecord, BenchmarkCandidateRecord];
+}
+
+export function loadFounderComparisonEvidence(
+  directoryInput: string,
+  options: { projectRoot?: string } = {},
+): FounderComparisonEvidence {
+  const directory = resolve(directoryInput);
+  const directoryStat = lstatSync(directory);
+  if (directoryStat.isSymbolicLink() || !directoryStat.isDirectory()) {
+    throw new Error("Founder benchmark session must be a real directory");
+  }
+  const realDirectory = realpathSync(directory);
+  for (const path of [
+    sessionFile(directory),
+    ...readdirSync(candidateDirectory(directory))
+      .filter((name) => name.endsWith(".json"))
+      .map((name) => join(candidateDirectory(directory), name)),
+  ]) {
+    const stat = lstatSync(path);
+    if (stat.isSymbolicLink() || !stat.isFile()) {
+      throw new Error(`Founder benchmark evidence must be a regular file: ${path}`);
+    }
+    const realPath = realpathSync(path);
+    if (!realPath.startsWith(`${realDirectory}${sep}`)) {
+      throw new Error(`Founder benchmark evidence escapes its session directory: ${path}`);
+    }
+  }
+  const session = loadSession(directory);
+  const projectRoot = resolve(options.projectRoot ?? process.cwd());
+  const assets = loadBenchmarkAssets(session.benchmarkSlug, projectRoot);
+  validateSessionAssets(session, assets);
+  const candidates = loadCandidates(directory, session);
+  const manuals = candidates.filter((candidate) => candidate.source.type === "MANUAL");
+  const agents = candidates
+    .filter((candidate) => candidate.source.type === "AGENT")
+    .sort((left, right) => left.runNumber - right.runNumber);
+  const [manual] = manuals;
+  const [firstAgent, secondAgent] = agents;
+
+  if (!manual || manuals.length !== 1) {
+    throw new Error("Founder comparison requires exactly one immutable manual candidate");
+  }
+  if (!firstAgent || !secondAgent || agents.length !== 2) {
+    throw new Error("Founder comparison requires exactly two immutable agent candidates");
+  }
+  if (manual.runNumber !== 1 || firstAgent.runNumber !== 1 || secondAgent.runNumber !== 2) {
+    throw new Error("Founder comparison candidate run numbers must be manual 1 and agent 1/2");
+  }
+
+  return { directory, session, manual, agents: [firstAgent, secondAgent] };
 }
 
 function generatedSessionId(slug: TermixBenchmarkSlug, now: Date): string {

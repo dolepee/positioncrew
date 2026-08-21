@@ -17,6 +17,8 @@ import type {
   AacpProductionReadiness,
   AgentCaptureManifestResponse,
   AgentAdvantagePublicationStatus,
+  FounderAgentAdvantagePublicationStatus,
+  PublicationLoadState,
   BenchmarkRepeatabilityResponse,
   FixtureJobResponse,
   Erc8183TestnetLedger,
@@ -27,6 +29,7 @@ import type {
   SystemTelemetry,
   TermixBenchmarkService,
 } from "../types";
+import { isVerifiedFounderAgentAdvantagePublication } from "../types";
 
 export function EvidenceView({
   providers,
@@ -38,6 +41,9 @@ export function EvidenceView({
   commerceLedger,
   aacpReadiness,
   advantagePublication,
+  founderAdvantagePublication,
+  advantagePublicationLoadState,
+  founderAdvantagePublicationLoadState,
   productionTrackRecord,
 }: {
   providers: ProviderListing[];
@@ -49,11 +55,26 @@ export function EvidenceView({
   commerceLedger: Erc8183TestnetLedger | null;
   aacpReadiness: AacpProductionReadiness | null;
   advantagePublication: AgentAdvantagePublicationStatus | null;
+  founderAdvantagePublication: FounderAgentAdvantagePublicationStatus | null;
+  advantagePublicationLoadState: PublicationLoadState;
+  founderAdvantagePublicationLoadState: PublicationLoadState;
   productionTrackRecord: ProductionTrackRecord | null;
 }) {
   const publishedAdvantage = advantagePublication?.status === "PUBLISHED"
     ? advantagePublication
     : null;
+  const publishedFounderAdvantage = isVerifiedFounderAgentAdvantagePublication(
+    founderAdvantagePublication,
+  )
+    ? founderAdvantagePublication
+    : null;
+  const strictPublicationLabel = advantagePublicationLoadState === "LOADING"
+    ? "Loading"
+    : advantagePublicationLoadState === "UNAVAILABLE"
+      ? "Unavailable"
+      : publishedAdvantage
+        ? "Published"
+        : "In progress";
   const deliveryByService = new Map(
     (marketplaceProvenance?.summaries ?? []).map((summary) => [summary.service, summary]),
   );
@@ -71,12 +92,14 @@ export function EvidenceView({
       record,
       delivery,
       lock,
-      status: delivery?.successCount === 2 ? "DELIVERED" : record ? "REPEATABLE" : lock ? "LOCKED" : "PENDING",
+      status: delivery?.successCount === 2 ? "OBSERVED" : record ? "REPEATABLE" : lock ? "LOCKED" : "PENDING",
       tone: delivery?.successCount === 2 || record ? "captured" : lock ? "locked" : "planned",
-      detail: delivery?.successCount === 2
-        ? `2/2 public marketplace jobs · ${delivery.medianElapsedMilliseconds} ms median; manual baseline pending`
+      detail: publishedFounderAdvantage
+        ? `${publishedFounderAdvantage.exactOutputParityCount}/3 exact canonical output pairs across the founder report`
+        : delivery?.successCount === 2
+        ? `2/2 controlled Provider endpoint observations · ${delivery.medianElapsedMilliseconds} ms median`
         : record
-          ? `${record.runs.length} reproducible provider runs; manual baseline pending`
+          ? `${record.runs.length} reproducible provider runs; founder comparison not published`
         : lock
           ? "Fixture, rubric, and blind protocol committed"
           : "Benchmark lock pending",
@@ -149,7 +172,7 @@ export function EvidenceView({
           <span><Coins size={16} /><strong>{commerceLedger?.summary.fundedCompletedJobs ?? "-"}</strong> funded test jobs</span>
           <span><Radio size={16} /><strong>{aacpReadiness?.marketplace.publishedListingCount ?? committedListingCount}/4</strong> AACP listings</span>
           <span><LockKeyhole size={16} /><strong>{lockedCount}/3</strong> benchmarks locked</span>
-          <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> marketplace deliveries</span>
+          <span><FileCheck2 size={16} /><strong>{marketplaceProvenance?.aggregate.successCount ?? "-"}/6</strong> retained endpoint observations</span>
           <span><BadgeCheck size={16} /><strong>1</strong> merged upstream fix</span>
         </div>
       </div>
@@ -242,13 +265,13 @@ export function EvidenceView({
 
       <section className="evidence-section delivery-evidence-section" aria-labelledby="delivery-title">
         <div className="section-bar">
-          <div><span className="section-kicker">TermiX delivery proof</span><h2 id="delivery-title">Hired through the public marketplace</h2></div>
-          <span className={`state-label ${marketplaceProvenance?.aggregate.allAttemptsSucceeded ? "good" : "neutral"}`}><FileCheck2 size={13} /> {marketplaceProvenance ? `${marketplaceProvenance.aggregate.successCount}/6 retained` : "Loading"}</span>
+          <div><span className="section-kicker">Controlled delivery proof</span><h2 id="delivery-title">Delivered through public Provider endpoints</h2></div>
+          <span className="state-label warn"><FileCheck2 size={13} /> {marketplaceProvenance ? `PARTIAL E2 · ${marketplaceProvenance.aggregate.successCount}/6 retained` : "Loading"}</span>
         </div>
         {marketplaceProvenance ? (
           <>
             <div className="delivery-facts">
-              <div><strong>{marketplaceProvenance.aggregate.successCount}/6</strong><span>public Provider jobs</span><small>Two sequential calls per flagship task</small></div>
+              <div><strong>{marketplaceProvenance.aggregate.successCount}/6</strong><span>controlled endpoint observations</span><small>Two sequential calls per frozen task; not hires</small></div>
               <div><strong>0</strong><span>retries or replacements</span><small>Every planned attempt remains in sequence</small></div>
               <div><strong>3/3</strong><span>exact output pairs</span><small>Matched precommitted output and evaluation hashes</small></div>
               <div><strong>$0</strong><span>judge-trial cost</span><small>No wallet · in-memory conformance rail</small></div>
@@ -262,7 +285,7 @@ export function EvidenceView({
                 return (
                   <div key={definition.service}>
                     <span><strong>{definition.task}</strong><small>{definition.category}</small></span>
-                    <span><strong>{summary?.successCount ?? 0}/2</strong><small>completed</small></span>
+                    <span><strong>{summary?.successCount ?? 0}/2</strong><small>retained observations</small></span>
                     <span><strong>{summary?.medianElapsedMilliseconds ?? "-"} ms</strong><small>end-to-end median</small></span>
                     <span><code>{shortHash(outputHash, 16)}</code><small>output commitment</small></span>
                     {receiptUrl ? <a href={receiptUrl} target="_blank" rel="noreferrer">Receipt <ExternalLink size={12} /></a> : <span>-</span>}
@@ -272,8 +295,12 @@ export function EvidenceView({
             </div>
             <div className="operations-boundary">
               <ShieldCheck size={16} aria-hidden="true" />
-              <span><strong>Precommitted delivery overlay.</strong>The protocol was public before these six calls. It proves the exact frozen agent outputs were returned through PositionCrew&apos;s production Provider endpoints; it does not claim paid AACP settlement or live investment performance.</span>
+              <span><strong>Precommitted controlled-delivery overlay.</strong>The protocol was public before these six calls. It proves the exact frozen agent outputs were returned through PositionCrew&apos;s public Provider endpoints; it does not prove a marketplace hire, payment, external buyer, demand, settlement, or investment performance.</span>
               <span className="delivery-links"><a href="/api/benchmarks/marketplace-provenance" target="_blank" rel="noreferrer">Raw record <ExternalLink size={12} /></a><a href={marketplaceProvenance.source.protocolUrl} target="_blank" rel="noreferrer">Protocol <ExternalLink size={12} /></a></span>
+            </div>
+            <div className="claim-warning">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span><strong>PARTIAL E2 observation only.</strong>Lending and LP are locked historical fixture replays. The grid request surface showed Interactive mode with a fresh block, while its returned result remained labelled historical and matched the old frozen output hash. That unresolved mode contradiction prevents a fresh-execution or marketplace-hire claim.</span>
             </div>
           </>
         ) : <div className="infrastructure-loading">The immutable marketplace delivery record is loading.</div>}
@@ -393,8 +420,8 @@ export function EvidenceView({
       <div className="evidence-columns">
         <section className="evidence-section benchmark-section" aria-labelledby="advantage-title">
           <div className="section-bar">
-            <div><span className="section-kicker">TermiX evidence</span><h2 id="advantage-title">Agent Advantage programme</h2></div>
-            <span className={`state-label ${publishedAdvantage ? "good" : "warn"}`}>{publishedAdvantage ? <Check size={13} /> : <Clock3 size={13} />} {publishedAdvantage ? "Published" : "In progress"}</span>
+            <div><span className="section-kicker">TermiX evidence</span><h2 id="advantage-title">Independent/blind Agent Advantage programme</h2></div>
+            <span className={`state-label ${publishedAdvantage ? "good" : advantagePublicationLoadState === "LOADING" ? "neutral" : "warn"}`}>{publishedAdvantage ? <Check size={13} /> : <Clock3 size={13} />} {strictPublicationLabel}</span>
           </div>
           <div className="benchmark-table">
             {benchmarkRows.map((row) => (
@@ -411,8 +438,34 @@ export function EvidenceView({
             <div><strong>{publishedAdvantage ? 3 : 0}</strong><span>blind scorecards</span><small>{publishedAdvantage ? `${publishedAdvantage.agentBlindQualityScore}/300 agent quality · independently scored` : "manual baseline and evaluator pending"}</small></div>
           </div>
           <a className="benchmark-data-link" href="/api/benchmarks/captures" target="_blank" rel="noreferrer">Open source-bound capture manifest <ExternalLink size={13} /></a>
-          <a className="benchmark-data-link" href="/api/benchmarks/marketplace-provenance" target="_blank" rel="noreferrer">Open public marketplace delivery record <ExternalLink size={13} /></a>
+          <a className="benchmark-data-link" href="/api/benchmarks/marketplace-provenance" target="_blank" rel="noreferrer">Open controlled endpoint observation record <ExternalLink size={13} /></a>
           {publishedAdvantage && <a className="benchmark-data-link" href={publishedAdvantage.reportUrl} target="_blank" rel="noreferrer">Open independently scored report <ExternalLink size={13} /></a>}
+          {publishedFounderAdvantage ? (
+            <div className="claim-warning published">
+              <BadgeCheck size={16} aria-hidden="true" />
+                  <span><strong>Founder-operated comparison published.</strong>{publishedFounderAdvantage.exactOutputParityCount}/3 tasks record exact canonical output parity and {publishedFounderAdvantage.recordedSpeedAdvantageCount}/3 record lower agent time. The selected arms are qualified <code>E3_SERVER_PERSISTED</code> fresh PositionCrew server-persisted $0.00, no-wallet historical-fixture hires with unique D1 records and public receipts. This does not establish paid commerce or an external buyer. Quality score: not assigned (<code>null</code>); the comparison is non-independent and non-blind. <a href={publishedFounderAdvantage.reportUrl} target="_blank" rel="noreferrer">Inspect the bounded report.</a></span>
+            </div>
+          ) : founderAdvantagePublicationLoadState === "LOADING" ? (
+            <div className="claim-warning">
+              <Clock3 size={16} aria-hidden="true" />
+              <span><strong>Founder comparison status loading.</strong>No result or report link is inferred while the publication record is loading.</span>
+            </div>
+          ) : founderAdvantagePublicationLoadState === "UNAVAILABLE" ? (
+            <div className="claim-warning">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span><strong>Founder comparison status unavailable.</strong>The tracked record could not be loaded, so no founder result or report link is enabled.</span>
+            </div>
+          ) : founderAdvantagePublication?.status === "PUBLISHED" ? (
+            <div className="claim-warning">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span><strong>Founder publication record rejected.</strong>One or more report, commitment, method, parity, timing, or claim-boundary invariants failed. No result or link is enabled.</span>
+            </div>
+          ) : (
+            <div className="claim-warning">
+              <Clock3 size={16} aria-hidden="true" />
+              <span><strong>Founder comparison not published.</strong>No founder-operated result is inferred from candidate or delivery records alone.</span>
+            </div>
+          )}
         </section>
 
         <section className="evidence-section lock-section" aria-labelledby="lock-title">
@@ -441,10 +494,20 @@ export function EvidenceView({
               <BadgeCheck size={16} aria-hidden="true" />
               <span><strong>Independent result published.</strong>{publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the pre-registered advantage rule. <a href={publishedAdvantage.reportUrl} target="_blank" rel="noreferrer">Inspect report and evidence.</a></span>
             </div>
+          ) : advantagePublicationLoadState === "UNAVAILABLE" ? (
+            <div className="claim-warning">
+              <AlertTriangle size={16} aria-hidden="true" />
+              <span><strong>Independent/blind status unavailable.</strong>No independent result is inferred while its tracked publication record is unavailable.</span>
+            </div>
+          ) : advantagePublicationLoadState === "LOADING" ? (
+            <div className="claim-warning">
+              <Clock3 size={16} aria-hidden="true" />
+              <span><strong>Independent/blind status loading.</strong>No independent result is inferred while its publication record loads.</span>
+            </div>
           ) : (
             <div className="claim-warning">
               <AlertTriangle size={16} aria-hidden="true" />
-              <span><strong>No advantage result is claimed.</strong>The locks and repeats prove pre-registration and deterministic conformance; manual runs and independent scoring remain pending.</span>
+              <span><strong>No independent/blind result is claimed.</strong>The separate founder-operated comparison does not satisfy this programme; independent scoring remains pending.</span>
             </div>
           )}
         </section>
@@ -452,9 +515,9 @@ export function EvidenceView({
 
       <section className="claim-register" aria-label="Claim boundaries">
         <div><BadgeCheck size={17} /><span><strong>Provider identity</strong>Four separate ERC-8004 records bind the first-party providers to their production endpoints.</span></div>
-        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four receipts reproduce, and six precommitted no-retry jobs delivered the flagship outputs through the public marketplace.</span></div>
+        <div><ShieldCheck size={17} /><span><strong>Conformance</strong>Four receipts reproduce, and six precommitted no-retry endpoint observations returned frozen outputs. This is partial E2 evidence, not marketplace hiring or fresh execution.</span></div>
         <div><Coins size={17} /><span><strong>Settlement</strong>Six disclosed operator-controlled ERC-8183 testnet escrows completed. TermiX production contracts are independently verified; provider onboarding is visible and no paid AACP order is claimed.</span></div>
-        <div>{publishedAdvantage ? <BadgeCheck size={17} /> : <Clock3 size={17} />}<span><strong>Track record</strong>{publishedAdvantage ? `${publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the independently scored advantage rule; scope remains limited to the published report.` : "Three tasks are pre-registered; blind agent-versus-manual results have not been completed or published."}</span></div>
+        <div>{publishedAdvantage || publishedFounderAdvantage ? <BadgeCheck size={17} /> : <Clock3 size={17} />}<span><strong>Track record</strong>{publishedAdvantage ? `${publishedAdvantage.supportedAdvantageCount}/3 frozen tasks support the independently scored advantage rule; scope remains limited to the published report.` : publishedFounderAdvantage ? `${publishedFounderAdvantage.exactOutputParityCount}/3 frozen tasks have founder-operated exact hash parity with no quality score. The comparison is non-independent and non-blind.` : "Three tasks are pre-registered; neither a founder comparison nor blind independent result has been published."}</span></div>
       </section>
     </main>
   );
