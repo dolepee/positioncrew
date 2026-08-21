@@ -6,6 +6,7 @@ import {
   pancakeActiveLiquidityUsd,
   poolPriceFromSqrtPriceX96,
   realizedVolatilityBpsFromTickCumulatives,
+  rpcFallbacks,
   v3PositionTokenAmounts,
   venusLiquidityTotalsFixed,
   venusUsdValueFixed,
@@ -75,6 +76,25 @@ describe("BSC telemetry math", () => {
       data: "0x08c379a0",
     })).toBe(false);
     expect(isRetryableRpcFailure({ code: 3, message: "execution reverted: policy failed" })).toBe(false);
+  });
+
+  it("uses three distinct mainnet transports in a deterministic failover order", () => {
+    const publicBnbRpc = "https://bsc-dataseed-public.bnbchain.org";
+    const publicNodeRpc = "https://bsc-rpc.publicnode.com";
+    const legacyBnbRpc = "https://bsc-dataseed.bnbchain.org";
+
+    expect(rpcFallbacks(publicBnbRpc)).toEqual([
+      publicBnbRpc,
+      publicNodeRpc,
+      legacyBnbRpc,
+    ]);
+    expect(rpcFallbacks(publicNodeRpc)).toEqual([
+      publicNodeRpc,
+      publicBnbRpc,
+      legacyBnbRpc,
+    ]);
+    expect(new Set(rpcFallbacks(publicBnbRpc)).size).toBe(3);
+    expect(rpcFallbacks("https://example.invalid")).toEqual(["https://example.invalid"]);
   });
 
   it("normalizes Venus oracle values into 18-decimal USD across token decimals", () => {

@@ -27,8 +27,9 @@ import {
 } from "../contracts/yield-optimization.js";
 import { FIXED_SCALE, formatFixed } from "../core/fixed.js";
 
-const MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
+const MAINNET_RPC = "https://bsc-dataseed-public.bnbchain.org";
 const LOG_RPC = "https://bsc-rpc.publicnode.com";
+const LEGACY_MAINNET_RPC = "https://bsc-dataseed.bnbchain.org";
 const TESTNET_RPC = "https://bsc-testnet-dataseed.bnbchain.org";
 const RPC_TRANSPORT_ATTEMPTS = 2;
 const RPC_RETRY_DELAY_MS = 150;
@@ -140,9 +141,12 @@ interface RpcLog {
   topics: Hex[];
 }
 
-function rpcFallbacks(primary: string): readonly string[] {
-  if (primary === MAINNET_RPC) return [MAINNET_RPC, LOG_RPC];
-  if (primary === LOG_RPC) return [LOG_RPC, MAINNET_RPC];
+export function rpcFallbacks(primary: string): readonly string[] {
+  if (primary === MAINNET_RPC) return [MAINNET_RPC, LOG_RPC, LEGACY_MAINNET_RPC];
+  if (primary === LOG_RPC) return [LOG_RPC, MAINNET_RPC, LEGACY_MAINNET_RPC];
+  if (primary === LEGACY_MAINNET_RPC) {
+    return [LEGACY_MAINNET_RPC, MAINNET_RPC, LOG_RPC];
+  }
   return [primary];
 }
 
