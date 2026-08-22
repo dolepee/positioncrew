@@ -71,6 +71,27 @@ describe("TermiX runtime-token renewal", () => {
     expect(() => readProtectedOwnerKey(ownerKeyFile)).toThrow("group or others");
   });
 
+  it("makes missing renewal prerequisites observable systemd failures", () => {
+    const unit = readFileSync(
+      new URL("../deploy/systemd/positioncrew-runtime-renew@.service", import.meta.url),
+      "utf8",
+    );
+    expect(unit).toContain(
+      "AssertFileNotEmpty=/etc/positioncrew-runtime/credentials/%i.owner-key",
+    );
+    expect(unit).toContain(
+      "AssertFileNotEmpty=/opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs",
+    );
+    expect(unit).not.toContain("ConditionFileNotEmpty=");
+    expect(unit).not.toContain("LoadCredential=");
+    expect(unit).toContain("test ! -L \"$p\"");
+    expect(unit).toContain("/usr/bin/stat -c %u");
+    expect(unit).toContain("-r--------|-rw-------");
+    expect(unit).toContain(
+      "TERMIX_A2A_OWNER_KEY_FILE=/etc/positioncrew-runtime/credentials/%i.owner-key",
+    );
+  });
+
   it("rotates near expiry, atomically installs, restarts once, and records application", async () => {
     const { config, tokenPath, expiryEnvironmentPath, statePath } = fixture();
     writeFileSync(tokenPath, jwt(Math.floor(NOW.getTime() / 1_000) + 60), { mode: 0o600 });

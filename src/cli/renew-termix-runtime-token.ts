@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { execFile } from "node:child_process";
-import { lstatSync, readFileSync } from "node:fs";
+import { closeSync, constants, fstatSync, openSync, readFileSync } from "node:fs";
 import { mkdir, open, readFile, rename } from "node:fs/promises";
 import { isAbsolute, dirname } from "node:path";
 import { promisify } from "node:util";
@@ -81,15 +81,24 @@ export function parseRenewalEnvironment(
 }
 
 export function readProtectedOwnerKey(path: string): Hex {
-  const stats = lstatSync(path);
-  if (!stats.isFile()) throw new Error("Owner-key credential must be a regular file");
-  if ((stats.mode & 0o077) !== 0) {
-    throw new Error("Owner-key credential must not be accessible by group or others");
+  const descriptor = openSync(path, constants.O_RDONLY | constants.O_NOFOLLOW);
+  try {
+    const stats = fstatSync(descriptor);
+    if (!stats.isFile()) throw new Error("Owner-key credential must be a regular file");
+    if ((stats.mode & 0o077) !== 0) {
+      throw new Error("Owner-key credential must not be accessible by group or others");
+    }
+    if (stats.size < 64 || stats.size > 68) {
+      throw new Error("Owner-key credential size is invalid");
+    }
+    const key = readFileSync(descriptor, "utf8").trim();
+    if (!/^0x[a-fA-F0-9]{64}$/.test(key)) {
+      throw new Error("Owner-key credential is malformed");
+    }
+    return key as Hex;
+  } finally {
+    closeSync(descriptor);
   }
-  if (stats.size < 64 || stats.size > 68) throw new Error("Owner-key credential size is invalid");
-  const key = readFileSync(path, "utf8").trim();
-  if (!/^0x[a-fA-F0-9]{64}$/.test(key)) throw new Error("Owner-key credential is malformed");
-  return key as Hex;
 }
 
 export function tokenFingerprint(token: string): string {
