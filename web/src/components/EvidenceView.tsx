@@ -226,7 +226,7 @@ export function EvidenceView({
           <div><strong>{aacpReadiness?.protocol.currencies.map((currency) => currency.symbol).join(" + ") || "-"}</strong><span>settlement currencies</span><small>{aacpReadiness?.protocol.protocolFeeBps == null ? "Live fee check pending" : `${aacpReadiness.protocol.protocolFeeBps / 100}% protocol fee`}</small></div>
           <div><strong>{aacpReadiness?.marketplace.registeredIdentityCount ?? committedIdentityCount}/4</strong><span>mainnet identities</span><small>Committed ERC-8004 mint receipts remain available during live-source delays</small></div>
           <div><strong>{aacpReadiness?.marketplace.publishedListingCount ?? committedListingCount}/4</strong><span>public listings</span><small>Committed Agent.family listing records remain directly inspectable</small></div>
-          <div><strong>{aacpReadiness ? (aacpReadiness.marketplace.dedicatedFlagship.status === "ONLINE_AND_LISTED" ? "ONLINE" : "OFFLINE") : "-"}</strong><span>dedicated flagship</span><small>{aacpReadiness ? `Original fleet ${aacpReadiness.marketplace.onlineProviderCount}/${aacpReadiness.marketplace.requiredProviderCount}; reported separately` : "Expiring A2A presence; reported separately from core health"}</small></div>
+          <div><strong>{aacpReadiness ? (aacpReadiness.marketplace.dedicatedFlagship.status === "ONLINE_AND_LISTED" ? "ONLINE" : aacpReadiness.marketplace.dedicatedFlagship.status === "LISTED_OFFLINE" ? "OFFLINE" : "UNAVAILABLE") : "-"}</strong><span>dedicated flagship</span><small>{aacpReadiness ? `Original fleet ${aacpReadiness.marketplace.onlineProviderCount}/${aacpReadiness.marketplace.requiredProviderCount}; reported separately` : "Expiring A2A presence; reported separately from core health"}</small></div>
         </div>
         {aacpReadiness ? (
           <>
@@ -235,7 +235,7 @@ export function EvidenceView({
                 <span>Dedicated Lending Rescue runtime</span>
                 <strong>{aacpReadiness.marketplace.dedicatedFlagship.handle}</strong>
                 <small>{`ERC-8004 #${aacpReadiness.marketplace.dedicatedFlagship.agentTokenId} · separate owner wallet`}</small>
-                <a className="aacp-identity-link" href={`https://bscscan.com/tx/${aacpReadiness.marketplace.dedicatedFlagship.registrationTransaction}`} target="_blank" rel="noreferrer">Mint receipt <ExternalLink size={11} /></a>
+                <a className="aacp-identity-link" href={aacpReadiness.marketplace.dedicatedFlagship.explorerUrl} target="_blank" rel="noreferrer">Mint receipt <ExternalLink size={11} /></a>
                 <a className="aacp-identity-link" href={aacpReadiness.marketplace.dedicatedFlagship.listingUrl} target="_blank" rel="noreferrer">Public listing <ExternalLink size={11} /></a>
                 <span className={`state-label ${aacpReadiness.marketplace.dedicatedFlagship.status === "ONLINE_AND_LISTED" ? "good" : aacpReadiness.marketplace.dedicatedFlagship.status.includes("UNAVAILABLE") ? "warn" : "neutral"}`}>{aacpProviderStatus(aacpReadiness.marketplace.dedicatedFlagship.status)}</span>
               </div>

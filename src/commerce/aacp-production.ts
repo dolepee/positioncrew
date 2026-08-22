@@ -633,8 +633,18 @@ async function probeContracts(
   ) {
     throw new Error("Recorded identity registry does not match the live TermiX config");
   }
+  if (
+    AACP_DEDICATED_LENDING_EVIDENCE.identityRegistry.toLowerCase() !==
+    config.contracts.identityRegistry.address.toLowerCase()
+  ) {
+    throw new Error("Dedicated flagship identity registry does not match the live TermiX config");
+  }
   const targets = contractTargets(config);
-  const identityCalls = AACP_MAINNET_IDENTITY_EVIDENCE.providers.flatMap((identity) => [
+  const recordedIdentities = [
+    ...AACP_MAINNET_IDENTITY_EVIDENCE.providers,
+    AACP_DEDICATED_LENDING_EVIDENCE,
+  ];
+  const identityCalls = recordedIdentities.flatMap((identity) => [
     {
       method: "eth_call",
       params: [
@@ -722,7 +732,32 @@ async function probeContracts(
       explorerUrl: `${config.explorerBaseUrl}/tx/${identity.registrationTransaction}`,
     };
   });
-  return { rpcUrl: selectedRpc, blockNumber, contracts, identities };
+  const dedicatedOffset = identityOffset + AACP_MAINNET_IDENTITY_EVIDENCE.providers.length * 2;
+  const dedicatedOwner = getAddress(
+    decodeFunctionResult({
+      abi: ERC8004_IDENTITY_ABI,
+      functionName: "ownerOf",
+      data: String(values![dedicatedOffset]) as `0x${string}`,
+    }),
+  );
+  const dedicatedMetadataUrl = decodeFunctionResult({
+    abi: ERC8004_IDENTITY_ABI,
+    functionName: "tokenURI",
+    data: String(values![dedicatedOffset + 1]) as `0x${string}`,
+  });
+  if (dedicatedOwner.toLowerCase() !== AACP_DEDICATED_LENDING_EVIDENCE.owner.toLowerCase()) {
+    throw new Error("ERC-8004 owner mismatch for dedicated Lending Rescue flagship");
+  }
+  if (dedicatedMetadataUrl !== AACP_DEDICATED_LENDING_EVIDENCE.metadataUrl) {
+    throw new Error("ERC-8004 metadata URI mismatch for dedicated Lending Rescue flagship");
+  }
+  const dedicatedIdentity = {
+    ...AACP_DEDICATED_LENDING_EVIDENCE,
+    owner: dedicatedOwner,
+    onchainVerified: true as const,
+    explorerUrl: `${config.explorerBaseUrl}/tx/${AACP_DEDICATED_LENDING_EVIDENCE.registrationTransaction}`,
+  };
+  return { rpcUrl: selectedRpc, blockNumber, contracts, identities, dedicatedIdentity };
 }
 
 type VerifiedAacpIdentity = Awaited<ReturnType<typeof probeContracts>>["identities"][number];
@@ -867,7 +902,10 @@ const DedicatedListingDetailSchema = z
   })
   .passthrough();
 
-async function discoverDedicatedFlagship(fetchImpl: typeof fetch) {
+async function discoverDedicatedFlagship(
+  identity: Awaited<ReturnType<typeof probeContracts>>["dedicatedIdentity"],
+  fetchImpl: typeof fetch,
+) {
   const recorded = AACP_DEDICATED_LENDING_EVIDENCE;
   try {
     const listing = DedicatedListingDetailSchema.parse(
@@ -904,6 +942,9 @@ async function discoverDedicatedFlagship(fetchImpl: typeof fetch) {
     const online = listing.providerAgent.a2aStatus === "ONLINE" && listing.providerAgent.presence === "online";
     return {
       ...recorded,
+      owner: identity.owner,
+      onchainVerified: identity.onchainVerified,
+      explorerUrl: identity.explorerUrl,
       listingStatus: listing.status,
       liveListingVerified: true,
       a2aStatus: listing.providerAgent.a2aStatus,
@@ -914,6 +955,9 @@ async function discoverDedicatedFlagship(fetchImpl: typeof fetch) {
   } catch {
     return {
       ...recorded,
+      owner: identity.owner,
+      onchainVerified: identity.onchainVerified,
+      explorerUrl: identity.explorerUrl,
       listingStatus: null,
       liveListingVerified: false,
       a2aStatus: null,
@@ -928,7 +972,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const config = await fetchAacpProductionConfig({ fetchImpl });
-  const [chain, providers, dedicatedFlagship] = await Promise.all([
+  const [chain, providers] = await Promise.all([
     probeContracts(config, fetchImpl),
     Promise.all(
       AACP_PROVIDER_BLUEPRINTS.map((item) => {
@@ -939,8 +983,8 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
         return discoverProvider(item, recordedIdentity(config, identity), fetchImpl);
       }),
     ),
-    discoverDedicatedFlagship(fetchImpl),
   ]);
+  const dedicatedFlagship = await discoverDedicatedFlagship(chain.dedicatedIdentity, fetchImpl);
   const deployedCount = chain.contracts.filter((contract) => contract.deployed).length;
   const listedCount = providers.filter((provider) => provider.listingStatus === "PUBLISHED").length;
   const onlineCount = providers.filter((provider) => provider.status === "ONLINE_AND_LISTED").length;
@@ -1161,6 +1205,8 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
       })),
       dedicatedFlagship: {
         ...AACP_DEDICATED_LENDING_EVIDENCE,
+        onchainVerified: false,
+        explorerUrl: `https://bscscan.com/tx/${AACP_DEDICATED_LENDING_EVIDENCE.registrationTransaction}`,
         listingStatus: null,
         liveListingVerified: false,
         a2aStatus: null,

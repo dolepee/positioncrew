@@ -371,6 +371,7 @@ try {
       aacpReadiness.marketplace.dedicatedFlagship?.agentTokenId === "293111" &&
       aacpReadiness.marketplace.dedicatedFlagship?.listingId === "cmt4e8j3nlmuiw7019f4qf24x" &&
       aacpReadiness.marketplace.dedicatedFlagship?.owner === "0xADd748C416E8A7efd7d65D18Abb121dea268ddF9" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.onchainVerified === true &&
       aacpReadiness.marketplace.dedicatedFlagship?.listingStatus === "PUBLISHED" &&
       aacpReadiness.marketplace.dedicatedFlagship?.a2aStatus === "ONLINE" &&
       aacpReadiness.marketplace.dedicatedFlagship?.presence === "online" &&

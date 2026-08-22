@@ -294,6 +294,8 @@ export interface AacpProductionReadiness {
       service: "LENDING_RESCUE";
       role: "DEDICATED_FLAGSHIP_RUNTIME";
       owner: string;
+      onchainVerified: boolean;
+      explorerUrl: string;
       handle: string;
       agentId: string;
       agentTokenId: string;

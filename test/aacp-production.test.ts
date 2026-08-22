@@ -108,6 +108,8 @@ function mockedFetch(options: {
   listingA2aStatus?: string;
   listingPresence?: string;
   wrongIdentityOwner?: boolean;
+  wrongDedicatedIdentityOwner?: boolean;
+  wrongDedicatedMetadata?: boolean;
 } = {}) {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -215,21 +217,26 @@ function mockedFetch(options: {
             const tokenId = BigInt(`0x${request.data.slice(10)}`).toString();
             const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
               (provider) => provider.agentTokenId === tokenId,
-            );
+            ) ?? (AACP_DEDICATED_LENDING_EVIDENCE.agentTokenId === tokenId
+              ? AACP_DEDICATED_LENDING_EVIDENCE
+              : undefined);
             if (!identity) throw new Error(`Unexpected identity token ${tokenId}`);
+            const dedicated = identity.agentTokenId === AACP_DEDICATED_LENDING_EVIDENCE.agentTokenId;
             if (request.data.startsWith("0x6352211e")) {
               result = encodeFunctionResult({
                 abi: ERC8004_IDENTITY_ABI,
                 functionName: "ownerOf",
-                result: options.wrongIdentityOwner
+                result: options.wrongIdentityOwner || (dedicated && options.wrongDedicatedIdentityOwner)
                   ? "0x000000000000000000000000000000000000dEaD"
-                  : AACP_MAINNET_IDENTITY_EVIDENCE.owner as `0x${string}`,
+                  : (dedicated ? AACP_DEDICATED_LENDING_EVIDENCE.owner : AACP_MAINNET_IDENTITY_EVIDENCE.owner) as `0x${string}`,
               });
             } else {
               result = encodeFunctionResult({
                 abi: ERC8004_IDENTITY_ABI,
                 functionName: "tokenURI",
-                result: identity.metadataUrl,
+                result: dedicated && options.wrongDedicatedMetadata
+                  ? "https://example.com/changed-metadata.json"
+                  : identity.metadataUrl,
               });
             }
           }
@@ -252,7 +259,17 @@ describe("dedicated TermiX flagship evidence", () => {
       owner: "0xADd748C416E8A7efd7d65D18Abb121dea268ddF9",
       status: "ONLINE_AND_LISTED",
       liveListingVerified: true,
+      onchainVerified: true,
     });
+  });
+
+  it("fails closed when the dedicated NFT owner or metadata URI changes on chain", async () => {
+    await expect(
+      getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongDedicatedIdentityOwner: true }) }),
+    ).rejects.toThrow("owner mismatch for dedicated Lending Rescue flagship");
+    await expect(
+      getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongDedicatedMetadata: true }) }),
+    ).rejects.toThrow("metadata URI mismatch for dedicated Lending Rescue flagship");
   });
 });
 
