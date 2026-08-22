@@ -106,10 +106,24 @@ export function runtimeTokenNeedsRenewal(
   return !expiry || expiry.getTime() <= now.getTime() + TERMIX_RENEWAL_WINDOW_MS;
 }
 
-function parseExpiryEnvironment(value: string): Date | undefined {
-  const match = /^TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=([^\r\n]+)\r?\n?$/.exec(value);
-  if (!match?.[1]) return undefined;
-  const expiry = new Date(match[1]);
+function parseExpiryEnvironment(value: string, token: string): Date | undefined {
+  const fields = new Map(
+    value
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => {
+        const separator = line.indexOf("=");
+        return separator > 0
+          ? [line.slice(0, separator), line.slice(separator + 1)]
+          : [line, ""];
+      }),
+  );
+  if (fields.get("POSITIONCREW_RUNTIME_TOKEN_SHA256") !== tokenFingerprint(token)) {
+    return undefined;
+  }
+  const rawExpiry = fields.get("TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT");
+  if (!rawExpiry) return undefined;
+  const expiry = new Date(rawExpiry);
   return Number.isNaN(expiry.getTime()) ? undefined : expiry;
 }
 
@@ -230,6 +244,7 @@ export async function renewRuntimeToken(
   try {
     installedExpiry = parseExpiryEnvironment(
       await readFile(config.expiryEnvironmentPath, "utf8"),
+      token ?? "",
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
@@ -253,7 +268,8 @@ export async function renewRuntimeToken(
   if (!expiresAt) throw new Error("Installed runtime token expiry is unknown");
   await writePrivateAtomic(
     config.expiryEnvironmentPath,
-    `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=${expiresAt.toISOString()}\n`,
+    `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=${expiresAt.toISOString()}\n` +
+      `POSITIONCREW_RUNTIME_TOKEN_SHA256=${tokenFingerprint(token)}\n`,
   );
 
   const fingerprint = tokenFingerprint(token);

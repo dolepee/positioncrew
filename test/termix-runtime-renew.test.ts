@@ -90,7 +90,8 @@ describe("TermiX runtime-token renewal", () => {
     });
     expect(readFileSync(tokenPath, "utf8").trim()).toBe(issuedToken);
     expect(readFileSync(expiryEnvironmentPath, "utf8")).toBe(
-      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n",
+      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n" +
+        `POSITIONCREW_RUNTIME_TOKEN_SHA256=${tokenFingerprint(issuedToken)}\n`,
     );
     expect(readFileSync(statePath, "utf8").trim()).toBe(tokenFingerprint(issuedToken));
     expect(restart).toHaveBeenCalledWith(
@@ -146,8 +147,30 @@ describe("TermiX runtime-token renewal", () => {
       expiresAt: "2026-08-23T00:00:00.000Z",
     });
     expect(readFileSync(expiryEnvironmentPath, "utf8")).toBe(
-      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n",
+      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n" +
+        `POSITIONCREW_RUNTIME_TOKEN_SHA256=${tokenFingerprint("opaque-replacement-token")}\n`,
     );
+  });
+
+  it("ignores expiry metadata belonging to an out-of-band replaced token", async () => {
+    const { config, tokenPath, expiryEnvironmentPath } = fixture();
+    const replacement = jwt(Math.floor(NOW.getTime() / 1_000) + 60);
+    writeFileSync(tokenPath, replacement, { mode: 0o600 });
+    writeFileSync(
+      expiryEnvironmentPath,
+      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n" +
+        `POSITIONCREW_RUNTIME_TOKEN_SHA256=${tokenFingerprint("previous-token")}\n`,
+      { mode: 0o600 },
+    );
+    const issuedToken = jwt(Math.floor(NOW.getTime() / 1_000) + 12 * 60 * 60);
+    const fetchImpl = vi.fn(async () =>
+      Response.json({ agentId: config.agentId, token: issuedToken }),
+    ) as unknown as typeof fetch;
+
+    await expect(
+      renewRuntimeToken(config, { now: NOW, fetchImpl, restart: vi.fn() }),
+    ).resolves.toMatchObject({ rotated: true, expiresAt: "2026-08-23T00:00:00.000Z" });
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
   it("refuses a token response for another agent without replacing the credential", async () => {
