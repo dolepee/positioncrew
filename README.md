@@ -68,6 +68,15 @@ Opaque tokens must also set `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT` to an ISO-8601
 
 The production systemd templates are tracked at `deploy/systemd/positioncrew-runtime@.service` and `deploy/systemd/positioncrew-runtime-renew@.service`. Credential expiry exits with status `78`, which systemd treats as terminal rather than restart-looping. The dedicated renewal unit signs only the fixed agent-scoped challenge, atomically replaces the scoped token and its expiry override, and restarts only that runtime instance. The scheduled production monitor treats the four public PositionCrew provider endpoints, identities, listings, schemas, current BSC inputs, and retained commerce receipts as the core health surface. It reports optional A2A runtime presence separately; automatic renewal is not a durable-uptime claim until a real rotation is observed.
 
+The normal production build creates `dist/runtime/renew-termix-runtime-token.mjs`. Install that reviewed artifact as root before enabling a renewal timer:
+
+```bash
+sudo install -d -o root -g root -m 0755 /opt/positioncrew-runtime-renew
+sudo install -o root -g root -m 0500 dist/runtime/renew-termix-runtime-token.mjs /opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs
+```
+
+The renewal unit refuses to start when either the root-owned artifact or the instance owner-key credential is absent.
+
 ## BSC commerce receipts
 
 PositionCrew has completed seven ERC-8183/APEX lifecycles on BSC Testnet: one zero-price path probe and six funded jobs releasing `0.6 U` from a dedicated client wallet to a separate provider wallet. The four flagship jobs cover every required category and bind each public deliverable manifest to the onchain job.

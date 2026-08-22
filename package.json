@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Job-first BSC capital operations with reproducible agent advantage evidence",
   "scripts": {
-    "build": "npm run build:core && npm run build:web && npm run build:sites",
+    "build": "npm run build:core && npm run build:web && npm run build:sites && npm run build:termix-renewer",
     "build:core": "tsc -p tsconfig.build.json",
     "build:web": "vite build",
     "build:sites": "node scripts/build-sites.mjs",

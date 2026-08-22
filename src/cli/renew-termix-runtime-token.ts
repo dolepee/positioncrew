@@ -99,10 +99,47 @@ export function tokenFingerprint(token: string): string {
 export function runtimeTokenNeedsRenewal(
   token: string | undefined,
   now = new Date(),
+  explicitExpiry?: Date,
 ): boolean {
   if (!token) return true;
-  const expiry = resolveRuntimeTokenExpiry(token);
+  const expiry = explicitExpiry ?? resolveRuntimeTokenExpiry(token);
   return !expiry || expiry.getTime() <= now.getTime() + TERMIX_RENEWAL_WINDOW_MS;
+}
+
+function parseExpiryEnvironment(value: string): Date | undefined {
+  const match = /^TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=([^\r\n]+)\r?\n?$/.exec(value);
+  if (!match?.[1]) return undefined;
+  const expiry = new Date(match[1]);
+  return Number.isNaN(expiry.getTime()) ? undefined : expiry;
+}
+
+function issuedExpiry(
+  payload: Record<string, unknown>,
+  token: string,
+  now: Date,
+): Date | undefined {
+  const embedded = resolveRuntimeTokenExpiry(token);
+  if (embedded) return embedded;
+  const raw = payload.expiresIn;
+  let seconds: number | undefined;
+  if (typeof raw === "number") seconds = raw;
+  if (typeof raw === "string" && /^\d+$/.test(raw)) seconds = Number(raw);
+  if (typeof raw === "string") {
+    const duration = /^(\d+)([smh])$/.exec(raw);
+    if (duration?.[1] && duration[2]) {
+      const multiplier = duration[2] === "h" ? 3_600 : duration[2] === "m" ? 60 : 1;
+      seconds = Number(duration[1]) * multiplier;
+    }
+  }
+  if (
+    typeof seconds !== "number" ||
+    !Number.isFinite(seconds) ||
+    !Number.isInteger(seconds) ||
+    seconds <= 0
+  ) {
+    return undefined;
+  }
+  return new Date(now.getTime() + seconds * 1_000);
 }
 
 async function writePrivateAtomic(path: string, value: string): Promise<void> {
@@ -151,7 +188,7 @@ async function issueRuntimeToken(
   if (payload.agentId !== config.agentId || typeof payload.token !== "string") {
     throw new Error("TermiX runtime-token response does not match the requested agent");
   }
-  const expiresAt = resolveRuntimeTokenExpiry(payload.token);
+  const expiresAt = issuedExpiry(payload, payload.token, now);
   if (!expiresAt || expiresAt.getTime() < now.getTime() + TERMIX_MIN_ISSUED_LIFETIME_MS) {
     throw new Error("TermiX issued a token without sufficient verified lifetime");
   }
@@ -182,8 +219,16 @@ export async function renewRuntimeToken(
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
   }
+  let installedExpiry: Date | undefined;
+  try {
+    installedExpiry = parseExpiryEnvironment(
+      await readFile(config.expiryEnvironmentPath, "utf8"),
+    );
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+  }
   let rotated = false;
-  if (runtimeTokenNeedsRenewal(token, now)) {
+  if (runtimeTokenNeedsRenewal(token, now, installedExpiry)) {
     const issued = await issueRuntimeToken(
       config,
       ownerKey,
@@ -191,12 +236,13 @@ export async function renewRuntimeToken(
       dependencies.fetchImpl ?? fetch,
     );
     token = issued.token;
+    installedExpiry = issued.expiresAt;
     await writePrivateAtomic(config.tokenPath, `${token}\n`);
     rotated = true;
   }
   if (!token) throw new Error("No runtime token is available after renewal");
 
-  const expiresAt = resolveRuntimeTokenExpiry(token);
+  const expiresAt = installedExpiry ?? resolveRuntimeTokenExpiry(token);
   if (!expiresAt) throw new Error("Installed runtime token expiry is unknown");
   await writePrivateAtomic(
     config.expiryEnvironmentPath,

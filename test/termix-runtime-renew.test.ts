@@ -126,6 +126,30 @@ describe("TermiX runtime-token renewal", () => {
     expect(runtimeTokenNeedsRenewal(token, NOW)).toBe(false);
   });
 
+  it("uses signed issuance lifetime metadata for opaque replacement tokens", async () => {
+    const { config, tokenPath, expiryEnvironmentPath } = fixture();
+    writeFileSync(tokenPath, "opaque-expiring-token", { mode: 0o600 });
+    const restart = vi.fn(async () => undefined);
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        agentId: config.agentId,
+        token: "opaque-replacement-token",
+        expiresIn: "12h",
+      }),
+    ) as unknown as typeof fetch;
+
+    await expect(
+      renewRuntimeToken(config, { now: NOW, fetchImpl, restart }),
+    ).resolves.toEqual({
+      rotated: true,
+      restarted: true,
+      expiresAt: "2026-08-23T00:00:00.000Z",
+    });
+    expect(readFileSync(expiryEnvironmentPath, "utf8")).toBe(
+      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n",
+    );
+  });
+
   it("refuses a token response for another agent without replacing the credential", async () => {
     const { config, tokenPath } = fixture();
     const original = jwt(Math.floor(NOW.getTime() / 1_000) + 60);

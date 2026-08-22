@@ -3,6 +3,7 @@ Description=PositionCrew TermiX scoped-token renewal (%i)
 After=network-online.target
 Wants=network-online.target
 ConditionFileNotEmpty=/etc/positioncrew-runtime/credentials/%i.owner-key
+ConditionFileNotEmpty=/opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs
 
 [Service]
 Type=oneshot
