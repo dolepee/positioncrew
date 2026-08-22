@@ -110,6 +110,8 @@ function mockedFetch(options: {
   wrongIdentityOwner?: boolean;
   wrongDedicatedIdentityOwner?: boolean;
   wrongDedicatedMetadata?: boolean;
+  rpcGate?: Promise<void>;
+  requestLog?: string[];
 } = {}) {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -123,6 +125,7 @@ function mockedFetch(options: {
         (candidate) => candidate.listingId === listingId,
       );
       if (listingId === AACP_DEDICATED_LENDING_EVIDENCE.listingId) {
+        options.requestLog?.push("dedicated-listing");
         const dedicated = AACP_DEDICATED_LENDING_EVIDENCE;
         return json({
           id: dedicated.listingId,
@@ -197,6 +200,8 @@ function mockedFetch(options: {
       });
     }
     if (init?.method === "POST") {
+      options.requestLog?.push("rpc");
+      await options.rpcGate;
       const calls = JSON.parse(String(init.body)) as Array<{
         id: number;
         method: string;
@@ -270,6 +275,24 @@ describe("dedicated TermiX flagship evidence", () => {
     await expect(
       getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongDedicatedMetadata: true }) }),
     ).rejects.toThrow("metadata URI mismatch for dedicated Lending Rescue flagship");
+  });
+
+  it("starts dedicated listing discovery before the shared chain probe resolves", async () => {
+    const requestLog: string[] = [];
+    let releaseRpc!: () => void;
+    const rpcGate = new Promise<void>((resolve) => {
+      releaseRpc = resolve;
+    });
+    const readinessPromise = getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ requestLog, rpcGate }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(requestLog).toContain("rpc");
+    expect(requestLog).toContain("dedicated-listing");
+    releaseRpc();
+    await expect(readinessPromise).resolves.toMatchObject({
+      marketplace: { dedicatedFlagship: { status: "ONLINE_AND_LISTED" } },
+    });
   });
 });
 

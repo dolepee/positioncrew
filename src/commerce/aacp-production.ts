@@ -903,7 +903,7 @@ const DedicatedListingDetailSchema = z
   .passthrough();
 
 async function discoverDedicatedFlagship(
-  identity: Awaited<ReturnType<typeof probeContracts>>["dedicatedIdentity"],
+  identityPromise: Promise<Awaited<ReturnType<typeof probeContracts>>["dedicatedIdentity"]>,
   fetchImpl: typeof fetch,
 ) {
   const recorded = AACP_DEDICATED_LENDING_EVIDENCE;
@@ -939,6 +939,7 @@ async function discoverDedicatedFlagship(
     if (JSON.stringify(listing.tags) !== JSON.stringify(recorded.tags)) {
       throw new Error("Dedicated flagship listing tags mismatch");
     }
+    const identity = await identityPromise;
     const online = listing.providerAgent.a2aStatus === "ONLINE" && listing.providerAgent.presence === "online";
     return {
       ...recorded,
@@ -953,6 +954,7 @@ async function discoverDedicatedFlagship(
       status: online ? "ONLINE_AND_LISTED" as const : "LISTED_OFFLINE" as const,
     };
   } catch {
+    const identity = await identityPromise;
     return {
       ...recorded,
       owner: identity.owner,
@@ -972,19 +974,25 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const config = await fetchAacpProductionConfig({ fetchImpl });
-  const [chain, providers] = await Promise.all([
-    probeContracts(config, fetchImpl),
-    Promise.all(
-      AACP_PROVIDER_BLUEPRINTS.map((item) => {
-        const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
-          (candidate) => candidate.service === item.service,
-        );
-        if (!identity) throw new Error(`Recorded mainnet identity missing for ${item.service}`);
-        return discoverProvider(item, recordedIdentity(config, identity), fetchImpl);
-      }),
-    ),
+  const chainPromise = probeContracts(config, fetchImpl);
+  const providersPromise = Promise.all(
+    AACP_PROVIDER_BLUEPRINTS.map((item) => {
+      const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
+        (candidate) => candidate.service === item.service,
+      );
+      if (!identity) throw new Error(`Recorded mainnet identity missing for ${item.service}`);
+      return discoverProvider(item, recordedIdentity(config, identity), fetchImpl);
+    }),
+  );
+  const dedicatedFlagshipPromise = discoverDedicatedFlagship(
+    chainPromise.then((chain) => chain.dedicatedIdentity),
+    fetchImpl,
+  );
+  const [chain, providers, dedicatedFlagship] = await Promise.all([
+    chainPromise,
+    providersPromise,
+    dedicatedFlagshipPromise,
   ]);
-  const dedicatedFlagship = await discoverDedicatedFlagship(chain.dedicatedIdentity, fetchImpl);
   const deployedCount = chain.contracts.filter((contract) => contract.deployed).length;
   const listedCount = providers.filter((provider) => provider.listingStatus === "PUBLISHED").length;
   const onlineCount = providers.filter((provider) => provider.status === "ONLINE_AND_LISTED").length;
