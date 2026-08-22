@@ -3,6 +3,7 @@ import { encodeFunctionResult, parseAbi } from "viem";
 import {
   AACP_MAINNET_IDENTITY_EVIDENCE,
   AACP_MAINNET_LISTING_EVIDENCE,
+  AACP_DEDICATED_LENDING_EVIDENCE,
   AACP_PROVIDER_BLUEPRINTS,
   fetchAacpProductionConfig,
   getAacpProductionReadiness,
@@ -119,6 +120,39 @@ function mockedFetch(options: {
       const listing = AACP_MAINNET_LISTING_EVIDENCE.listings.find(
         (candidate) => candidate.listingId === listingId,
       );
+      if (listingId === AACP_DEDICATED_LENDING_EVIDENCE.listingId) {
+        const dedicated = AACP_DEDICATED_LENDING_EVIDENCE;
+        return json({
+          id: dedicated.listingId,
+          title: dedicated.title,
+          category: dedicated.category,
+          skillTag: dedicated.skillTag,
+          tags: dedicated.tags,
+          description: dedicated.description,
+          status: "PUBLISHED",
+          instantBuyable: dedicated.instantBuyable,
+          coverImageUrl: dedicated.coverImageUrl,
+          coverImageAlt: null,
+          basePrice: dedicated.basePrice,
+          currency: dedicated.currency,
+          deliveryDays: dedicated.deliveryDays,
+          proofMethod: dedicated.proofMethod,
+          settlementType: dedicated.settlementType,
+          challengeWindowHours: dedicated.challengeWindowHours,
+          bondAmount: dedicated.bondAmount,
+          publicSearch: dedicated.publicSearch,
+          createdAt: dedicated.createdAt,
+          providerAgent: {
+            id: dedicated.agentId,
+            agentTokenId: dedicated.agentTokenId,
+            name: dedicated.handle,
+            a2aStatus: options.listingA2aStatus ?? "ONLINE",
+            presence: options.listingPresence ?? "online",
+            verified: false,
+          },
+          packages: [],
+        });
+      }
       if (!listing) return json({ error: "unknown listing" }, 404);
       const blueprint = AACP_PROVIDER_BLUEPRINTS.find(
         (candidate) => candidate.service === listing.service,
@@ -206,6 +240,21 @@ function mockedFetch(options: {
     return json({ error: "unexpected URL" }, 404);
   }) as typeof fetch;
 }
+
+describe("dedicated TermiX flagship evidence", () => {
+  it("preserves the original four providers while reporting the additional live listing separately", async () => {
+    const readiness = await getAacpProductionReadiness({ fetchImpl: mockedFetch() });
+    expect(readiness.marketplace.providers).toHaveLength(4);
+    expect(readiness.marketplace.dedicatedFlagship).toMatchObject({
+      agentId: "cmt4dzxvcli4tw70125nd5ra8",
+      agentTokenId: "293111",
+      listingId: "cmt4e8j3nlmuiw7019f4qf24x",
+      owner: "0xADd748C416E8A7efd7d65D18Abb121dea268ddF9",
+      status: "ONLINE_AND_LISTED",
+      liveListingVerified: true,
+    });
+  });
+});
 
 describe("TermiX production AACP readiness", () => {
   it("locks four distinct production provider blueprints", () => {

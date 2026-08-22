@@ -367,6 +367,17 @@ try {
     "AACP runtime count is inconsistent with provider state",
   );
   assert(
+    aacpReadiness.marketplace.dedicatedFlagship?.agentId === "cmt4dzxvcli4tw70125nd5ra8" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.agentTokenId === "293111" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.listingId === "cmt4e8j3nlmuiw7019f4qf24x" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.owner === "0xADd748C416E8A7efd7d65D18Abb121dea268ddF9" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.listingStatus === "PUBLISHED" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.a2aStatus === "ONLINE" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.presence === "online" &&
+      aacpReadiness.marketplace.dedicatedFlagship?.status === "ONLINE_AND_LISTED",
+    "Dedicated Lending Rescue flagship is not published and online",
+  );
+  assert(
     (onlineAacpProviders.length === 4 && aacpReadiness.state === "PROVIDERS_ONLINE") ||
       (onlineAacpProviders.length < 4 &&
         aacpReadiness.state === "LISTINGS_PUBLISHED_RUNTIME_PENDING"),

@@ -7,6 +7,7 @@ import {
 } from "viem";
 import termixIdentityEvidence from "../../evidence/termix-identities.mainnet.json" with { type: "json" };
 import termixListingEvidence from "../../evidence/termix-listings.mainnet.json" with { type: "json" };
+import dedicatedLendingEvidence from "../../evidence/termix-dedicated-lending.mainnet.json" with { type: "json" };
 import { AddressSchema, ServiceTypeSchema } from "../contracts/common.js";
 import {
   TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
@@ -109,6 +110,47 @@ const AacpMainnetListingEvidenceSchema = z
         })
         .strict(),
     ).length(4),
+    verifiedAt: z.string().datetime(),
+    boundaries: z.array(z.string().min(1)).min(1),
+  })
+  .strict();
+
+const AacpDedicatedLendingEvidenceSchema = z
+  .object({
+    schemaVersion: z.literal("positioncrew.termix-dedicated-lending.v1"),
+    network: z.literal("bsc-mainnet"),
+    chainId: z.literal(56),
+    identityRegistry: AddressSchema,
+    service: z.literal("LENDING_RESCUE"),
+    role: z.literal("DEDICATED_FLAGSHIP_RUNTIME"),
+    owner: AddressSchema,
+    handle: z.literal("positioncrew-rescue-adf9.agent"),
+    agentId: z.string().min(1),
+    agentTokenId: z.string().regex(/^\d+$/),
+    metadataUrl: z.string().url(),
+    metadataSha256: Sha256Schema,
+    registrationTransaction: TransactionHashSchema,
+    blockNumber: z.number().int().positive(),
+    blockTimestamp: z.string().datetime(),
+    gasCostBnb: z.string().regex(/^0\.\d+$/),
+    listingId: z.string().min(1),
+    listingUrl: z.string().url(),
+    title: z.string().min(1),
+    category: z.string().min(1),
+    skillTag: z.string().min(1),
+    tags: z.array(z.string().min(1)).min(1),
+    description: z.string().min(1),
+    basePrice: z.literal("5"),
+    currency: z.literal("USDC"),
+    deliveryDays: z.literal(1),
+    instantBuyable: z.literal(true),
+    publicSearch: z.literal(true),
+    challengeWindowHours: z.literal(48),
+    settlementType: z.literal("optimistic"),
+    proofMethod: z.literal("manual"),
+    bondAmount: z.literal("0"),
+    coverImageUrl: z.string().url(),
+    createdAt: z.string().datetime(),
     verifiedAt: z.string().datetime(),
     boundaries: z.array(z.string().min(1)).min(1),
   })
@@ -414,6 +456,9 @@ export const AACP_MAINNET_IDENTITY_EVIDENCE =
 
 export const AACP_MAINNET_LISTING_EVIDENCE =
   AacpMainnetListingEvidenceSchema.parse(termixListingEvidence);
+
+export const AACP_DEDICATED_LENDING_EVIDENCE =
+  AacpDedicatedLendingEvidenceSchema.parse(dedicatedLendingEvidence);
 
 for (const blueprintValue of AACP_PROVIDER_BLUEPRINTS) {
   const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
@@ -791,11 +836,99 @@ async function discoverProvider(
   };
 }
 
+const DedicatedListingDetailSchema = z
+  .object({
+    id: z.string().min(1),
+    title: z.string().min(1),
+    category: z.string().min(1),
+    skillTag: z.string().min(1),
+    tags: z.array(z.string().min(1)).min(1),
+    description: z.string().min(1),
+    status: z.string().min(1),
+    instantBuyable: z.boolean(),
+    coverImageUrl: z.string().url(),
+    basePrice: z.string().min(1),
+    currency: z.string().min(1),
+    deliveryDays: z.number().int().positive(),
+    proofMethod: z.string().min(1),
+    settlementType: z.string().min(1),
+    challengeWindowHours: z.number().int().nonnegative(),
+    bondAmount: z.string(),
+    publicSearch: z.boolean(),
+    createdAt: z.string().datetime(),
+    providerAgent: z.object({
+      id: z.string().min(1),
+      agentTokenId: z.string().regex(/^\d+$/),
+      name: z.string().min(1),
+      a2aStatus: z.string().min(1),
+      presence: z.string().min(1),
+      verified: z.boolean(),
+    }).passthrough(),
+  })
+  .passthrough();
+
+async function discoverDedicatedFlagship(fetchImpl: typeof fetch) {
+  const recorded = AACP_DEDICATED_LENDING_EVIDENCE;
+  try {
+    const listing = DedicatedListingDetailSchema.parse(
+      await fetchJson(`${AACP_BSC_API}/api/v1/listings/${encodeURIComponent(recorded.listingId)}`, fetchImpl),
+    );
+    const expectedFields = [
+      ["listing ID", listing.id, recorded.listingId],
+      ["title", listing.title, recorded.title],
+      ["category", listing.category, recorded.category],
+      ["skill tag", listing.skillTag, recorded.skillTag],
+      ["description", listing.description, recorded.description],
+      ["status", listing.status, "PUBLISHED"],
+      ["base price", listing.basePrice, recorded.basePrice],
+      ["currency", listing.currency, recorded.currency],
+      ["delivery days", listing.deliveryDays, recorded.deliveryDays],
+      ["instant buy", listing.instantBuyable, recorded.instantBuyable],
+      ["public search", listing.publicSearch, recorded.publicSearch],
+      ["challenge window", listing.challengeWindowHours, recorded.challengeWindowHours],
+      ["settlement type", listing.settlementType, recorded.settlementType],
+      ["proof method", listing.proofMethod, recorded.proofMethod],
+      ["bond amount", listing.bondAmount, recorded.bondAmount],
+      ["cover image", listing.coverImageUrl, recorded.coverImageUrl],
+      ["created at", listing.createdAt, recorded.createdAt],
+      ["agent ID", listing.providerAgent.id, recorded.agentId],
+      ["agent token ID", listing.providerAgent.agentTokenId, recorded.agentTokenId],
+      ["agent handle", listing.providerAgent.name, recorded.handle],
+    ] as const;
+    for (const [field, actual, expected] of expectedFields) {
+      if (actual !== expected) throw new Error(`Dedicated flagship ${field} mismatch`);
+    }
+    if (JSON.stringify(listing.tags) !== JSON.stringify(recorded.tags)) {
+      throw new Error("Dedicated flagship listing tags mismatch");
+    }
+    const online = listing.providerAgent.a2aStatus === "ONLINE" && listing.providerAgent.presence === "online";
+    return {
+      ...recorded,
+      listingStatus: listing.status,
+      liveListingVerified: true,
+      a2aStatus: listing.providerAgent.a2aStatus,
+      presence: listing.providerAgent.presence,
+      verified: listing.providerAgent.verified,
+      status: online ? "ONLINE_AND_LISTED" as const : "LISTED_OFFLINE" as const,
+    };
+  } catch {
+    return {
+      ...recorded,
+      listingStatus: null,
+      liveListingVerified: false,
+      a2aStatus: null,
+      presence: null,
+      verified: false,
+      status: "LISTING_DISCOVERY_UNAVAILABLE" as const,
+    };
+  }
+}
+
 export async function getAacpProductionReadiness(options: FetchOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const generatedAt = (options.now ?? new Date()).toISOString();
   const config = await fetchAacpProductionConfig({ fetchImpl });
-  const [chain, providers] = await Promise.all([
+  const [chain, providers, dedicatedFlagship] = await Promise.all([
     probeContracts(config, fetchImpl),
     Promise.all(
       AACP_PROVIDER_BLUEPRINTS.map((item) => {
@@ -806,6 +939,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
         return discoverProvider(item, recordedIdentity(config, identity), fetchImpl);
       }),
     ),
+    discoverDedicatedFlagship(fetchImpl),
   ]);
   const deployedCount = chain.contracts.filter((contract) => contract.deployed).length;
   const listedCount = providers.filter((provider) => provider.listingStatus === "PUBLISHED").length;
@@ -915,6 +1049,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
       onlineProviderCount: onlineCount,
       discoveryDegraded,
       providers,
+      dedicatedFlagship,
     },
     boundaries: [
       "This record validates the production AACP config, independent BSC bytecode, four wallet-owned ERC-8004 identities, and four exact public Agent.family listings on BNB Chain mainnet.",
@@ -924,6 +1059,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
       "Agent.family's default banner remains on the four listings until the prepared PositionCrew media is uploaded through the supported editor flow.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The dedicated Lending Rescue provider uses an isolated root-only owner signer to rotate its scoped 12-hour runtime token; the poller never receives signing material, and the first automatic rotation remains pending verification.",
+      "The additional dedicated flagship identity and listing are reported separately and do not replace, transfer, or erase the four original provider records.",
     ],
   };
 }
@@ -1023,12 +1159,22 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
         status: "UPSTREAM_UNAVAILABLE" as const,
         identity: null,
       })),
+      dedicatedFlagship: {
+        ...AACP_DEDICATED_LENDING_EVIDENCE,
+        listingStatus: null,
+        liveListingVerified: false,
+        a2aStatus: null,
+        presence: null,
+        verified: false,
+        status: "UPSTREAM_UNAVAILABLE" as const,
+      },
     },
     boundaries: [
       "TermiX production config or BSC RPC could not be validated at this time; no cached deployment claim is substituted.",
       "This record does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
       "The dedicated Lending Rescue provider uses an isolated root-only owner signer to rotate its scoped 12-hour runtime token; the poller never receives signing material, and the first automatic rotation remains pending verification.",
+      "The additional dedicated flagship identity and listing are reported separately and do not replace, transfer, or erase the four original provider records.",
     ],
   };
 }
