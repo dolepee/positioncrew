@@ -245,7 +245,7 @@ export function EvidenceView({
             <div className="aacp-runtime-band">
               <div><strong>Signer excluded</strong><span>Runtime host accepts only a scoped agent token</span></div>
               <div><strong>{aacpReadiness.integration.orderGuard.guardedActions.length} actions guarded</strong><span>ABI calldata and mined transaction must match</span></div>
-              <div><strong>{aacpReadiness.integration.runtime.tokenLifetimeHours} hours</strong><span>Manual token rotation; no hidden auto-renewal</span></div>
+              <div><strong>{aacpReadiness.integration.runtime.tokenLifetimeHours} hours</strong><span>Dedicated root-only renewal signer; first automatic rotation pending verification</span></div>
               <div><strong>{aacpReadiness.integration.runtime.automaticConversationKinds.length} + {aacpReadiness.integration.runtime.operatorRequiredConversationKinds.length} surfaces</strong><span>Pre-sale automated; orders and disputes gated</span></div>
             </div>
             <div className="operations-boundary">

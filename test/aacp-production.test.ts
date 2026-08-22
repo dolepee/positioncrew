@@ -246,8 +246,8 @@ describe("TermiX production AACP readiness", () => {
         },
         runtime: {
           status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED",
-          ownerSignerOnHost: false,
-          autoRenewsToken: false,
+          ownerSignerOnHost: true,
+          autoRenewsToken: true,
           tokenLifetimeHours: 12,
         },
         orderGuard: {
@@ -377,7 +377,8 @@ describe("TermiX production AACP readiness", () => {
     expect(readiness.network).toMatchObject({ chainId: 56, blockNumber: null });
     expect(readiness.marketplace.requiredProviderCount).toBe(4);
     expect(readiness.marketplace.registeredIdentityCount).toBe(0);
-    expect(readiness.integration.runtime.ownerSignerOnHost).toBe(false);
+    expect(readiness.integration.runtime.ownerSignerOnHost).toBe(true);
+    expect(readiness.integration.runtime.autoRenewsToken).toBe(true);
     expect(readiness.integration.orderGuard.guardedActions).toHaveLength(10);
     expect(readiness.marketplace.providers.every((provider) => provider.status === "UPSTREAM_UNAVAILABLE")).toBe(true);
     expect(readiness.boundaries.join(" ")).toContain("no cached deployment claim");

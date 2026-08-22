@@ -24,18 +24,21 @@ function fixture() {
   const directory = mkdtempSync(join(tmpdir(), "positioncrew-renew-"));
   const ownerKeyFile = join(directory, "owner-key");
   const tokenPath = join(directory, "runtime-token");
+  const expiryEnvironmentPath = join(directory, "runtime-expiry.env");
   const statePath = join(directory, "applied.sha256");
   writeFileSync(ownerKeyFile, `${OWNER_KEY}\n`, { mode: 0o600 });
   return {
     directory,
     ownerKeyFile,
     tokenPath,
+    expiryEnvironmentPath,
     statePath,
     config: {
       agentId: "cmt4dzxvcli4tw70125nd5ra8",
       expectedOwner: OWNER,
       ownerKeyFile,
       tokenPath,
+      expiryEnvironmentPath,
       statePath,
       runtimeInstance: "dedicated-lending",
       baseUrl: "https://platform-backend.prod.termix.live",
@@ -51,11 +54,13 @@ describe("TermiX runtime-token renewal", () => {
         TERMIX_A2A_OWNER_ADDRESS: OWNER,
         TERMIX_A2A_OWNER_KEY_FILE: "/run/credentials/owner-key",
         TERMIX_A2A_RUNTIME_TOKEN_PATH: "/etc/runtime.token",
+        TERMIX_A2A_RUNTIME_EXPIRY_ENV_PATH: "/etc/runtime-expiry.env",
         TERMIX_A2A_RENEW_STATE_PATH: "/var/lib/applied.sha256",
       },
       ["dedicated-lending"],
     );
     expect(parsed.runtimeInstance).toBe("dedicated-lending");
+    expect(parsed.expiryEnvironmentPath).toBe("/etc/runtime-expiry.env");
     expect(() => parseRenewalEnvironment({}, ["../unsafe"])).toThrow();
   });
 
@@ -67,7 +72,7 @@ describe("TermiX runtime-token renewal", () => {
   });
 
   it("rotates near expiry, atomically installs, restarts once, and records application", async () => {
-    const { config, tokenPath, statePath } = fixture();
+    const { config, tokenPath, expiryEnvironmentPath, statePath } = fixture();
     writeFileSync(tokenPath, jwt(Math.floor(NOW.getTime() / 1_000) + 60), { mode: 0o600 });
     const issuedToken = jwt(Math.floor(NOW.getTime() / 1_000) + 12 * 60 * 60);
     const restart = vi.fn(async () => undefined);
@@ -84,6 +89,9 @@ describe("TermiX runtime-token renewal", () => {
       expiresAt: "2026-08-23T00:00:00.000Z",
     });
     expect(readFileSync(tokenPath, "utf8").trim()).toBe(issuedToken);
+    expect(readFileSync(expiryEnvironmentPath, "utf8")).toBe(
+      "TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=2026-08-23T00:00:00.000Z\n",
+    );
     expect(readFileSync(statePath, "utf8").trim()).toBe(tokenFingerprint(issuedToken));
     expect(restart).toHaveBeenCalledWith(
       "positioncrew-runtime@dedicated-lending.service",

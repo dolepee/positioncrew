@@ -19,6 +19,7 @@ export interface RenewalEnvironment {
   expectedOwner: `0x${string}`;
   ownerKeyFile: string;
   tokenPath: string;
+  expiryEnvironmentPath: string;
   statePath: string;
   runtimeInstance: string;
   baseUrl: string;
@@ -63,6 +64,10 @@ export function parseRenewalEnvironment(
     tokenPath: requireAbsolutePath(
       env.TERMIX_A2A_RUNTIME_TOKEN_PATH,
       "TERMIX_A2A_RUNTIME_TOKEN_PATH",
+    ),
+    expiryEnvironmentPath: requireAbsolutePath(
+      env.TERMIX_A2A_RUNTIME_EXPIRY_ENV_PATH,
+      "TERMIX_A2A_RUNTIME_EXPIRY_ENV_PATH",
     ),
     statePath: requireAbsolutePath(
       env.TERMIX_A2A_RENEW_STATE_PATH,
@@ -191,6 +196,13 @@ export async function renewRuntimeToken(
   }
   if (!token) throw new Error("No runtime token is available after renewal");
 
+  const expiresAt = resolveRuntimeTokenExpiry(token);
+  if (!expiresAt) throw new Error("Installed runtime token expiry is unknown");
+  await writePrivateAtomic(
+    config.expiryEnvironmentPath,
+    `TERMIX_A2A_RUNTIME_TOKEN_EXPIRES_AT=${expiresAt.toISOString()}\n`,
+  );
+
   const fingerprint = tokenFingerprint(token);
   let appliedFingerprint: string | undefined;
   try {
@@ -204,8 +216,6 @@ export async function renewRuntimeToken(
     await (dependencies.restart ?? defaultRestart)(unit);
     await writePrivateAtomic(config.statePath, `${fingerprint}\n`);
   }
-  const expiresAt = resolveRuntimeTokenExpiry(token);
-  if (!expiresAt) throw new Error("Installed runtime token expiry is unknown");
   return { rotated, restarted, expiresAt: expiresAt.toISOString() };
 }
 

@@ -9,6 +9,7 @@ Type=oneshot
 EnvironmentFile=/etc/positioncrew-runtime/%i.env
 Environment=TERMIX_A2A_OWNER_KEY_FILE=%d/owner-key
 Environment=TERMIX_A2A_RUNTIME_TOKEN_PATH=/etc/positioncrew-runtime/credentials/%i.token
+Environment=TERMIX_A2A_RUNTIME_EXPIRY_ENV_PATH=/etc/positioncrew-runtime/credentials/%i.expiry.env
 Environment=TERMIX_A2A_RENEW_STATE_PATH=/var/lib/positioncrew-runtime-renew-%i/applied-token.sha256
 LoadCredential=owner-key:/etc/positioncrew-runtime/credentials/%i.owner-key
 ExecStart=/usr/bin/node /opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs %i
