@@ -286,6 +286,35 @@ export interface AacpProductionReadiness {
         explorerUrl: string;
       } | null;
     }>;
+    dedicatedFlagship: {
+      schemaVersion: "positioncrew.termix-dedicated-lending.v1";
+      network: "bsc-mainnet";
+      chainId: 56;
+      identityRegistry: string;
+      service: "LENDING_RESCUE";
+      role: "DEDICATED_FLAGSHIP_RUNTIME";
+      owner: string;
+      onchainVerified: boolean;
+      explorerUrl: string;
+      handle: string;
+      agentId: string;
+      agentTokenId: string;
+      metadataUrl: string;
+      metadataSha256: string;
+      registrationTransaction: string;
+      blockNumber: number;
+      blockTimestamp: string;
+      gasCostBnb: string;
+      listingId: string;
+      listingUrl: string;
+      listingStatus: string | null;
+      liveListingVerified: boolean;
+      a2aStatus: string | null;
+      presence: string | null;
+      verified: boolean;
+      status: "ONLINE_AND_LISTED" | "LISTED_OFFLINE" | "LISTING_DISCOVERY_UNAVAILABLE" | "UPSTREAM_UNAVAILABLE";
+      boundaries: string[];
+    };
   };
   boundaries: string[];
 }

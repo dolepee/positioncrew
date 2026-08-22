@@ -3,6 +3,7 @@ import { encodeFunctionResult, parseAbi } from "viem";
 import {
   AACP_MAINNET_IDENTITY_EVIDENCE,
   AACP_MAINNET_LISTING_EVIDENCE,
+  AACP_DEDICATED_LENDING_EVIDENCE,
   AACP_PROVIDER_BLUEPRINTS,
   fetchAacpProductionConfig,
   getAacpProductionReadiness,
@@ -107,6 +108,10 @@ function mockedFetch(options: {
   listingA2aStatus?: string;
   listingPresence?: string;
   wrongIdentityOwner?: boolean;
+  wrongDedicatedIdentityOwner?: boolean;
+  wrongDedicatedMetadata?: boolean;
+  rpcGate?: Promise<void>;
+  requestLog?: string[];
 } = {}) {
   return (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
@@ -119,6 +124,40 @@ function mockedFetch(options: {
       const listing = AACP_MAINNET_LISTING_EVIDENCE.listings.find(
         (candidate) => candidate.listingId === listingId,
       );
+      if (listingId === AACP_DEDICATED_LENDING_EVIDENCE.listingId) {
+        options.requestLog?.push("dedicated-listing");
+        const dedicated = AACP_DEDICATED_LENDING_EVIDENCE;
+        return json({
+          id: dedicated.listingId,
+          title: dedicated.title,
+          category: dedicated.category,
+          skillTag: dedicated.skillTag,
+          tags: dedicated.tags,
+          description: dedicated.description,
+          status: "PUBLISHED",
+          instantBuyable: dedicated.instantBuyable,
+          coverImageUrl: dedicated.coverImageUrl,
+          coverImageAlt: null,
+          basePrice: dedicated.basePrice,
+          currency: dedicated.currency,
+          deliveryDays: dedicated.deliveryDays,
+          proofMethod: dedicated.proofMethod,
+          settlementType: dedicated.settlementType,
+          challengeWindowHours: dedicated.challengeWindowHours,
+          bondAmount: dedicated.bondAmount,
+          publicSearch: dedicated.publicSearch,
+          createdAt: dedicated.createdAt,
+          providerAgent: {
+            id: dedicated.agentId,
+            agentTokenId: dedicated.agentTokenId,
+            name: dedicated.handle,
+            a2aStatus: options.listingA2aStatus ?? "ONLINE",
+            presence: options.listingPresence ?? "online",
+            verified: false,
+          },
+          packages: [],
+        });
+      }
       if (!listing) return json({ error: "unknown listing" }, 404);
       const blueprint = AACP_PROVIDER_BLUEPRINTS.find(
         (candidate) => candidate.service === listing.service,
@@ -161,6 +200,8 @@ function mockedFetch(options: {
       });
     }
     if (init?.method === "POST") {
+      options.requestLog?.push("rpc");
+      await options.rpcGate;
       const calls = JSON.parse(String(init.body)) as Array<{
         id: number;
         method: string;
@@ -181,21 +222,26 @@ function mockedFetch(options: {
             const tokenId = BigInt(`0x${request.data.slice(10)}`).toString();
             const identity = AACP_MAINNET_IDENTITY_EVIDENCE.providers.find(
               (provider) => provider.agentTokenId === tokenId,
-            );
+            ) ?? (AACP_DEDICATED_LENDING_EVIDENCE.agentTokenId === tokenId
+              ? AACP_DEDICATED_LENDING_EVIDENCE
+              : undefined);
             if (!identity) throw new Error(`Unexpected identity token ${tokenId}`);
+            const dedicated = identity.agentTokenId === AACP_DEDICATED_LENDING_EVIDENCE.agentTokenId;
             if (request.data.startsWith("0x6352211e")) {
               result = encodeFunctionResult({
                 abi: ERC8004_IDENTITY_ABI,
                 functionName: "ownerOf",
-                result: options.wrongIdentityOwner
+                result: options.wrongIdentityOwner || (dedicated && options.wrongDedicatedIdentityOwner)
                   ? "0x000000000000000000000000000000000000dEaD"
-                  : AACP_MAINNET_IDENTITY_EVIDENCE.owner as `0x${string}`,
+                  : (dedicated ? AACP_DEDICATED_LENDING_EVIDENCE.owner : AACP_MAINNET_IDENTITY_EVIDENCE.owner) as `0x${string}`,
               });
             } else {
               result = encodeFunctionResult({
                 abi: ERC8004_IDENTITY_ABI,
                 functionName: "tokenURI",
-                result: identity.metadataUrl,
+                result: dedicated && options.wrongDedicatedMetadata
+                  ? "https://example.com/changed-metadata.json"
+                  : identity.metadataUrl,
               });
             }
           }
@@ -206,6 +252,60 @@ function mockedFetch(options: {
     return json({ error: "unexpected URL" }, 404);
   }) as typeof fetch;
 }
+
+describe("dedicated TermiX flagship evidence", () => {
+  it("preserves the original four providers while reporting the additional live listing separately", async () => {
+    const readiness = await getAacpProductionReadiness({ fetchImpl: mockedFetch() });
+    expect(readiness.marketplace.providers).toHaveLength(4);
+    expect(readiness.marketplace.dedicatedFlagship).toMatchObject({
+      agentId: "cmt4dzxvcli4tw70125nd5ra8",
+      agentTokenId: "293111",
+      listingId: "cmt4e8j3nlmuiw7019f4qf24x",
+      owner: "0xADd748C416E8A7efd7d65D18Abb121dea268ddF9",
+      status: "ONLINE_AND_LISTED",
+      liveListingVerified: true,
+      onchainVerified: true,
+    });
+  });
+
+  it("fails closed when the dedicated NFT owner or metadata URI changes on chain", async () => {
+    await expect(
+      getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongDedicatedIdentityOwner: true }) }),
+    ).rejects.toThrow("owner mismatch for dedicated Lending Rescue flagship");
+    await expect(
+      getAacpProductionReadiness({ fetchImpl: mockedFetch({ wrongDedicatedMetadata: true }) }),
+    ).rejects.toThrow("metadata URI mismatch for dedicated Lending Rescue flagship");
+  });
+
+  it("starts dedicated listing discovery before the shared chain probe resolves", async () => {
+    const requestLog: string[] = [];
+    let releaseRpc!: () => void;
+    const rpcGate = new Promise<void>((resolve) => {
+      releaseRpc = resolve;
+    });
+    const readinessPromise = getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ requestLog, rpcGate }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(requestLog).toContain("rpc");
+    expect(requestLog).toContain("dedicated-listing");
+    releaseRpc();
+    await expect(readinessPromise).resolves.toMatchObject({
+      marketplace: { dedicatedFlagship: { status: "ONLINE_AND_LISTED" } },
+    });
+  });
+
+  it("uses authoritative A2A status when account presence is stale", async () => {
+    const readiness = await getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ listingA2aStatus: "ONLINE", listingPresence: "offline" }),
+    });
+    expect(readiness.marketplace.dedicatedFlagship).toMatchObject({
+      a2aStatus: "ONLINE",
+      presence: "offline",
+      status: "ONLINE_AND_LISTED",
+    });
+  });
+});
 
 describe("TermiX production AACP readiness", () => {
   it("locks four distinct production provider blueprints", () => {
