@@ -1,0 +1,13 @@
+[Unit]
+Description=Hourly PositionCrew TermiX scoped-token renewal check (%i)
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=1h
+RandomizedDelaySec=2min
+Persistent=true
+AccuracySec=1min
+Unit=positioncrew-runtime-renew@%i.service
+
+[Install]
+WantedBy=timers.target
