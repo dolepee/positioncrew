@@ -85,7 +85,7 @@ describe("TermiX runtime-token renewal", () => {
     expect(unit).not.toContain("ConditionFileNotEmpty=");
     expect(unit).not.toContain("LoadCredential=");
     expect(unit).toContain("test ! -L \"$p\"");
-    expect(unit).toContain("/usr/bin/stat -c %u");
+    expect(unit).toContain("/usr/bin/stat -c %%u");
     expect(unit).toContain("-r--------|-rw-------");
     expect(unit).toContain(
       "TERMIX_A2A_OWNER_KEY_FILE=/etc/positioncrew-runtime/credentials/%i.owner-key",
