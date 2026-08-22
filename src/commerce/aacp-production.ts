@@ -868,8 +868,8 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
       },
       runtime: {
         status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" as const,
-        ownerSignerOnHost: false,
-        autoRenewsToken: false,
+        ownerSignerOnHost: true,
+        autoRenewsToken: true,
         tokenLifetimeHours: TERMIX_RUNTIME_TOKEN_LIFETIME_HOURS,
         expiryBufferSeconds: TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS,
         pollSeconds: TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
@@ -923,7 +923,7 @@ export async function getAacpProductionReadiness(options: FetchOptions = {}) {
         : "The four listings are published at 5 USDC each; it does not claim an online A2A runtime, stake, token approval, paid order, delivery, settlement, reputation result, external purchase, or revenue.",
       "Agent.family's default banner remains on the four listings until the prepared PositionCrew media is uploaded through the supported editor flow.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
-      "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
+      "The dedicated Lending Rescue provider uses an isolated root-only owner signer to rotate its scoped 12-hour runtime token; the poller never receives signing material, and the first automatic rotation remains pending verification.",
     ],
   };
 }
@@ -962,8 +962,8 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
       },
       runtime: {
         status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" as const,
-        ownerSignerOnHost: false,
-        autoRenewsToken: false,
+        ownerSignerOnHost: true,
+        autoRenewsToken: true,
         tokenLifetimeHours: TERMIX_RUNTIME_TOKEN_LIFETIME_HOURS,
         expiryBufferSeconds: TERMIX_RUNTIME_EXPIRY_BUFFER_SECONDS,
         pollSeconds: TERMIX_RUNTIME_DEFAULT_POLL_SECONDS,
@@ -1028,7 +1028,7 @@ export function unavailableAacpProductionReadiness(now = new Date()) {
       "TermiX production config or BSC RPC could not be validated at this time; no cached deployment claim is substituted.",
       "This record does not claim that a wallet-signed agent mint, paid order, delivery, settlement, reputation result, or external purchase has occurred.",
       "PositionCrew's no-wallet trial and deterministic conformance scorer remain separate from AACP escrow and operator-granted dispute adjudication.",
-      "The runtime adapter uses a pre-issued 12-hour agent token and refuses owner signing material on the host; token rotation remains an explicit operator action.",
+      "The dedicated Lending Rescue provider uses an isolated root-only owner signer to rotate its scoped 12-hour runtime token; the poller never receives signing material, and the first automatic rotation remains pending verification.",
     ],
   };
 }

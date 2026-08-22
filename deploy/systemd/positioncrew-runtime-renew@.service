@@ -1,0 +1,55 @@
+[Unit]
+Description=PositionCrew TermiX scoped-token renewal (%i)
+After=network-online.target
+Wants=network-online.target
+AssertFileNotEmpty=/etc/positioncrew-runtime/credentials/%i.owner-key
+AssertFileNotEmpty=/opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/positioncrew-runtime/%i.env
+Environment=TERMIX_A2A_OWNER_KEY_FILE=/etc/positioncrew-runtime/credentials/%i.owner-key
+Environment=TERMIX_A2A_RUNTIME_TOKEN_PATH=/etc/positioncrew-runtime/credentials/%i.token
+Environment=TERMIX_A2A_RUNTIME_EXPIRY_ENV_PATH=/etc/positioncrew-runtime/credentials/%i.expiry.env
+Environment=TERMIX_A2A_RENEW_STATE_PATH=/var/lib/positioncrew-runtime-renew-%i/applied-token.sha256
+ExecStartPre=/bin/sh -ec 'p=/etc/positioncrew-runtime/credentials/%i.owner-key; test -f "$p"; test ! -L "$p"; test "$(/usr/bin/stat -c %u "$p")" = 0; case "$(/usr/bin/stat -c %A "$p")" in -r--------|-rw-------) ;; *) exit 1 ;; esac'
+ExecStart=/usr/bin/node /opt/positioncrew-runtime-renew/renew-termix-runtime-token.mjs %i
+
+StateDirectory=positioncrew-runtime-renew-%i
+StateDirectoryMode=0700
+UMask=0077
+
+NoNewPrivileges=true
+CapabilityBoundingSet=
+AmbientCapabilities=
+PrivateTmp=true
+PrivateDevices=true
+PrivateIPC=true
+ProtectHome=yes
+ProtectSystem=strict
+ReadWritePaths=/etc/positioncrew-runtime/credentials /var/lib/positioncrew-runtime-renew-%i
+ProtectHostname=true
+ProtectClock=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectProc=invisible
+ProcSubset=pid
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RemoveIPC=true
+KeyringMode=private
+SystemCallArchitectures=native
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+
+CPUQuota=20%
+MemoryMax=192M
+MemorySwapMax=0
+TasksMax=32
+LimitNOFILE=1024
+
+StandardOutput=journal
+StandardError=journal

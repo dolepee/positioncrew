@@ -219,8 +219,8 @@ export interface AacpProductionReadiness {
     };
     runtime: {
       status: "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED";
-      ownerSignerOnHost: false;
-      autoRenewsToken: false;
+      ownerSignerOnHost: boolean;
+      autoRenewsToken: boolean;
       tokenLifetimeHours: 12;
       expiryBufferSeconds: number;
       pollSeconds: number;

@@ -379,8 +379,8 @@ try {
   );
   assert(
     aacpReadiness.integration?.runtime?.status === "PREISSUED_TOKEN_ADAPTER_IMPLEMENTED" &&
-      aacpReadiness.integration.runtime.ownerSignerOnHost === false &&
-      aacpReadiness.integration.runtime.autoRenewsToken === false &&
+      aacpReadiness.integration.runtime.ownerSignerOnHost === true &&
+      aacpReadiness.integration.runtime.autoRenewsToken === true &&
       aacpReadiness.integration.runtime.tokenLifetimeHours === 12,
     "AACP runtime signing or expiry boundary changed",
   );

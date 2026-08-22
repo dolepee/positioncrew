@@ -5,7 +5,7 @@
   "type": "module",
   "description": "Job-first BSC capital operations with reproducible agent advantage evidence",
   "scripts": {
-    "build": "npm run build:core && npm run build:web && npm run build:sites",
+    "build": "npm run build:core && npm run build:web && npm run build:sites && npm run build:termix-renewer",
     "build:core": "tsc -p tsconfig.build.json",
     "build:web": "vite build",
     "build:sites": "node scripts/build-sites.mjs",
@@ -33,7 +33,8 @@
     "preflight:termix": "tsx src/cli/termix-onboarding-preflight.ts",
     "verify:gate2a": "tsx src/cli/run-lending-rescue.ts",
     "verify:all": "tsx src/cli/verify-all-providers.ts",
-    "verify:production": "node scripts/verify-production.mjs"
+    "verify:production": "node scripts/verify-production.mjs",
+    "build:termix-renewer": "esbuild src/cli/renew-termix-runtime-token.ts --bundle --platform=node --format=esm --target=node22 --outfile=dist/runtime/renew-termix-runtime-token.mjs"
   },
   "engines": {
     "node": "22.x"
