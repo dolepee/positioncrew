@@ -188,6 +188,13 @@ async function issueRuntimeToken(
   if (payload.agentId !== config.agentId || typeof payload.token !== "string") {
     throw new Error("TermiX runtime-token response does not match the requested agent");
   }
+  if (
+    payload.token.length < 16 ||
+    payload.token.length > 4_096 ||
+    /\s/.test(payload.token)
+  ) {
+    throw new Error("TermiX issued a malformed runtime token");
+  }
   const expiresAt = issuedExpiry(payload, payload.token, now);
   if (!expiresAt || expiresAt.getTime() < now.getTime() + TERMIX_MIN_ISSUED_LIFETIME_MS) {
     throw new Error("TermiX issued a token without sufficient verified lifetime");

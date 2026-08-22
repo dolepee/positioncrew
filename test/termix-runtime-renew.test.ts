@@ -163,4 +163,22 @@ describe("TermiX runtime-token renewal", () => {
     );
     expect(readFileSync(tokenPath, "utf8")).toBe(original);
   });
+
+  it("refuses a malformed replacement without overwriting the credential", async () => {
+    const { config, tokenPath } = fixture();
+    const original = jwt(Math.floor(NOW.getTime() / 1_000) + 60);
+    writeFileSync(tokenPath, original, { mode: 0o600 });
+    const fetchImpl = vi.fn(async () =>
+      Response.json({
+        agentId: config.agentId,
+        token: "malformed token with spaces",
+        expiresIn: "12h",
+      }),
+    ) as unknown as typeof fetch;
+
+    await expect(renewRuntimeToken(config, { now: NOW, fetchImpl })).rejects.toThrow(
+      "malformed runtime token",
+    );
+    expect(readFileSync(tokenPath, "utf8")).toBe(original);
+  });
 });
