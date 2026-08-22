@@ -294,6 +294,17 @@ describe("dedicated TermiX flagship evidence", () => {
       marketplace: { dedicatedFlagship: { status: "ONLINE_AND_LISTED" } },
     });
   });
+
+  it("uses authoritative A2A status when account presence is stale", async () => {
+    const readiness = await getAacpProductionReadiness({
+      fetchImpl: mockedFetch({ listingA2aStatus: "ONLINE", listingPresence: "offline" }),
+    });
+    expect(readiness.marketplace.dedicatedFlagship).toMatchObject({
+      a2aStatus: "ONLINE",
+      presence: "offline",
+      status: "ONLINE_AND_LISTED",
+    });
+  });
 });
 
 describe("TermiX production AACP readiness", () => {

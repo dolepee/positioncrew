@@ -907,10 +907,33 @@ async function discoverDedicatedFlagship(
   fetchImpl: typeof fetch,
 ) {
   const recorded = AACP_DEDICATED_LENDING_EVIDENCE;
+  const listingResultPromise = fetchJson(
+    `${AACP_BSC_API}/api/v1/listings/${encodeURIComponent(recorded.listingId)}`,
+    fetchImpl,
+  ).then(
+    (value) => {
+      const parsed = DedicatedListingDetailSchema.safeParse(value);
+      return { listing: parsed.success ? parsed.data : null };
+    },
+    () => ({ listing: null }),
+  );
+  const [identity, listingResult] = await Promise.all([identityPromise, listingResultPromise]);
+  if (!listingResult.listing) {
+    return {
+      ...recorded,
+      owner: identity.owner,
+      onchainVerified: identity.onchainVerified,
+      explorerUrl: identity.explorerUrl,
+      listingStatus: null,
+      liveListingVerified: false,
+      a2aStatus: null,
+      presence: null,
+      verified: false,
+      status: "LISTING_DISCOVERY_UNAVAILABLE" as const,
+    };
+  }
   try {
-    const listing = DedicatedListingDetailSchema.parse(
-      await fetchJson(`${AACP_BSC_API}/api/v1/listings/${encodeURIComponent(recorded.listingId)}`, fetchImpl),
-    );
+    const listing = listingResult.listing;
     const expectedFields = [
       ["listing ID", listing.id, recorded.listingId],
       ["title", listing.title, recorded.title],
@@ -939,8 +962,7 @@ async function discoverDedicatedFlagship(
     if (JSON.stringify(listing.tags) !== JSON.stringify(recorded.tags)) {
       throw new Error("Dedicated flagship listing tags mismatch");
     }
-    const identity = await identityPromise;
-    const online = listing.providerAgent.a2aStatus === "ONLINE" && listing.providerAgent.presence === "online";
+    const online = listing.providerAgent.a2aStatus === "ONLINE";
     return {
       ...recorded,
       owner: identity.owner,
@@ -954,7 +976,6 @@ async function discoverDedicatedFlagship(
       status: online ? "ONLINE_AND_LISTED" as const : "LISTED_OFFLINE" as const,
     };
   } catch {
-    const identity = await identityPromise;
     return {
       ...recorded,
       owner: identity.owner,
