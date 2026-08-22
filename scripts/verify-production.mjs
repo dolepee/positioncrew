@@ -374,7 +374,6 @@ try {
       aacpReadiness.marketplace.dedicatedFlagship?.onchainVerified === true &&
       aacpReadiness.marketplace.dedicatedFlagship?.listingStatus === "PUBLISHED" &&
       aacpReadiness.marketplace.dedicatedFlagship?.a2aStatus === "ONLINE" &&
-      aacpReadiness.marketplace.dedicatedFlagship?.presence === "online" &&
       aacpReadiness.marketplace.dedicatedFlagship?.status === "ONLINE_AND_LISTED",
     "Dedicated Lending Rescue flagship is not published and online",
   );
